@@ -1,0 +1,134 @@
+===========================================
+DataHub Pro — Docker & Deployment Files
+===========================================
+
+Complete deployment configuration for a SaaS product with FastAPI backend, 
+React frontend, PostgreSQL database, and production-grade nginx setup.
+
+FILES CREATED (8 total):
+
+1. docker-compose.yml (107 lines)
+   - PostgreSQL 16 container with health checks
+   - Redis 7 container for caching/queues
+   - FastAPI backend service with dependency management
+   - React frontend service with nginx
+   - Production nginx reverse proxy (optional profile)
+   - Named volumes for persistence
+
+2. Dockerfile.backend (29 lines)
+   - Python 3.12-slim base image
+   - Installs PostgreSQL client libs for connectivity
+   - Non-root user for security
+   - Health check endpoint
+   - Uvicorn with 4 workers
+
+3. Dockerfile.frontend (26 lines)
+   - Multi-stage build (Node 20 → nginx alpine)
+   - Optimized build process with npm ci
+   - SPA routing configuration included
+   - Health check implemented
+
+4. nginx.conf (97 lines)
+   - Production-ready reverse proxy configuration
+   - SSL/TLS with TLSv1.2+ support
+   - Rate limiting zones (API: 30r/m, Auth: 10r/m)
+   - Security headers (X-Frame-Options, HSTS, CSP-ready)
+   - Gzip compression enabled
+   - HTTP→HTTPS redirect
+   - Stripe webhook pass-through without rate limiting
+   - Logging configuration
+
+5. nginx-spa.conf (16 lines)
+   - Single Page Application routing
+   - Static asset caching (1 year with immutable flag)
+   - Fallback to index.html for all routes
+
+6. .env.production (27 lines)
+   - Template for all required environment variables
+   - Database credentials
+   - Stripe API keys and price IDs (3 tier pricing)
+   - AWS S3 configuration (optional)
+   - SendGrid email service (optional)
+   - Security token placeholders
+
+7. deploy.sh (56 lines)
+   - Executable deployment automation script
+   - Two modes: 'dev' (local development) and 'prod' (production)
+   - Dev mode: starts Docker containers + local services
+   - Prod mode: builds images, runs migrations, starts full stack
+   - Health-check aware dependency management
+   - User-friendly output with emoji indicators
+   - Make executable: chmod +x deploy.sh
+
+8. README-DEPLOYMENT.md (88 lines)
+   - Local development quick start
+   - Prerequisites checklist
+   - Two AWS deployment options (budget vs. scalable)
+   - Stripe configuration guide
+   - Domain and SSL setup instructions
+   - Environment variables checklist
+   - Monitoring and backup recommendations
+
+DIRECTORY STRUCTURE:
+/sessions/funny-hopeful-cannon/mnt/outputs/datahub-saas/
+└── docker/
+    ├── docker-compose.yml
+    ├── Dockerfile.backend
+    ├── Dockerfile.frontend
+    ├── nginx.conf
+    ├── nginx-spa.conf
+    ├── .env.production
+    ├── deploy.sh (executable)
+    ├── README-DEPLOYMENT.md
+    └── FILE-MANIFEST.txt (this file)
+
+QUICK START:
+
+Development:
+  cd datahub-saas
+  cp docker/.env.production docker/.env
+  chmod +x docker/deploy.sh
+  ./docker/deploy.sh dev
+
+Production (AWS EC2):
+  chmod +x docker/deploy.sh
+  ./docker/deploy.sh prod
+
+KEY FEATURES:
+
+✓ PostgreSQL 16 with health checks
+✓ Redis 7 for future enhancements
+✓ FastAPI with 4 workers
+✓ React with SPA routing
+✓ Production nginx with SSL
+✓ Rate limiting on API endpoints
+✓ Security headers configured
+✓ Gzip compression
+✓ Data persistence volumes
+✓ Stripe integration ready
+✓ AWS S3 compatibility
+✓ SendGrid email support
+✓ Multi-environment setup (dev/prod)
+✓ Automated deployment script
+
+SECURITY FEATURES:
+
+- Non-root user in backend container
+- Health checks for all services
+- Rate limiting on auth endpoints
+- SSL/TLS enforcement
+- Security headers (HSTS, X-Frame-Options, etc.)
+- Gzip compression
+- Environment variable templating
+- Health-aware service dependencies
+
+NEXT STEPS:
+
+1. Copy docker/.env.production to docker/.env
+2. Fill in your Stripe API keys
+3. Generate strong secrets: openssl rand -hex 32
+4. Make deploy.sh executable: chmod +x docker/deploy.sh
+5. Run deployment: ./docker/deploy.sh dev (or prod)
+
+All files are production-ready and follow Docker best practices.
+===========================================
