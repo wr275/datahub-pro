@@ -21,7 +21,7 @@ def get_plans():
         {
             "id": "starter",
             "name": "Starter",
-            "price": 49,
+            "price": 99,
             "currency": "gbp",
             "max_users": 3,
             "max_uploads": 10,
@@ -30,7 +30,7 @@ def get_plans():
         {
             "id": "growth",
             "name": "Growth",
-            "price": 149,
+            "price": 249,
             "currency": "gbp",
             "max_users": 10,
             "max_uploads": "Unlimited",
@@ -39,11 +39,11 @@ def get_plans():
         {
             "id": "enterprise",
             "name": "Enterprise",
-            "price": 499,
+            "price": null,
             "currency": "gbp",
             "max_users": "Unlimited",
             "max_uploads": "Unlimited",
-            "features": ["Unlimited users", "Unlimited uploads", "SSO / SAML", "Data residency", "Dedicated account manager", "SLA guarantee"]
+            "features": ["Unlimited users", "Unlimited uploads", "SSO / SAML", "Data residency", "Dedicated account manager", "SLA guarantee"], "cta": "Contact us"
         },
     ]
 
