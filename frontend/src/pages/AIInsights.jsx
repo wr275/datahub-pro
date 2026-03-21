@@ -8,7 +8,6 @@ function generateInsights(summary) {
   const tc = summary.text_columns || []
   const rows = summary.total_rows || 0
   const cols = summary.total_columns || 0
-
   out.key.push('Dataset has ' + rows.toLocaleString() + ' records and ' + cols + ' columns.')
   if (nc.length) out.key.push(nc.length + ' numeric column' + (nc.length > 1 ? 's' : '') + ' ready for quantitative analysis.')
   if (tc.length) out.key.push(tc.length + ' categorical column' + (tc.length > 1 ? 's' : '') + ' available for grouping and segmentation.')
@@ -17,21 +16,17 @@ function generateInsights(summary) {
     const top = ws.reduce(function(a, b) { return a.mean > b.mean ? a : b })
     out.key.push('"' + top.column + '" has the highest average: ' + Number(top.mean).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '.')
   }
-
   const miss = nc.filter(function(c) { return c.missing > 0 })
   if (!miss.length) {
     out.quality.push('All numeric columns are complete - no missing values detected.')
   } else {
-    miss.forEach(function(c) {
-      out.quality.push('"' + c.column + '": ' + c.missing + ' missing values (' + ((c.missing / rows) * 100).toFixed(1) + '%).')
-    })
+    miss.forEach(function(c) { out.quality.push('"' + c.column + '": ' + c.missing + ' missing values (' + ((c.missing / rows) * 100).toFixed(1) + '%).') })
   }
   const tmiss = tc.filter(function(c) { return c.missing > 0 })
   if (tmiss.length) out.quality.push(tmiss.length + ' categorical column' + (tmiss.length > 1 ? 's' : '') + ' have missing values.')
   else if (tc.length) out.quality.push('All categorical columns are complete with no missing values.')
   if (rows < 100) out.quality.push('Small dataset - statistical conclusions may have limited reliability.')
   else if (rows > 10000) out.quality.push('Large dataset (' + rows.toLocaleString() + ' rows) - results are statistically robust.')
-
   nc.forEach(function(c) {
     if (c.std != null && c.mean != null && c.mean !== 0) {
       const cv = Math.abs(c.std / c.mean)
@@ -45,12 +40,10 @@ function generateInsights(summary) {
     })
   }
   if (!out.highlights.length) out.highlights.push('No notable anomalies detected in numeric distributions.')
-
   if (nc.length >= 2) out.recs.push('Use the Analytics page to visualise and compare your numeric columns.')
   if (tc.length && nc.length) out.recs.push('Run RFM Analysis to segment customers if you have transaction or order data.')
   if (rows >= 30) out.recs.push('Try the Trends page to identify patterns over time if you have a date column.')
   out.recs.push('Share insights with teammates via the Team page for collaborative review.')
-
   return out
 }
 
@@ -85,7 +78,20 @@ export default function AIInsights() {
     if (!fileId) return
     setLoading(true); setError(''); setSummary(null)
     analyticsApi.summary(fileId)
-      .then(function(r) { setSummary(r.data) })
+      .then(function(r) {
+        var raw = r.data
+        var numericCols = []
+        var textCols = []
+        Object.entries(raw.summary || {}).forEach(function(entry) {
+          var col = entry[0]; var stats = entry[1]
+          if (stats.type === 'numeric') {
+            numericCols.push({ column: col, mean: stats.mean, min: stats.min, max: stats.max, std: null, missing: (raw.rows || 0) - (stats.count || 0) })
+          } else {
+            textCols.push({ column: col, missing: (raw.rows || 0) - (stats.count || 0) })
+          }
+        })
+        setSummary({ filename: raw.filename, total_rows: raw.rows, total_columns: raw.columns, numeric_columns: numericCols, text_columns: textCols })
+      })
       .catch(function() { setError('Analysis failed. Please check the file and try again.') })
       .finally(function() { setLoading(false) })
   }
@@ -96,27 +102,22 @@ export default function AIInsights() {
     <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ margin: '0 0 6px', fontSize: '1.6rem', fontWeight: 800, color: '#0c1446' }}>AI Insights</h1>
       <p style={{ margin: '0 0 28px', color: '#6b7280', fontSize: '0.95rem' }}>Auto-generated findings, quality checks and recommendations from your data</p>
-
       <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 28 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Select file to analyse</div>
-            <select value={fileId} onChange={function(e) { setFileId(e.target.value); setSummary(null) }}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', background: '#fff' }}>
+            <select value={fileId} onChange={function(e) { setFileId(e.target.value); setSummary(null) }} style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', background: '#fff' }}>
               <option value="">-- Choose a file --</option>
               {files.map(function(f) { return <option key={f.id} value={f.id}>{f.filename}</option> })}
             </select>
           </div>
-          <button onClick={run} disabled={!fileId || loading}
-            style={{ padding: '10px 28px', background: (fileId && !loading) ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.9rem', cursor: (fileId && !loading) ? 'pointer' : 'default' }}>
+          <button onClick={run} disabled={!fileId || loading} style={{ padding: '10px 28px', background: (fileId && !loading) ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.9rem', cursor: (fileId && !loading) ? 'pointer' : 'default' }}>
             {loading ? 'Analysing...' : 'Generate Insights'}
           </button>
         </div>
         {!files.length && <div style={{ marginTop: 10, fontSize: '0.85rem', color: '#9ca3af' }}>No files found. Upload a CSV or Excel file via My Files first.</div>}
       </div>
-
       {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: 14, borderRadius: 8, color: '#dc2626', fontSize: '0.875rem', marginBottom: 20 }}>{error}</div>}
-
       {loading && (
         <div style={{ textAlign: 'center', padding: 60 }}>
           <div style={{ width: 40, height: 40, border: '4px solid #f3f4f6', borderTop: '4px solid #e91e8c', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
@@ -124,7 +125,6 @@ export default function AIInsights() {
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
-
       {summary && (
         <div>
           <div style={{ background: 'linear-gradient(135deg,#0c1446,#0097b2)', borderRadius: 12, padding: 18, marginBottom: 24, color: '#fff', display: 'flex', gap: 32, flexWrap: 'wrap' }}>
@@ -142,7 +142,6 @@ export default function AIInsights() {
           </div>
         </div>
       )}
-
       {!summary && !loading && (
         <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12, color: '#d1d5db', fontWeight: 300 }}>[ ? ]</div>
