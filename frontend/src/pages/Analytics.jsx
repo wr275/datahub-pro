@@ -36,9 +36,9 @@ export default function Analytics() {
       <div style={{ textAlign: 'center', padding: '80px 24px' }}>
         <div style={{ fontSize: '3rem', marginBottom: 16 }}>[chart]</div>
         <h2 style={{ color: '#0c1446', fontWeight: 800, marginBottom: 8 }}>No file selected</h2>
-        <p style={{ color: '#8b92b3', marginBottom: 24 }}>Go to your files and click "Analyse" to get started.</p>
+        <p style={{ color: '#8b92b3', marginBottom: 24 }}>Go to your files and click Analyse to get started.</p>
         <button onClick={() => navigate('/files')} style={{ background: '#e91e8c', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}>
-          Go to Files ->
+          Go to Files
         </button>
       </div>
     )
@@ -58,7 +58,7 @@ export default function Analytics() {
   if (error) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 16 }}>[!]</div>
+        <div style={{ fontSize: '3rem', marginBottom: 16 }}>[error]</div>
         <h2 style={{ color: '#0c1446', fontWeight: 800, marginBottom: 8 }}>Something went wrong</h2>
         <p style={{ color: '#8b92b3', marginBottom: 24 }}>{error}</p>
         <button onClick={() => navigate('/files')} style={{ background: '#e91e8c', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '1rem' }}>
@@ -76,10 +76,10 @@ export default function Analytics() {
   return (
     <div style={{ padding: '0 4px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate('/files')} style={{ background: 'none', border: '1px solid #e2e4f0', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', color: '#8b92b3', fontSize: '0.9rem' }}><- Back</button>
+        <button onClick={() => navigate('/files')} style={{ background: 'none', border: '1px solid #e2e4f0', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', color: '#8b92b3', fontSize: '0.9rem' }}>Back to Files</button>
         <div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0c1446', margin: 0 }}>{summary.filename}</h1>
-          <p style={{ color: '#8b92b3', margin: 0, fontSize: '0.85rem' }}>{summary.rows.toLocaleString()} rows · {summary.columns} columns</p>
+          <p style={{ color: '#8b92b3', margin: 0, fontSize: '0.85rem' }}>{summary.rows.toLocaleString()} rows - {summary.columns} columns</p>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export default function Analytics() {
                   {k.sum >= 1000 ? k.sum.toLocaleString() : k.sum}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#8b92b3' }}>
-                  Avg: {k.mean} · Min: {k.min} · Max: {k.max}
+                  Avg: {k.mean} - Min: {k.min} - Max: {k.max}
                 </div>
               </div>
             ))}
@@ -138,7 +138,7 @@ export default function Analytics() {
             {textCols.map(([col, v]) => (
               <div key={col} style={{ background: '#fff', borderRadius: 10, padding: '16px 20px', boxShadow: '0 1px 4px rgba(12,20,70,0.07)', border: '1px solid #f0f1f8' }}>
                 <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 4 }}>{col}</div>
-                <div style={{ fontSize: '0.8rem', color: '#8b92b3', marginBottom: 8 }}>{v.count} entries · {v.unique} unique</div>
+                <div style={{ fontSize: '0.8rem', color: '#8b92b3', marginBottom: 8 }}>{v.count} entries - {v.unique} unique values</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {v.top_values.slice(0, 8).map(val => (
                     <span key={val} style={{ background: '#f0f1f8', borderRadius: 4, padding: '2px 8px', fontSize: '0.78rem', color: '#444' }}>{val}</span>
