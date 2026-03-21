@@ -36,7 +36,7 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" defaultValue={user?.full_name} disabled style={{ background: '#f8f9fc' }} /></div>
             <div className="form-group"><label className="form-label">Email Address</label><input className="form-input" defaultValue={user?.email} disabled style={{ background: '#f8f9fc' }} /></div>
-            <div className="form-group"><label className="form-label">Organisation</label><input className="form-input" defaultValue={user?.organisation} disabled style={{ background: '#f8f9fc' }} /></div>
+            <div className="form-group"><label className="form-label">Organisation</label><input className="form-input" defaultValue={user?.organisation?.name} disabled style={{ background: '#f8f9fc' }} /></div>
             <div className="form-group"><label className="form-label">Role</label><input className="form-input" defaultValue={user?.role} disabled style={{ background: '#f8f9fc', textTransform: 'capitalize' }} /></div>
           </div>
           <p style={{ fontSize: '0.78rem', color: '#8b92b3', marginTop: 12 }}>To update your profile details, contact your workspace owner.</p>
