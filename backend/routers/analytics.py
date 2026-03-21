@@ -100,3 +100,21 @@ def get_kpis(file_id: str, current_user: User = Depends(get_current_user),
             pass
 
     return kpis
+
+
+@router.post("/preview/{file_id}")
+def get_preview(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows, filename = load_file_data(file_id, current_user.organisation_id, db)
+    if not rows:
+        return {"filename": filename, "headers": [], "rows": [], "total_rows": 0}
+    headers = list(rows[0].keys())
+    clean_rows = []
+    for row in rows[:100]:
+        clean_row = {}
+        for k, v in row.items():
+            if v is None:
+                clean_row[k] = ""
+            else:
+                clean_row[k] = str(v)
+        clean_rows.append(clean_row)
+    return {"filename": filename, "headers": headers, "rows": clean_rows, "total_rows": len(rows)}
