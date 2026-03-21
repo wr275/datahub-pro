@@ -102,3 +102,10 @@ class AuditLog(Base):
     ip_address = Column(String(45), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     user = relationship("User", back_populates="audit_logs")
+
+
+class FileContent(Base):
+    __tablename__ = "file_contents"
+    file_id = Column(String, ForeignKey("data_files.id", ondelete="CASCADE"), primary_key=True)
+    raw_content = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
