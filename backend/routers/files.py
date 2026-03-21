@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from database import get_db, User, DataFile, Organisation
+from database import get_db, User, DataFile, Organisation, FileContent
 from auth_utils import get_current_user
 from config import settings
 import uuid
 import os
 import json
+import base64
 from datetime import datetime
 
 router = APIRouter()
@@ -40,20 +41,15 @@ async def upload_file(
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, and .csv files are allowed")
-
     org = current_user.organisation
     if not org:
         raise HTTPException(status_code=403, detail="No organisation found")
-
     if not check_upload_quota(org, db):
         raise HTTPException(status_code=429, detail="Monthly upload limit reached. Please upgrade your plan.")
-
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 50MB.")
-
     storage_key = save_file_local(content, file.filename)
-
     row_count = None
     col_count = None
     columns = []
@@ -77,7 +73,6 @@ async def upload_file(
                 col_count = len(columns)
     except Exception:
         pass
-
     file_id = str(uuid.uuid4())
     db_file = DataFile(
         id=file_id,
@@ -95,7 +90,15 @@ async def upload_file(
     db.add(db_file)
     db.commit()
     db.refresh(db_file)
-
+    try:
+        db_content = FileContent(
+            file_id=file_id,
+            raw_content=base64.b64encode(content).decode('utf-8')
+        )
+        db.add(db_content)
+        db.commit()
+    except Exception:
+        pass
     return {
         "id": file_id,
         "filename": file.filename,
@@ -114,7 +117,6 @@ def list_files(
     files = db.query(DataFile).filter(
         DataFile.organisation_id == current_user.organisation_id
     ).order_by(DataFile.created_at.desc()).all()
-
     return [
         {
             "id": f.id,
@@ -140,15 +142,15 @@ def get_file_data(
     ).first()
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
-
     path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
-
-    import base64
-    with open(path, "rb") as fp:
-        data = base64.b64encode(fp.read()).decode()
-
+    if os.path.exists(path):
+        with open(path, "rb") as fp:
+            data = base64.b64encode(fp.read()).decode()
+    else:
+        db_content = db.query(FileContent).filter(FileContent.file_id == file_id).first()
+        if not db_content:
+            raise HTTPException(status_code=404, detail="File not found on disk or in database")
+        data = db_content.raw_content
     return {"filename": f.original_filename, "data": data, "encoding": "base64"}
 
 @router.delete("/{file_id}")
@@ -163,11 +165,9 @@ def delete_file(
     ).first()
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
-
     path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
     if os.path.exists(path):
         os.remove(path)
-
     db.delete(f)
     db.commit()
     return {"message": "File deleted"}
