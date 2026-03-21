@@ -68,14 +68,14 @@ export default function LandingPage() {
           <p style={{ color: '#4a5280', marginBottom: 48 }}>Start free. Scale as you grow.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
             {[
-              { name: 'Starter', price: '49', desc: '/month', features: ['3 users', '10 uploads/month', 'All analytics tools', 'Email support'], color: '#0097b2' },
-              { name: 'Growth', price: '149', desc: '/month', features: ['10 users', 'Unlimited uploads', 'AI features', 'Scheduled reports', 'Priority support'], color: '#e91e8c', popular: true },
-              { name: 'Enterprise', price: '499', desc: '/month', features: ['Unlimited users', 'Unlimited uploads', 'SSO / SAML', 'Data residency', 'Dedicated support', 'SLA guarantee'], color: '#0c1446' },
+              { name: 'Starter', price: '99', desc: '/month', features: ['3 users', '10 uploads/month', 'All analytics tools', 'Email support'], color: '#0097b2' },
+              { name: 'Growth', price: '249', desc: '/month', features: ['10 users', 'Unlimited uploads', 'AI features', 'Scheduled reports', 'Priority support'], color: '#e91e8c', popular: true },
+              { name: 'Enterprise', price: null, desc: 'Contact us', features: ['Unlimited users', 'Unlimited uploads', 'SSO / SAML', 'Data residency', 'Dedicated support', 'SLA guarantee'], color: '#0c1446' },
             ].map((p, i) => (
               <div key={i} style={{ background: '#fff', borderRadius: 14, padding: 28, border: p.popular ? '2px solid #e91e8c' : '1px solid #e2e5f1', position: 'relative' }}>
                 {p.popular && <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#e91e8c', color: '#fff', padding: '4px 16px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700 }}>MOST POPULAR</div>}
                 <h3 style={{ fontWeight: 800, color: '#0c1446', marginBottom: 8 }}>{p.name}</h3>
-                <div style={{ marginBottom: 20 }}><span style={{ fontSize: '2.2rem', fontWeight: 900, color: p.color }}>£{p.price}</span><span style={{ color: '#8b92b3' }}>{p.desc}</span></div>
+                <div style={{ marginBottom: 20 }}>{p.price ? <><span style={{ fontSize: '2.2rem', fontWeight: 900, color: p.color }}>£{p.price}</span><span style={{ color: '#8b92b3' }}>{p.desc}</span></> : <span style={{ fontSize: '1.8rem', fontWeight: 900, color: p.color }}>{p.desc}</span>}</div>
                 <ul style={{ listStyle: 'none', marginBottom: 24, textAlign: 'left' }}>
                   {p.features.map((f, j) => <li key={j} style={{ padding: '4px 0', fontSize: '0.85rem', color: '#4a5280' }}>✓ {f}</li>)}
                 </ul>
