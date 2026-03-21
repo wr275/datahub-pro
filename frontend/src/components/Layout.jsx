@@ -44,7 +44,7 @@ export default function Layout({ children }) {
           {sidebarOpen && (
             <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', marginBottom: 10 }}>
               <div style={{ color: '#fff', fontWeight: 600 }}>{user?.full_name || user?.email}</div>
-              <div>{user?.organisation}</div>
+              <div>{user?.organisation?.name}</div>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
