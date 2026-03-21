@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db, User, DataFile
+from database import get_db, User, DataFile, FileContent
 from auth_utils import get_current_user
 from config import settings
 import os
@@ -13,17 +13,17 @@ def load_file_data(file_id: str, org_id: str, db: Session):
     f = db.query(DataFile).filter(DataFile.id == file_id, DataFile.organisation_id == org_id).first()
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
-
     path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
-
-    with open(path, "rb") as fp:
-        raw = fp.read()
-
+    if os.path.exists(path):
+        with open(path, "rb") as fp:
+            raw = fp.read()
+    else:
+        db_content = db.query(FileContent).filter(FileContent.file_id == file_id).first()
+        if not db_content:
+            raise HTTPException(status_code=404, detail="File not found on disk or in database. Please re-upload.")
+        raw = base64.b64decode(db_content.raw_content)
     ext = os.path.splitext(f.original_filename)[1].lower()
     rows = []
-
     if ext in [".xlsx", ".xls"]:
         import openpyxl
         import io
@@ -37,19 +37,15 @@ def load_file_data(file_id: str, org_id: str, db: Session):
         import io
         reader = csv.DictReader(io.StringIO(raw.decode("utf-8", errors="ignore")))
         rows = list(reader)
-
     return rows, f.original_filename
 
 @router.post("/summary/{file_id}")
 def get_summary(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows, filename = load_file_data(file_id, current_user.organisation_id, db)
-
     if not rows:
         return {"filename": filename, "rows": 0, "columns": [], "summary": {}}
-
     headers = list(rows[0].keys())
     summary = {}
-
     for h in headers:
         vals = [r[h] for r in rows if r[h] is not None and r[h] != ""]
         try:
@@ -70,20 +66,15 @@ def get_summary(file_id: str, current_user: User = Depends(get_current_user), db
                 "unique": len(unique),
                 "top_values": unique[:10]
             }
-
     return {"filename": filename, "rows": len(rows), "columns": len(headers), "summary": summary}
 
 @router.post("/kpi/{file_id}")
-def get_kpis(file_id: str, current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)):
+def get_kpis(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows, filename = load_file_data(file_id, current_user.organisation_id, db)
-
     if not rows:
         return []
-
     headers = list(rows[0].keys())
     kpis = []
-
     for h in headers:
         try:
             nums = [float(r[h]) for r in rows if r[h] is not None and r[h] != ""]
@@ -98,9 +89,7 @@ def get_kpis(file_id: str, current_user: User = Depends(get_current_user),
                 })
         except (ValueError, TypeError):
             pass
-
     return kpis
-
 
 @router.post("/preview/{file_id}")
 def get_preview(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
