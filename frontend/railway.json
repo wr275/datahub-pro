@@ -5,7 +5,6 @@
   },
   "deploy": {
     "startCommand": "npx serve -s dist -l $PORT",
-    "buildCommand": "npm install && npm run build",
     "healthcheckPath": "/",
     "healthcheckTimeout": 30
   }
