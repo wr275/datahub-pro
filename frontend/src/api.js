@@ -42,6 +42,7 @@ export const filesApi = {
 }
 
 export const analyticsApi = {
+  preview: (fileId) => api.get(`/analytics/preview/${fileId}`),
   summary: (fileId) => api.post(`/analytics/summary/${fileId}`),
   kpis: (fileId) => api.post(`/analytics/kpi/${fileId}`),
 }

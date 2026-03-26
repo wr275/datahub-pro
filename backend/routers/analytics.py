@@ -40,6 +40,15 @@ def load_file_data(file_id: str, org_id: str, db: Session):
 
     return rows, f.original_filename
 
+
+@router.get("/preview/{file_id}")
+def preview_file(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows, filename = load_file_data(file_id, current_user.organisation_id, db)
+    if not rows:
+        return {"filename": filename, "headers": [], "rows": []}
+    headers = list(rows[0].keys())
+    return {"filename": filename, "headers": headers, "rows": rows}
+
 @router.post("/summary/{file_id}")
 def get_summary(file_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     rows, filename = load_file_data(file_id, current_user.organisation_id, db)
