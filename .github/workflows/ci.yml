@@ -1,0 +1,116 @@
+name: CI — DataHub Pro
+
+on:
+  push:
+    branches: [stable, main]
+  pull_request:
+    branches: [stable, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PLAYWRIGHT_BASE_URL: https://modest-renewal-demo.up.railway.app
+
+jobs:
+
+  # 1. Unit Tests
+  unit-tests:
+    name: Unit Tests (Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: frontend/coverage/
+          retention-days: 14
+
+  # 2. Frontend Build Check
+  build-check:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # 3. E2E Tests — only after a push to stable (demo just redeployed)
+  e2e-tests:
+    name: E2E Tests (Demo)
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build-check]
+    if: github.ref == 'refs/heads/stable' && github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for Railway demo redeployment
+        run: |
+          echo "Waiting 90s for Railway to finish deploying..."
+          sleep 90
+      - name: Health-check demo frontend
+        run: curl --fail --silent --retry 6 --retry-delay 15 https://modest-renewal-demo.up.railway.app
+      - name: Health-check demo backend
+        run: curl --fail --silent --retry 6 --retry-delay 15 ${{ secrets.DEMO_BACKEND_URL }}/api/health
+        continue-on-error: true
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PLAYWRIGHT_BASE_URL }}
+          TEST_USER_EMAIL: ${{ secrets.DEMO_TEST_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.DEMO_TEST_PASSWORD }}
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+  # 4. Production Health Check — after push to main
+  health-check-production:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Wait for Railway production redeployment
+        run: sleep 90
+      - name: Check production frontend
+        run: curl --fail --silent --retry 6 --retry-delay 15 https://datahub-pro-production.up.railway.app
+      - name: Check production backend
+        run: curl --fail --silent --retry 6 --retry-delay 15 ${{ secrets.PROD_BACKEND_URL }}/api/health
+        continue-on-error: true
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Production health check failed — check Railway dashboard"
