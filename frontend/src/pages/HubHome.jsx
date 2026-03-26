@@ -127,7 +127,7 @@ function AIAssistant({ files }) {
   const selectedFileName = files.find(f => f.id === selectedFile)?.original_filename || ''
 
   return (
-    <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 220px)', minHeight: 480 }}>
+    <div style={{ display: 'flex', gap: 20, height: '100%', minHeight: 480 }}>
 
       {/* Left panel — file selector + suggestions */}
       <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -305,62 +305,88 @@ export default function HubHome() {
   ]
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 20, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.02em' }}>
-            {greeting}, {firstName} 👋
-          </h1>
-          <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
-            {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 12 }}>
-          {[
-            { label: 'Files', value: loading ? '—' : stats.files, icon: '📁', color: '#0097b2' },
-            { label: 'Total Rows', value: loading ? '—' : stats.rows.toLocaleString(), icon: '📊', color: '#e91e8c' },
-            { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: '⭐', color: '#7c3aed' },
-          ].map(s => (
-            <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 100, border: '1px solid #f0f2f8' }}>
-              <div style={{ fontSize: '1.1rem', marginBottom: 2 }}>{s.icon}</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f0f2f8', borderRadius: 12, padding: 4, width: 'fit-content' }}>
+      {/* ── Chrome-style tab bar ───────────────────────────────────────────── */}
+      <div style={{
+        background: '#0c1446',
+        display: 'flex',
+        alignItems: 'flex-end',
+        padding: '10px 20px 0',
+        gap: 3,
+        flexShrink: 0,
+        borderBottom: '2px solid #0c1446',
+      }}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            onMouseEnter={e => { if (activeTab !== tab.id) e.currentTarget.style.background = 'rgba(255,255,255,0.18)' }}
+            onMouseLeave={e => { if (activeTab !== tab.id) e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
             style={{
-              padding: '9px 22px', border: 'none', borderRadius: 9, cursor: 'pointer',
-              fontSize: '0.875rem', fontWeight: activeTab === tab.id ? 700 : 500,
-              background: activeTab === tab.id ? '#fff' : 'transparent',
-              color: activeTab === tab.id ? '#0c1446' : '#6b7280',
-              boxShadow: activeTab === tab.id ? '0 1px 6px rgba(0,0,0,0.10)' : 'none',
-              transition: 'all 0.15s'
+              padding: '9px 28px 11px',
+              border: 'none',
+              borderRadius: '10px 10px 0 0',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              fontWeight: activeTab === tab.id ? 700 : 500,
+              background: activeTab === tab.id ? '#f0f2f8' : 'rgba(255,255,255,0.10)',
+              color: activeTab === tab.id ? '#0c1446' : 'rgba(255,255,255,0.72)',
+              transition: 'background 0.15s, color 0.15s',
+              minWidth: 148,
+              letterSpacing: '0.01em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              marginBottom: activeTab === tab.id ? 0 : 0,
+              position: 'relative',
+              bottom: -2,
+              paddingBottom: activeTab === tab.id ? 13 : 11,
             }}>
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* ── AI Assistant Tab ────────────────────────────────────────────────── */}
-      {activeTab === 'ai' && (
-        <AIAssistant files={allFiles} />
+      {/* ── AI Assistant Tab ─ fills remaining height ─────────────────────── */}
+      {activeTab === 'ai'"&& (
+        <div style={{ flex: 1, overflow: 'hidden', background: '#f0f2f8', padding: '20px 24px' }}>
+          <AIAssistant files={allFiles} />
+        </div>
       )}
 
-      {/* ── Dashboard Tab ────────────────────────────────────────────────────── */}
+      {/* ── Dashboard Tab ─ scrollable ────────────────────────────────────── */}
       {activeTab === 'dashboard' && (
-        <>
+        <div style={{ flex: 1, overflowY: 'auto', background: '#f0f2f8' }}>
+          <div style={{ padding: '24px 32px', maxWidth: 1280, margin: '0 auto' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 20, flexWrap: 'wrap' }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.02em' }}>
+                  {greeting}, {firstName} 👋
+                </h1>
+                <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
+                  {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+              {/* Stats */}
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { label: 'Files', value: loading ? '—' : stats.files, icon: '📁', color: '#0097b2' },
+                  { label: 'Total Rows', value: loading ? '—' : stats.rows.toLocaleString(), icon: '📊', color: '#e91e8c' },
+                  { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: '⭐', color: '#7c3aed' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 100, border: '1px solid #f0f2f8' }}>
+                    <div style={{ fontSize: '1.1rem', marginBottom: 2 }}>{s.icon}</div>
+                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           {/* Quick Actions */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Quick Actions</div>
@@ -433,7 +459,8 @@ export default function HubHome() {
               )
             })}
           </div>
-        </>
+          </div>
+        </div>
       )}
     </div>
   )
