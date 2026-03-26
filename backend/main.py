@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
-from routers import auth, files, analytics, billing, users
+from routers import auth, files, analytics, billing, users, ai
 from database import engine, Base
 from config import settings
 
@@ -27,8 +27,11 @@ app = FastAPI(
 )
 
 # Build allowed origins from env — supports comma-separated list
+# e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
+
+# Always include localhost for local dev
 if "http://localhost:3000" not in allowed_origins:
     allowed_origins.append("http://localhost:3000")
 
@@ -45,6 +48,7 @@ app.include_router(users.router,     prefix="/api/users",     tags=["Users"])
 app.include_router(files.router,     prefix="/api/files",     tags=["Files"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(billing.router,   prefix="/api/billing",   tags=["Billing"])
+app.include_router(ai.router,        prefix="/api/ai",        tags=["AI"])
 
 
 def _health_response():
@@ -57,9 +61,9 @@ def health_check():
     return _health_response()
 
 
-@app.get("/api/health", tags=["Health"], summary="API-prefixed health check")
+@app.get("/api/health", tags=["Health"], summary="API health check")
 def api_health_check():
-    """Same liveness probe at the /api prefix for CI pipelines and monitoring."""
+    """Same liveness probe at the /api prefix for CI health checks and monitoring."""
     return _health_response()
 
 
