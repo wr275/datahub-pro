@@ -11,6 +11,13 @@ from config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS file_content BYTEA"))
+            conn.commit()
+    except Exception:
+        pass
     yield
 
 app = FastAPI(

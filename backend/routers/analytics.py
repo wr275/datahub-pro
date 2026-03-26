@@ -14,19 +14,21 @@ def load_file_data(file_id: str, org_id: str, db: Session):
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
 
-    path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
-
-    with open(path, "rb") as fp:
-        raw = fp.read()
-
+    raw = None
+    if f.file_content:
+        raw = bytes(f.file_content)
+    else:
+        path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
+        if os.path.exists(path):
+            with open(path, "rb") as fp:
+                raw = fp.read()
+    if not raw:
+        raise HTTPException(status_code=404, detail="File content not available. Please re-upload the file.")
     ext = os.path.splitext(f.original_filename)[1].lower()
     rows = []
-
+    import io
     if ext in [".xlsx", ".xls"]:
         import openpyxl
-        import io
         wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
         ws = wb.active
         headers = [str(cell.value) for cell in next(ws.iter_rows(min_row=1, max_row=1))]
@@ -34,7 +36,6 @@ def load_file_data(file_id: str, org_id: str, db: Session):
             rows.append(dict(zip(headers, row)))
     elif ext == ".csv":
         import csv
-        import io
         reader = csv.DictReader(io.StringIO(raw.decode("utf-8", errors="ignore")))
         rows = list(reader)
 

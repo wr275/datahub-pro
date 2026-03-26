@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Integer, Boolean, DateTime, Text, Float, ForeignKey, Enum
+from sqlalchemy import create_engine, Column, String, Integer, Boolean, DateTime, Text, Float, ForeignKey, Enum, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
@@ -74,6 +74,7 @@ class DataFile(Base):
     columns_json = Column(Text, nullable=True)
     s3_key = Column(String(1000), nullable=True)
     storage_type = Column(String(50), default="local")
+    file_content = Column(LargeBinary, nullable=True)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())

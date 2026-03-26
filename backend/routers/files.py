@@ -53,6 +53,7 @@ async def upload_file(
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 50MB.")
 
     storage_key = save_file_local(content, file.filename)
+    file_content_db = content
 
     row_count = None
     col_count = None
@@ -89,6 +90,7 @@ async def upload_file(
         columns_json=json.dumps(columns),
         s3_key=storage_key,
         storage_type="local",
+        file_content=file_content_db,
         organisation_id=org.id,
         uploaded_by=current_user.id
     )
