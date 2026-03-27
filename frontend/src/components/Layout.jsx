@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import OnboardingTour from './OnboardingTour'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -187,7 +188,7 @@ export default function Layout({ children }) {
           {NAV.map(({ section, icon, items }) => (
             <div key={section}>
               {sidebarOpen ? (
-                <button onClick={() => toggleSection(section)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <button onClick={() => toggleSection(section)} data-tour={section === 'DATA' ? 'nav-data' : undefined} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   <span>{section}</span>
                   <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? '▶' : '▼'}</span>
                 </button>
@@ -195,7 +196,7 @@ export default function Layout({ children }) {
                 <div style={{ padding: '8px 0 4px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem' }}>{icon}</div>
               )}
               {!collapsed[section] && items.map(item => (
-                <NavLink key={item.path} to={item.path} style={({ isActive }) => ({
+                <NavLink key={item.path} to={item.path} data-tour={item.path === '/dashboard-builder' ? 'nav-dashboard' : undefined} style={({ isActive }) => ({
                   display: 'flex', alignItems: 'center', gap: 10, padding: sidebarOpen ? '7px 16px' : '10px 0',
                   justifyContent: sidebarOpen ? 'flex-start' : 'center',
                   color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
@@ -232,7 +233,7 @@ export default function Layout({ children }) {
             ☰
           </button>
           <div style={{ flex: 1 }} />
-          <NavLink to="/files" style={{ padding: '6px 14px', background: '#e91e8c', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
+          <NavLink to="/files" data-tour="upload-btn" style={{ padding: '6px 14px', background: '#e91e8c', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
             + Upload Data
           </NavLink>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -251,6 +252,7 @@ export default function Layout({ children }) {
           {children}
         </main>
       </div>
+    <OnboardingTour />
     </div>
   )
 }
