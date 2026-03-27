@@ -23,6 +23,8 @@ const NAV = [
       { label: 'Data Cleaner', path: '/data-cleaner', icon: '🧹' },
       { label: 'Advanced Filter', path: '/advanced-filter', icon: '🔍' },
       { label: 'Value Frequency', path: '/value-frequency', icon: '📊' },
+      { label: 'Connect Data', path: '/connect-data', icon: '🔌' },
+      { label: 'Data Pipelines', path: '/data-pipelines', icon: '⚙️' },
     ]
   },
   {
