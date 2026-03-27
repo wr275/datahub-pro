@@ -1,177 +1,285 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { connectorsApi } from '../api'
 
-const SHOPIFY_ICON = (
-  <svg viewBox="0 0 109.5 124.5" width="32" height="32" fill="#96BF48">
-    <path d="M74.7 14.8s-.3.9-.8 2.5c-.8-.2-1.8-.4-2.8-.4-3.4 0-5 1.6-5 1.6s-2.2-1.5-6.2-1.5c-8 0-11.9 5.8-13 11.6-3.7 1.2-6.3 2-6.3 2l-.1.1c-.2.8-.2 1.6-.2 2.4 0 0-3.3 24.2-3.3 37.7C37 84.5 62 95 62 95s24-10.5 24-26.2c0-13.5-3.3-37.7-3.3-37.7l-.1-.1s-2.6-.8-6.3-2c-.4-3.8-2-7.8-5.2-10.7 1.5-3 3.6-3.5 3.6-3.5z"/>
-  </svg>
-)
+const CONNECTOR_TYPES = [
+  {
+    id: 'shopify',
+    name: 'Shopify',
+    icon: '🛒',
+    color: '#96bf48',
+    description: 'Pull orders, products, and customers from your Shopify store',
+    available: true,
+    tooltip: 'Connect your Shopify store using a private app access token to automatically import live data.',
+  },
+  {
+    id: 'quickbooks',
+    name: 'QuickBooks',
+    icon: '💼',
+    color: '#2ca01c',
+    description: 'Import invoices, expenses, and P&L data',
+    available: false,
+    tooltip: 'QuickBooks integration coming soon — will sync invoices, expenses, and profit & loss reports.',
+  },
+  {
+    id: 'xero',
+    name: 'Xero',
+    icon: '📘',
+    color: '#1ab4d7',
+    description: 'Sync accounts, invoices, and contacts',
+    available: false,
+    tooltip: 'Xero integration coming soon — will sync accounting data and contacts automatically.',
+  },
+]
 
-function Modal({ onClose, onSave }) {
-  const [form, setForm] = useState({ shop_domain: '', access_token: '', data_type: 'orders', name: '' })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+const RESOURCE_OPTIONS = [
+  { value: 'orders', label: 'Orders', tooltip: 'Pull all sales orders including status, totals, and customer info' },
+  { value: 'products', label: 'Products', tooltip: 'Pull product catalogue with variants, SKUs, and inventory levels' },
+  { value: 'customers', label: 'Customers', tooltip: 'Pull customer list with spend history and contact details' },
+]
 
-  const submit = async () => {
-    if (!form.shop_domain || !form.access_token) { setError('Shop domain and access token are required'); return }
-    setLoading(true); setError('')
-    try {
-      await connectorsApi.connectShopify(form)
-      onSave()
-    } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to connect')
-    } finally { setLoading(false) }
-  }
-
+function Tooltip({ text }) {
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-      <div style={{ background:'#1e1e2e', border:'1px solid #333', borderRadius:12, padding:32, width:460, maxWidth:'90vw' }}>
-        <h3 style={{ margin:'0 0 20px', color:'#fff', fontSize:18 }}>Connect Shopify Store</h3>
-        {error && <div style={{ background:'#ff4444', color:'#fff', padding:'8px 12px', borderRadius:6, marginBottom:16, fontSize:13 }}>{error}</div>}
-        <label style={{ display:'block', marginBottom:16 }}>
-          <span style={{ display:'block', color:'#aaa', fontSize:12, marginBottom:6 }}>Connector Name (optional)</span>
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="My Shopify Store" style={{ width:'100%', background:'#2a2a3e', border:'1px solid #444', borderRadius:6, padding:'8px 12px', color:'#fff', boxSizing:'border-box' }} />
-        </label>
-        <label style={{ display:'block', marginBottom:16 }}>
-          <span style={{ display:'block', color:'#aaa', fontSize:12, marginBottom:6 }}>Shop Domain *</span>
-          <input value={form.shop_domain} onChange={e => setForm(f => ({ ...f, shop_domain: e.target.value }))} placeholder="mystore.myshopify.com" style={{ width:'100%', background:'#2a2a3e', border:'1px solid #444', borderRadius:6, padding:'8px 12px', color:'#fff', boxSizing:'border-box' }} />
-        </label>
-        <label style={{ display:'block', marginBottom:16 }}>
-          <span style={{ display:'block', color:'#aaa', fontSize:12, marginBottom:6 }}>Access Token *</span>
-          <input type="password" value={form.access_token} onChange={e => setForm(f => ({ ...f, access_token: e.target.value }))} placeholder="shpat_..." style={{ width:'100%', background:'#2a2a3e', border:'1px solid #444', borderRadius:6, padding:'8px 12px', color:'#fff', boxSizing:'border-box' }} />
-          <span style={{ fontSize:11, color:'#666', marginTop:4, display:'block' }}>Find this in Shopify Admin → Apps → Private apps</span>
-        </label>
-        <label style={{ display:'block', marginBottom:24 }}>
-          <span style={{ display:'block', color:'#aaa', fontSize:12, marginBottom:6 }}>Data Type</span>
-          <select value={form.data_type} onChange={e => setForm(f => ({ ...f, data_type: e.target.value }))} style={{ width:'100%', background:'#2a2a3e', border:'1px solid #444', borderRadius:6, padding:'8px 12px', color:'#fff', boxSizing:'border-box' }}>
-            <option value="orders">Orders</option>
-            <option value="products">Products</option>
-            <option value="customers">Customers</option>
-          </select>
-        </label>
-        <div style={{ display:'flex', gap:12, justifyContent:'flex-end' }}>
-          <button onClick={onClose} style={{ padding:'8px 20px', borderRadius:6, border:'1px solid #444', background:'transparent', color:'#aaa', cursor:'pointer' }}>Cancel</button>
-          <button onClick={submit} disabled={loading} style={{ padding:'8px 20px', borderRadius:6, border:'none', background:'#96BF48', color:'#fff', cursor:'pointer', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Connecting...' : 'Connect'}
-          </button>
-        </div>
-      </div>
+    <div style={{
+      position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+      background: '#0c1446', color: '#fff', fontSize: '0.75rem', padding: '6px 10px',
+      borderRadius: 6, whiteSpace: 'nowrap', zIndex: 100, pointerEvents: 'none',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)', marginBottom: 6,
+      maxWidth: 240, whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.4,
+    }}>
+      {text}
+      <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #0c1446' }} />
     </div>
   )
 }
 
 export default function ConnectData() {
+  const navigate = useNavigate()
   const [connectors, setConnectors] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [syncing, setSyncing] = useState({})
-  const [message, setMessage] = useState('')
+  const [syncing, setSyncing] = useState(null)
+  const [tooltip, setTooltip] = useState(null)
+  const [form, setForm] = useState({ name: '', shop_domain: '', access_token: '', resource: 'orders' })
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState(null)
 
-  const load = async () => {
-    try { const r = await connectorsApi.list(); setConnectors(r.data) } catch {}
+  useEffect(() => {
+    loadConnectors()
+  }, [])
+
+  const loadConnectors = () => {
+    setLoading(true)
+    connectorsApi.list()
+      .then(r => setConnectors(r.data || []))
+      .catch(() => setConnectors([]))
+      .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
-
-  const handleSync = async (id) => {
-    setSyncing(s => ({ ...s, [id]: true }))
+  const handleConnect = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setMessage(null)
     try {
-      await connectorsApi.sync(id)
-      setMessage('Sync complete!'); load()
-      setTimeout(() => setMessage(''), 3000)
-    } catch (e) {
-      setMessage(e.response?.data?.detail || 'Sync failed')
-      setTimeout(() => setMessage(''), 3000)
-    } finally { setSyncing(s => ({ ...s, [id]: false })) }
+      const resp = await connectorsApi.connectShopify(form)
+      setMessage({ type: 'success', text: `✅ ${resp.data.message}` })
+      setShowModal(false)
+      setForm({ name: '', shop_domain: '', access_token: '', resource: 'orders' })
+      loadConnectors()
+    } catch (err) {
+      setMessage({ type: 'error', text: `❌ ${err.response?.data?.detail || 'Connection failed'}` })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Remove this connector?')) return
-    try { await connectorsApi.remove(id); load() } catch {}
+  const handleSync = async (connectorId) => {
+    setSyncing(connectorId)
+    setMessage(null)
+    try {
+      const resp = await connectorsApi.sync(connectorId)
+      setMessage({ type: 'success', text: `✅ ${resp.data.message}` })
+      loadConnectors()
+    } catch (err) {
+      setMessage({ type: 'error', text: `❌ ${err.response?.data?.detail || 'Sync failed'}` })
+    } finally {
+      setSyncing(null)
+    }
+  }
+
+  const handleRemove = async (connectorId) => {
+    if (!window.confirm('Remove this connector?')) return
+    try {
+      await connectorsApi.remove(connectorId)
+      loadConnectors()
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to remove connector' })
+    }
   }
 
   return (
-    <div style={{ padding:32, maxWidth:900, margin:'0 auto' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:32 }}>
+    <div style={{ padding: '28px 32px', maxWidth: 1100, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
-          <h1 style={{ color:'#fff', margin:0, fontSize:24 }}>Data Connectors</h1>
-          <p style={{ color:'#888', margin:'8px 0 0', fontSize:14 }}>Connect live data sources. Data is pulled and saved as a dataset you can use in dashboards and pipelines.</p>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, color: '#0c1446' }}>🔌 Connect Data</h1>
+          <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
+            Pull live data from external platforms directly into DataHub Pro
+          </p>
         </div>
+        <button onClick={() => navigate('/hub')} style={{ padding: '8px 16px', background: '#f8f9ff', border: '1px solid #e8eaf4', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', color: '#6b7280' }}>
+          ← Back to Hub
+        </button>
       </div>
 
-      {message && <div style={{ background: message.includes('fail') || message.includes('Sync failed') ? '#ff4444' : '#22c55e', color:'#fff', padding:'10px 16px', borderRadius:8, marginBottom:20, fontSize:14 }}>{message}</div>}
-
-      {/* Available connectors */}
-      <h2 style={{ color:'#ccc', fontSize:15, marginBottom:16, fontWeight:500 }}>Available Connectors</h2>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:16, marginBottom:40 }}>
-        {/* Shopify */}
-        <div style={{ background:'#1e1e2e', border:'1px solid #333', borderRadius:12, padding:24 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-            <div style={{ width:48, height:48, background:'#f6f0e8', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>🛒</div>
-            <div>
-              <div style={{ color:'#fff', fontWeight:600, fontSize:15 }}>Shopify</div>
-              <div style={{ color:'#888', fontSize:12 }}>Orders, Products, Customers</div>
-            </div>
-          </div>
-          <p style={{ color:'#aaa', fontSize:13, margin:'0 0 16px', lineHeight:1.5 }}>Pull live Shopify data using a private app access token. Auto-saves as a CSV dataset.</p>
-          <button onClick={() => setShowModal(true)} style={{ width:'100%', padding:'8px 16px', borderRadius:6, border:'1px solid #96BF48', background:'transparent', color:'#96BF48', cursor:'pointer', fontSize:13, fontWeight:500 }}>+ Connect Shopify</button>
+      {message && (
+        <div style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 20, background: message.type === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${message.type === 'success' ? '#86efac' : '#fca5a5'}`, color: message.type === 'success' ? '#166534' : '#991b1b', fontSize: '0.9rem' }}>
+          {message.text}
+          {message.type === 'success' && <button onClick={() => navigate('/files')} style={{ marginLeft: 12, padding: '4px 10px', background: '#0c1446', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem' }}>View in Files →</button>}
         </div>
+      )}
 
-        {/* QuickBooks - coming soon */}
-        <div style={{ background:'#1e1e2e', border:'1px solid #333', borderRadius:12, padding:24, opacity:0.6 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-            <div style={{ width:48, height:48, background:'#e8f5e8', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📊</div>
-            <div>
-              <div style={{ color:'#fff', fontWeight:600, fontSize:15 }}>QuickBooks</div>
-              <div style={{ color:'#888', fontSize:12 }}>P&L, Balance Sheet, Invoices</div>
-            </div>
-          </div>
-          <p style={{ color:'#aaa', fontSize:13, margin:'0 0 16px', lineHeight:1.5 }}>Connect QuickBooks Online to pull financial reports directly into DataHub Pro.</p>
-          <button disabled style={{ width:'100%', padding:'8px 16px', borderRadius:6, border:'1px solid #555', background:'transparent', color:'#666', cursor:'not-allowed', fontSize:13 }}>Coming Soon</button>
-        </div>
-
-        {/* Xero - coming soon */}
-        <div style={{ background:'#1e1e2e', border:'1px solid #333', borderRadius:12, padding:24, opacity:0.6 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-            <div style={{ width:48, height:48, background:'#e8f0f8', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>💼</div>
-            <div>
-              <div style={{ color:'#fff', fontWeight:600, fontSize:15 }}>Xero</div>
-              <div style={{ color:'#888', fontSize:12 }}>Accounting & Payroll data</div>
-            </div>
-          </div>
-          <p style={{ color:'#aaa', fontSize:13, margin:'0 0 16px', lineHeight:1.5 }}>Sync accounting data from Xero including transactions, invoices, and reporting.</p>
-          <button disabled style={{ width:'100%', padding:'8px 16px', borderRadius:6, border:'1px solid #555', background:'transparent', color:'#666', cursor:'not-allowed', fontSize:13 }}>Coming Soon</button>
-        </div>
-      </div>
-
-      {/* Active connectors */}
-      {connectors.length > 0 && (
-        <>
-          <h2 style={{ color:'#ccc', fontSize:15, marginBottom:16, fontWeight:500 }}>Active Connections ({connectors.length})</h2>
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-            {connectors.map(c => (
-              <div key={c.id} style={{ background:'#1e1e2e', border:'1px solid #333', borderRadius:10, padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-                  <div style={{ width:36, height:36, background:'#f6f0e8', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🛒</div>
+      {/* Available Connectors */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Available Connectors</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          {CONNECTOR_TYPES.map(ct => (
+            <div key={ct.id} style={{ position: 'relative' }}
+              onMouseEnter={() => setTooltip(ct.id)}
+              onMouseLeave={() => setTooltip(null)}>
+              {tooltip === ct.id && <Tooltip text={ct.tooltip} />}
+              <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 22px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', opacity: ct.available ? 1 : 0.65 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+                  <div style={{ width: 44, height: 44, background: ct.color + '18', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>{ct.icon}</div>
                   <div>
-                    <div style={{ color:'#fff', fontWeight:500, fontSize:14 }}>{c.name}</div>
-                    <div style={{ color:'#888', fontSize:12 }}>
-                      {c.connector_type} · {c.status} · {c.last_sync_at ? 'Synced ' + new Date(c.last_sync_at).toLocaleDateString() : 'Never synced'}
+                    <div style={{ fontWeight: 800, color: '#0c1446', fontSize: '1rem' }}>{ct.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: ct.available ? ct.color : '#9ca3af', fontWeight: 600 }}>{ct.available ? '● Active' : '◌ Coming Soon'}</div>
+                  </div>
+                </div>
+                <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.5 }}>{ct.description}</p>
+                {ct.available ? (
+                  <button onClick={() => setShowModal(true)} style={{ width: '100%', padding: '10px', background: '#0c1446', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                    + Connect {ct.name}
+                  </button>
+                ) : (
+                  <button disabled style={{ width: '100%', padding: '10px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: 8, cursor: 'not-allowed', fontWeight: 600, fontSize: '0.85rem' }}>
+                    Notify Me When Available
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Active Connections */}
+      <div>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          Active Connections ({loading ? '…' : connectors.length})
+        </div>
+        {!loading && connectors.length === 0 ? (
+          <div style={{ background: '#f8f9ff', borderRadius: 12, border: '1px dashed #d1d5db', padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>
+            No connectors yet. Connect a data source above to get started.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {connectors.map(c => (
+              <div key={c.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8eaf4', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 38, height: 38, background: '#96bf4818', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🛒</div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0c1446', fontSize: '0.9rem' }}>{c.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                      {c.config?.shop_domain} · {c.config?.resource || 'orders'}
+                      {c.last_sync_at && ` · Last sync: ${new Date(c.last_sync_at).toLocaleDateString()}`}
                     </div>
                   </div>
                 </div>
-                <div style={{ display:'flex', gap:10 }}>
-                  <button onClick={() => handleSync(c.id)} disabled={syncing[c.id]} style={{ padding:'6px 14px', borderRadius:6, border:'1px solid #444', background:'transparent', color:'#ccc', cursor:'pointer', fontSize:12 }}>
-                    {syncing[c.id] ? 'Syncing...' : '⟳ Sync'}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => handleSync(c.id)} disabled={syncing === c.id}
+                    style={{ padding: '7px 14px', background: syncing === c.id ? '#f3f4f6' : '#0097b2', color: syncing === c.id ? '#9ca3af' : '#fff', border: 'none', borderRadius: 7, cursor: syncing === c.id ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>
+                    {syncing === c.id ? '⟳ Syncing…' : '⟳ Sync Now'}
                   </button>
-                  <button onClick={() => handleDelete(c.id)} style={{ padding:'6px 14px', borderRadius:6, border:'1px solid #ff4444', background:'transparent', color:'#ff4444', cursor:'pointer', fontSize:12 }}>Remove</button>
+                  {c.last_file_id && (
+                    <button onClick={() => navigate(`/analytics/${c.last_file_id}`)}
+                      style={{ padding: '7px 14px', background: '#f8f9ff', color: '#0c1446', border: '1px solid #e8eaf4', borderRadius: 7, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>
+                      📊 Analyse
+                    </button>
+                  )}
+                  <button onClick={() => handleRemove(c.id)}
+                    style={{ padding: '7px 12px', background: '#fff', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 7, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>
+                    Remove
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
-      {showModal && <Modal onClose={() => setShowModal(false)} onSave={() => { setShowModal(false); load(); setMessage('Connector added and data synced!'); setTimeout(() => setMessage(''), 3000) }} />}
+      {/* Shopify Modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 32px', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ fontSize: '1.4rem' }}>🛒</div>
+              <div>
+                <div style={{ fontWeight: 900, color: '#0c1446', fontSize: '1.1rem' }}>Connect Shopify</div>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Enter your store credentials to pull live data</div>
+              </div>
+            </div>
+            <form onSubmit={handleConnect}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>Connection Name</label>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="e.g. My Shopify Store"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e8eaf4', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style=u{{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                  Shop Domain
+                  <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 6 }}>e.g. mystore.myshopify.com</span>
+                </label>
+                <input value={form.shop_domain} onChange={e => setForm(f => ({ ...f, shop_domain: e.target.value }))} required placeholder="mystore.myshopify.com"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e8eaf4', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                  Access Token
+                  <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 6 }}>Private app token from Shopify Admin → Apps → Private apps</span>
+                </label>
+                <input type="password" value={form.access_token} onChange={e => setForm(f => ({ ...f, access_token: e.target.value }))} required placeholder="shpat_xxxxxxxxxx"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e8eaf4', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>Data to Import</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {RESOURCE_OPTIONS.map(r => (
+                    <div key={r.value} style={{ position: 'relative', flex: 1 }}
+                      onMouseEnter={() => setTooltip('res_' + r.value)}
+                      onMouseLeave={() => setTooltip(null)}>
+                      {tooltip === 'res_' + r.value && <Tooltip text={r.tooltip} />}
+                      <button type="button" onClick={() => setForm(f => ({ ...f, resource: r.value }))}
+                        style={{ width: '100%', padding: '10px 4px', background: form.resource === r.value ? '#0c1446' : '#f8f9ff', color: form.resource === r.value ? '#fff' : '#374151', border: `1px solid ${form.resource === r.value ? '#0c1446' : '#e8eaf4'}`, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}>
+                        {r.label}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button" onClick={() => { setShowModal(false); setMessage(null) }}
+                  style={{ flex: 1, padding: '11px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting}
+                  style={{ flex: 2, padding: '11px', background: submitting ? '#9ca3af' : '#0c1446', color: '#fff', border: 'none', borderRadius: 8, cursor: submitting ? 'wait' : 'pointer', fontWeight: 700 }}>
+                  {submitting ? 'Connecting…' : 'Connect & Import Data'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
