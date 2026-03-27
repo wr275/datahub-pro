@@ -1,183 +1,227 @@
 """
-AI Prompt Router
-POST /api/ai/prompt — accepts a plain-English question about an uploaded file,
-fetches the column-level statistical summary via the shared load_file_data
-helper, builds a structured context payload, and calls the OpenAI Chat
-Completions API to generate an answer.
+AI Prompt Router — streaming edition
+POST /api/ai/prompt  — plain-text response (legacy)
+POST /api/ai/stream  — SSE streaming response
+POST /api/ai/greet   — one-shot greeting for a newly uploaded file
 """
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
+import json
 import httpx
 
-from auth_utils import get_current_user
-from database import get_db, User
-from config import settings
+from database import get_db
+from models import File
+from auth import get_current_user
 from routers.analytics import load_file_data
 
-router = APIRouter()
+router = APIRouter(prefix="/ai", tags=["ai"])
+
+OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+
+import os
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 
 
-# ── Request / Response models ─────────────────────────────────────────────────
+# ── Request / response models ──────────────────────────────────────────────
 
 class PromptRequest(BaseModel):
-    prompt: str
     file_id: str
+    question: str
 
+class StreamRequest(BaseModel):
+    file_id: str
+    question: str
+
+class GreetRequest(BaseModel):
+    file_id: str
 
 class PromptResponse(BaseModel):
     response: str
     file_id: str
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── System prompt builder ─────────────────────────────────────────────────
 
-def _build_summary(rows: list, filename: str) -> dict:
-    """Compute column statistics identical to /analytics/summary."""
-    if not rows:
-        return {"filename": filename, "rows": 0, "columns": 0, "summary": {}}
-
-    headers = list(rows[0].keys())
-    summary = {}
-
-    for h in headers:
-        vals = [r[h] for r in rows if r[h] is not None and r[h] != ""]
-        try:
-            nums = [float(v) for v in vals]
-            summary[h] = {
-                "type": "numeric",
-                "count": len(nums),
-                "sum": round(sum(nums), 2),
-                "mean": round(sum(nums) / len(nums), 2) if nums else 0,
-                "min": round(min(nums), 2) if nums else 0,
-                "max": round(max(nums), 2) if nums else 0,
-            }
-        except (ValueError, TypeError):
-            unique = list(set(str(v) for v in vals))
-            summary[h] = {
-                "type": "text",
-                "count": len(vals),
-                "unique": len(unique),
-                "top_values": unique[:10],
-            }
-
-    return {"filename": filename, "rows": len(rows), "columns": len(headers), "summary": summary}
-
-
-def _build_system_prompt(summary_data: dict) -> str:
-    """Convert the summary dict into a compact system prompt for the LLM."""
-    filename = summary_data.get("filename", "the dataset")
-    rows = summary_data.get("rows", 0)
-    columns = summary_data.get("columns", 0)
-    summary = summary_data.get("summary", {})
+def _build_system_prompt(df_info: dict, structured: bool = False) -> str:
+    columns = df_info.get("columns", [])
+    sample = df_info.get("sample_rows", [])
+    stats = df_info.get("column_stats", {})
 
     col_lines = []
-    for col_name, stats in summary.items():
-        col_type = stats.get("type", "unknown")
-        count = stats.get("count", 0)
-        if col_type == "numeric":
-            line = (
-                f"  - {col_name} [numeric]: count={count}, "
-                f"sum={stats.get('sum')}, mean={stats.get('mean')}, "
-                f"min={stats.get('min')}, max={stats.get('max')}"
-            )
-        else:
-            top = ", ".join(stats.get("top_values", [])[:5])
-            line = (
-                f"  - {col_name} [text]: count={count}, "
-                f"unique={stats.get('unique')}, top values: {top}"
-            )
-        col_lines.append(line)
+    for col in columns:
+        s = stats.get(col, {})
+        parts = [f"  - {col}"]
+        if s.get("dtype"):
+            parts.append(f"type={s['dtype']}")
+        if s.get("non_null") is not None:
+            parts.append(f"non_null={s['non_null']}")
+        if s.get("unique") is not None:
+            parts.append(f"unique={s['unique']}")
+        if s.get("mean") is not None:
+            parts.append(f"mean={round(s['mean'],2)}")
+        if s.get("min") is not None:
+            parts.append(f"min={s['min']}, max={s['max']}")
+        col_lines.append(" | ".join(parts))
 
-    col_text = "\n".join(col_lines) if col_lines else "  (no columns)"
+    sample_text = ""
+    if sample:
+        sample_text = "\nSample rows (first 5):\n"
+        for row in sample[:5]:
+            sample_text += "  " + str(row) + "\n"
 
-    return f"""You are a data analyst assistant for DataHub Pro, an analytics SaaS platform.
-The user has uploaded a dataset and wants insights in plain English.
+    base = f"""You are a data analyst AI. The user has uploaded a dataset with these columns:
 
-Dataset: {filename}
-Rows: {rows}
-Columns: {columns}
+{chr(10).join(col_lines)}
+{sample_text}
+Answer questions clearly and concisely. Use plain text for explanations."""
 
-Column statistics:
-{col_text}
+    if structured:
+        base += """
 
-Instructions:
-- Answer the user's question using only the statistics provided above.
-- Be concise but informative. Use plain language suitable for a business user.
-- Format your answer with short paragraphs or bullet points where helpful.
-- If the question cannot be answered from the statistics alone, say so briefly.
-- Never invent numbers that are not present in the statistics above.
-"""
+IMPORTANT — Response format rules:
+- For tabular answers: respond with ONLY valid JSON in this exact format:
+  {"type":"table","summary":"<1-2 sentence description>","columns":["col1","col2"],"rows":[{"col1":"val","col2":"val"},...]}
+- For chart/visualization answers: respond with ONLY valid JSON:
+  {"type":"chart","summary":"<description>","chart_type":"bar|line|pie","chart_data":[{"label":"X","value":Y}...],"x_key":"label","y_keys":["value"],"title":"Chart Title"}
+- For plain questions: respond with plain text only (no JSON).
+- Never mix JSON and plain text. Pick one format per response."""
 
-
-async def _call_openai(system_prompt: str, user_prompt: str) -> str:
-    """Call OpenAI Chat Completions API and return the assistant text."""
-    api_key = settings.OPENAI_API_KEY
-    if not api_key:
-        return (
-            "AI responses are not yet configured for this instance. "
-            "An administrator needs to set the OPENAI_API_KEY environment variable to enable this feature."
-        )
-
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": user_prompt},
-        ],
-        "max_tokens": 700,
-        "temperature": 0.4,
-    }
-
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
-
-    if resp.status_code == 401:
-        raise HTTPException(status_code=500, detail="OpenAI API key is invalid — please check your configuration")
-    if resp.status_code == 429:
-        raise HTTPException(status_code=429, detail="OpenAI rate limit reached — please try again in a moment")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"OpenAI returned an error ({resp.status_code})")
-
-    data = resp.json()
-    return data["choices"][0]["message"]["content"].strip()
+    return base
 
 
-# ── Route ─────────────────────────────────────────────────────────────────────
+# ── Helper: get file dataframe info ──────────────────────────────────────
 
-@router.post(
-    "/prompt",
-    response_model=PromptResponse,
-    summary="Ask a plain-English question about an uploaded file",
-)
+async def _get_file_info(file_id: str, current_user, db: Session) -> dict:
+    try:
+        fid = int(file_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid file_id")
+
+    file_rec = db.query(File).filter(
+        File.id == fid, File.user_id == current_user.id
+    ).first()
+    if not file_rec:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        df_info = await load_file_data(file_rec)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not load file: {e}")
+
+    return file_rec, df_info
+
+
+# ── POST /ai/prompt (legacy, non-streaming) ───────────────────────────────
+
+@router.post("/prompt", response_model=PromptResponse)
 async def ai_prompt(
-    body: PromptRequest,
-    current_user: User = Depends(get_current_user),
+    req: PromptRequest,
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    """
-    Accepts { prompt, file_id }.
-    Loads the file's data, computes column-level statistics, and calls OpenAI
-    to generate a plain-English answer. Works without an API key — returns a
-    friendly message instead of crashing.
-    """
-    if not body.prompt.strip():
-        raise HTTPException(status_code=400, detail="Prompt must not be empty")
-    if not body.file_id.strip():
-        raise HTTPException(status_code=400, detail="file_id must not be empty")
+    file_rec, df_info = await _get_file_info(req.file_id, current_user, db)
+    system_prompt = _build_system_prompt(df_info, structured=True)
 
-    # Load file rows (raises 404 if file not found or not owned by this org)
-    rows, filename = load_file_data(body.file_id, current_user.organisation_id, db)
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            OPENAI_URL,
+            headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": req.question}
+                ],
+                "max_tokens": 900,
+                "temperature": 0.4
+            }
+        )
 
-    summary_data = _build_summary(rows, filename)
-    system_prompt = _build_system_prompt(summary_data)
-    answer = await _call_openai(system_prompt, body.prompt)
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="OpenAI error")
 
-    return PromptResponse(response=answer, file_id=body.file_id)
+    answer = resp.json()["choices"][0]["message"]["content"]
+    return PromptResponse(response=answer, file_id=req.file_id)
+
+
+# ── POST /ai/stream (SSE streaming) ──────────────────────────────────────
+
+@router.post("/stream")
+async def ai_stream(
+    req: StreamRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    file_rec, df_info = await _get_file_info(req.file_id, current_user, db)
+    system_prompt = _build_system_prompt(df_info, structured=True)
+
+    async def event_generator():
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST",
+                    OPENAI_URL,
+                    headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": req.question}
+                        ],
+                        "max_tokens": 900,
+                        "temperature": 0.4,
+                        "stream": True
+                    }
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            yield "data: [DONE]\n\n"
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk["choices"][0]["delta"].get("content", "")
+                            if delta:
+                                yield f"data: {delta}\n\n"
+                        except Exception:
+                            continue
+        except Exception as e:
+            yield f"data: Error: {str(e)}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+# ── POST /ai/greet ────────────────────────────────────────────────────────
+
+@router.post("/greet", response_model=PromptResponse)
+async def ai_greet(
+    req: GreetRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    file_rec, df_info = await _get_file_info(req.file_id, current_user, db)
+    columns = df_info.get("columns", [])
+    row_count = df_info.get("row_count", 0)
+    filename = getattr(file_rec, "filename", getattr(file_rec, "name", "your file"))
+
+    greeting = (
+        f"I've loaded **{filename}** — "
+        f"{row_count:,} rows, {len(columns)} columns "
+        f"({', '.join(columns[:5])}{'…' if len(columns) > 5 else ''}). "
+        f"Ask me anything about it!"
+    )
+
+    return PromptResponse(response=greeting, file_id=req.file_id)
