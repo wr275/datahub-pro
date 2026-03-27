@@ -167,6 +167,7 @@ export default function SharedDashboard() {
   let widgets = []
   try { widgets = JSON.parse(dash.config_json || '{}').widgets || [] } catch {}
 
+  const embedCode = `<iframe src="${window.location.href}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
@@ -218,8 +219,8 @@ export default function SharedDashboard() {
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 24px 0' }}>
         <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 700, whiteSpace: 'nowrap' }}>Embed this dashboard:</span>
-          <input readOnly onClick={e => e.target.select()} value={`<iframe src="${window.location.href}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`} style={{ flex: 1, minWidth: 260, padding: '6px 12px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
-          <button onClick={() => navigator.clipboard.writeText(`<iframe src="${window.location.href}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`).catch(()=>{})} style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}>Copy embed</button>
+          <input readOnly onClick={e => e.target.select()} value={embedCode} style={{ flex: 1, minWidth: 260, padding: '6px 12px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
+          <button onClick={() => navigator.clipboard.writeText(embedCode).catch(()=>{})} style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}>Copy embed</button>
         </div>
       </div>
 
