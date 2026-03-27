@@ -178,7 +178,7 @@ export default function DashboardBuilder() {
     setHeaders(hdrs)
     setRows(parsed)
     setFileContent(f.file_content)
-    setFileName(f.name || f.original_filename || '')
+    setFileName(f.filename || '')
     // Default column selector to first numeric column
     const firstNum = hdrs.find(h => parsed.some(r => !isNaN(parseFloat(r[h]))))
     setSelectedCol(firstNum || hdrs[0] || '')
@@ -355,7 +355,7 @@ export default function DashboardBuilder() {
           {/* File selector */}
           <select value={fileId} onChange={e => setFileId(e.target.value)} style={sel}>
             <option value="">-- Select Dataset --</option>
-            {files.map(f => <option key={f.id} value={f.id}>{f.name || f.original_filename}</option>)}
+            {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
           </select>
 
           {/* Column selector (only when file is loaded) */}
