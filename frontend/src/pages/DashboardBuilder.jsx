@@ -406,6 +406,7 @@ export default function DashboardBuilder() {
 
         {/* Share panel */}
         {isPublic && shareToken && (
+          <>
           <div style={{ background: '#f0fdf4', borderBottom: '1px solid #bbf7d0', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 700 }}>Public link:</span>
             <input ref={linkRef} readOnly value={shareUrl} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', fontSize: '0.78rem', background: '#fff', color: '#374151' }} />
@@ -417,6 +418,7 @@ export default function DashboardBuilder() {
             <input readOnly onClick={e => e.target.select()} value={embedCode} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
             <button onClick={() => navigator.clipboard.writeText(embedCode).catch(()=>{})} style={btn('#7c3aed')}>Copy embed</button>
           </div>
+          </>
         )}
 
         {/* Canvas */}
