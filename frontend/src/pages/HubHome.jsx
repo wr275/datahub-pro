@@ -51,7 +51,7 @@ function TableResponse({ data }) {
                 <td key={ci} style={{
                   padding: '6px 12px', borderBottom: '1px solid #e8eaf0',
                   color: '#1a2342', whiteSpace: 'nowrap'
-                }}>{row[col] ?? ''}</td>
+                }}>{Array.isArray(row) ? (row[ci] ?? '') : (row[col] ?? '')}</td>
               ))}
             </tr>
           ))}
@@ -121,13 +121,15 @@ function Message({ msg }) {
     )
   }
 
-  // Parse structured response
+  // Parse structured response — handles raw JSON or ```json``` wrapped
   let parsed = null
-  if (msg.content) {
-    const trimmed = msg.content.trim()
-    if (trimmed.startsWith('{')) {
-      try { parsed = JSON.parse(trimmed) } catch (_) {}
-    }
+  if (msg.content && !msg.streaming) {
+    let text = msg.content.trim()
+    const blockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (blockMatch) text = blockMatch[1].trim()
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]) } catch (_) {} }
+  }
   }
 
   return (
