@@ -130,7 +130,6 @@ function Message({ msg }) {
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]) } catch (_) {} }
   }
-  }
 
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 14 }}>
