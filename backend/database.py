@@ -16,10 +16,8 @@ if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()
@@ -28,16 +26,13 @@ def get_db():
     finally:
         db.close()
 
-
 class SubscriptionTier(enum.Enum):
     starter = "starter"
     growth = "growth"
     enterprise = "enterprise"
 
-
 class Organisation(Base):
     __tablename__ = "organisations"
-
     id = Column(String, primary_key=True)
     name = Column(String(255), nullable=False)
     slug = Column(String(100), unique=True, nullable=False)
@@ -49,14 +44,11 @@ class Organisation(Base):
     max_users = Column(Integer, default=3)
     max_uploads_per_month = Column(Integer, default=10)
     created_at = Column(DateTime, server_default=func.now())
-
     users = relationship("User", back_populates="organisation")
     files = relationship("DataFile", back_populates="organisation")
 
-
 class User(Base):
     __tablename__ = "users"
-
     id = Column(String, primary_key=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
@@ -67,15 +59,12 @@ class User(Base):
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, nullable=True)
-
     organisation = relationship("Organisation", back_populates="users")
     files = relationship("DataFile", back_populates="uploaded_by_user")
     audit_logs = relationship("AuditLog", back_populates="user")
 
-
 class DataFile(Base):
     __tablename__ = "data_files"
-
     id = Column(String, primary_key=True)
     filename = Column(String(500), nullable=False)
     original_filename = Column(String(500), nullable=False)
@@ -86,38 +75,26 @@ class DataFile(Base):
     s3_key = Column(String(1000), nullable=True)
     storage_type = Column(String(50), default="local")
     file_content = Column(LargeBinary, nullable=True)
-
-    # Google Sheets connector fields
-    source_url = Column(String(2000), nullable=True)
-    last_synced_at = Column(DateTime, nullable=True)
-
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-
     organisation = relationship("Organisation", back_populates="files")
     uploaded_by_user = relationship("User", back_populates="files")
 
-
 class Dashboard(Base):
     __tablename__ = "dashboards"
-
     id = Column(String, primary_key=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     config_json = Column(Text, nullable=True)
     file_id = Column(String, ForeignKey("data_files.id"), nullable=True)
-    is_public = Column(Boolean, default=False)
-    share_token = Column(String(36), unique=True, nullable=True)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     organisation_id = Column(String, nullable=True)
@@ -125,9 +102,7 @@ class AuditLog(Base):
     detail = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
-
     user = relationship("User", back_populates="audit_logs")
-
 
 class Connector(Base):
     __tablename__ = "connectors"
@@ -141,7 +116,6 @@ class Connector(Base):
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-
 
 class Pipeline(Base):
     __tablename__ = "pipelines"
