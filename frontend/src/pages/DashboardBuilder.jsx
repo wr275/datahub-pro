@@ -190,7 +190,6 @@ export default function DashboardBuilder() {
       }
     })
   }, [fileId, files])
-  }, [fileId, files])
 
   // Focus name input when editing
   useEffect(() => {
