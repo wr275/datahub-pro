@@ -160,28 +160,36 @@ export default function DashboardBuilder() {
     filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
     dashboardsApi.list().then(r => setSavedDashboards(r.data || [])).catch(() => {})
   }, [])
-
-  // When file changes, parse CSV
+  // When file changes, load headers + rows
   useEffect(() => {
     if (!fileId) { setRows([]); setHeaders([]); setSelectedCol(''); return }
     const f = files.find(f => String(f.id) === String(fileId))
-    if (!f?.file_content) return
-    const lines = f.file_content.split('\n').filter(l => l.trim())
-    if (!lines.length) return
-    const hdrs = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim())
-    const parsed = lines.slice(1).map(line => {
-      const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || line.split(',')
-      const obj = {}
-      hdrs.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim() })
-      return obj
+    if (!f) return
+    const apiHeaders = Array.isArray(f.column_names) ? f.column_names : []
+    if (apiHeaders.length > 0) {
+      setHeaders(apiHeaders)
+      setFileName(f.filename || '')
+      setSelectedCol(apiHeaders[0] || '')
+    }
+    analyticsApi.preview(fileId).then(r => {
+      const data = r.data || {}
+      const hdrs = data.columns || data.headers || apiHeaders
+      const rows = data.rows || data.data || []
+      if (hdrs.length > 0) {
+        setHeaders(hdrs)
+        const firstNum = hdrs.find(h => rows.some(row => !isNaN(parseFloat(row[h]))))
+        setSelectedCol(firstNum || hdrs[0] || '')
+      }
+      setRows(rows)
+      setFileName(f.filename || '')
+    }).catch(() => {
+      if (apiHeaders.length > 0) {
+        setHeaders(apiHeaders)
+        setFileName(f.filename || '')
+        setSelectedCol(apiHeaders[0] || '')
+      }
     })
-    setHeaders(hdrs)
-    setRows(parsed)
-    setFileContent(f.file_content)
-    setFileName(f.filename || '')
-    // Default column selector to first numeric column
-    const firstNum = hdrs.find(h => parsed.some(r => !isNaN(parseFloat(r[h]))))
-    setSelectedCol(firstNum || hdrs[0] || '')
+  }, [fileId, files])
   }, [fileId, files])
 
   // Focus name input when editing
