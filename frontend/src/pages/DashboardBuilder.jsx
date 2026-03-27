@@ -333,7 +333,7 @@ export default function DashboardBuilder() {
               ref={nameInputRef}
               value={dashName}
               onChange={e => setDashName(e.target.value)}
-              onBlur={() => setEditingName(false)}
+              onFocus={e => e.target.select()} onBlur={() => setEditingName(false)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingName(false) }}
               style={{
                 fontWeight: 900, fontSize: '1.15rem', color: '#0c1446', border: '2px solid #e91e8c',
@@ -410,6 +410,11 @@ export default function DashboardBuilder() {
             <input ref={linkRef} readOnly value={shareUrl} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac', fontSize: '0.78rem', background: '#fff', color: '#374151' }} />
             <button onClick={copyLink} style={btn('#15803d')}>Copy</button>
             <button onClick={toggleShare} style={btn('#dc2626')}>Unshare</button>
+          </div>
+          <div style={{ background: '#f5f3ff', borderBottom: '1px solid #ddd6fe', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.78rem', color: '#7c3aed', fontWeight: 700 }}>Embed code:</span>
+            <input readOnly onClick={e => e.target.select()} value={`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
+            <button onClick={() => navigator.clipboard.writeText(`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`).catch(()=>{})} style={btn('#7c3aed')}>Copy embed</button>
           </div>
         )}
 
