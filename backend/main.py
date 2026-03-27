@@ -3,17 +3,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
-from routers import auth, files, analytics, billing, users, ai
+from routers import auth, files, analytics, billing, users, ai, sheets
 from database import engine, Base
 from config import settings
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) :
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Run safe migrations for columns added after initial deploy
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
+            # file_content column (original)
             conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS file_content BYTEA"))
+            # Google Sheets connector columns
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS source_url TEXT"))
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP"))
             conn.commit()
     except Exception:
         pass
@@ -26,12 +31,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Build allowed origins from env â supports comma-separated list
-# e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
+# Build allowed origins from env — supports comma-separated list
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
 
-# Always include localhost for local dev
 if "http://localhost:3000" not in allowed_origins:
     allowed_origins.append("http://localhost:3000")
 
@@ -43,24 +46,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(files.router, prefix="/api/files", tags=["Files"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
-app.include_router(ai.router, prefix="", tags=["AI"])
+app.include_router(auth.router,      prefix="/api/auth",     tags=["Authentication"])
+app.include_router(users.router,     prefix="/api/users",    tags=["Users"])
+app.include_router(files.router,     prefix="/api/files",    tags=["Files"])
+app.include_router(analytics.router, prefix="/api/analytics",tags=["Analytics"])
+app.include_router(billing.router,   prefix="/api/billing",  tags=["Billing"])
+app.include_router(sheets.router,    prefix="/api/sheets",   tags=["Sheets"])
+app.include_router(ai.router,        prefix="",              tags=["AI"])
 
 def _health_response():
     return {"status": "healthy", "service": "DataHub Pro API"}
 
 @app.get("/health", tags=["Health"], summary="Root health check")
 def health_check():
-    """Liveness probe â returns 200 when the service is up."""
     return _health_response()
 
 @app.get("/api/health", tags=["Health"], summary="API health check")
 def api_health_check():
-    """Same liveness probe at the /api prefix for CI health checks and monitoring."""
     return _health_response()
 
 if __name__ == "__main__":
