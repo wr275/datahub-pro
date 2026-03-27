@@ -286,6 +286,7 @@ export default function DashboardBuilder() {
   const shareUrl = shareToken
     ? `${window.location.origin}/share/${shareToken}`
     : ''
+  const embedCode = shareUrl ? `<iframe src="${shareUrl}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>` : ''
 
   const sel = { background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 10px', fontSize: '0.85rem', cursor: 'pointer' }
   const btn = (bg, color = '#fff') => ({
@@ -413,8 +414,8 @@ export default function DashboardBuilder() {
           </div>
           <div style={{ background: '#f5f3ff', borderBottom: '1px solid #ddd6fe', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', color: '#7c3aed', fontWeight: 700 }}>Embed code:</span>
-            <input readOnly onClick={e => e.target.select()} value={`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
-            <button onClick={() => navigator.clipboard.writeText(`<iframe src="${shareUrl}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`).catch(()=>{})} style={btn('#7c3aed')}>Copy embed</button>
+            <input readOnly onClick={e => e.target.select()} value={embedCode} style={{ flex: 1, minWidth: 260, padding: '4px 10px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
+            <button onClick={() => navigator.clipboard.writeText(embedCode).catch(()=>{})} style={btn('#7c3aed')}>Copy embed</button>
           </div>
         )}
 
