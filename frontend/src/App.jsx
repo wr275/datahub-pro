@@ -5,12 +5,11 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Layout from './components/Layout'
 import LandingPage from './pages/LandingPage'
-
 // HOME
 import HubHome from './pages/HubHome'
 import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DashboardBuilder from './pages/DashboardBuilder'
-
+import SharedDashboard from './pages/SharedDashboard'
 // DATA
 import DataBlending from './pages/DataBlending'
 import DataTable from './pages/DataTable'
@@ -20,7 +19,6 @@ import DataQualityReport from './pages/DataQualityReport'
 import DataCleaner from './pages/DataCleaner'
 import AdvancedFilter from './pages/AdvancedFilter'
 import ValueFrequency from './pages/ValueFrequency'
-
 // ANALYSIS
 import PivotTable from './pages/PivotTable'
 import WhatIf from './pages/WhatIf'
@@ -34,13 +32,11 @@ import TrendAnalysis from './pages/TrendAnalysis'
 import RFMAnalysis from './pages/RFMAnalysis'
 import ParetoAnalysis from './pages/ParetoAnalysis'
 import CustomerSegmentation from './pages/CustomerSegmentation'
-
 // FORECASTING
 import Forecasting from './pages/Forecasting'
 import GoalTracker from './pages/GoalTracker'
 import BreakEvenCalculator from './pages/BreakEvenCalculator'
 import RollingAverage from './pages/RollingAverage'
-
 // VISUALISATION
 import BarChartPage from './pages/BarChartPage'
 import LineChartPage from './pages/LineChartPage'
@@ -51,10 +47,8 @@ import ScatterPlot from './pages/ScatterPlot'
 import ComboChart from './pages/ComboChart'
 import FunnelChart from './pages/FunnelChart'
 import BoxPlot from './pages/BoxPlot'
-
 // FINANCE
 import NPVAnalysis from './pages/NPVAnalysis'
-
 // AI & FORMULAS
 import FormulaEngine from './pages/FormulaEngine'
 import ExcelFunctions from './pages/ExcelFunctions'
@@ -64,14 +58,12 @@ import AutoReport from './pages/AutoReport'
 import AINarrative from './pages/AINarrative'
 import ConditionalFormat from './pages/ConditionalFormat'
 import AIInsights from './pages/AIInsights'
-
 // OPERATIONS
 import ScheduledReports from './pages/ScheduledReports'
 import Integrations from './pages/Integrations'
 import WorkspaceRoles from './pages/WorkspaceRoles'
 import AuditLog from './pages/AuditLog'
 import AISettings from './pages/AISettings'
-
 // LEGACY
 import Analytics from './pages/Analytics'
 import Files from './pages/Files'
@@ -103,6 +95,9 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+        {/* PUBLIC â shareable dashboards (no auth required) */}
+        <Route path="/share/:token" element={<SharedDashboard />} />
 
         {/* HOME */}
         <Route path="/hub" element={<P><HubHome /></P>} />
