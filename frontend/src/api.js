@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api'
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL + '/api'
+  : '/api'
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -14,7 +16,7 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Handle 401 — redirect to login
+// Handle 401 â redirect to login
 api.interceptors.response.use(
   res => res,
   err => {
@@ -36,7 +38,9 @@ export const authApi = {
 
 export const filesApi = {
   list: () => api.get('/files/'),
-  upload: (formData) => api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  upload: (formData) => api.post('/files/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   download: (id) => api.get(`/files/${id}/download`),
   delete: (id) => api.delete(`/files/${id}`),
 }
@@ -65,8 +69,21 @@ export const aiApi = {
 }
 
 export const sheetsApi = {
-    connect: (url, displayName) => api.post('/sheets/connect', { url, display_name: displayName }),
-    sync: (fileId) => api.post(`/sheets/${fileId}/sync`),
+  connect: (url, displayName) => api.post('/sheets/connect', { url, display_name: displayName }),
+  sync: (fileId) => api.post(`/sheets/${fileId}/sync`),
+}
+
+export const dashboardsApi = {
+  list: () => api.get('/dashboards/'),
+  create: (data) => api.post('/dashboards/', data),
+  update: (id, data) => api.put(`/dashboards/${id}`, data),
+  delete: (id) => api.delete(`/dashboards/${id}`),
+  share: (id) => api.post(`/dashboards/${id}/share`),
+}
+
+// Public share â no auth needed; uses plain axios so no 401 redirect
+export const shareApi = {
+  get: (token) => axios.get(`${API_BASE}/share/${token}`),
 }
 
 export default api
