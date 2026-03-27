@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
-from routers import auth, files, analytics, billing, users, ai, sheets, dashboards
+from routers import auth, files, analytics, billing, users, ai, sheets, dashboards, connectors, pipelines
 from database import engine, Base
 from config import settings
 
@@ -23,6 +23,10 @@ async def lifespan(app: FastAPI):
             # Dashboard sharing columns
             conn.execute(text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS share_token VARCHAR(36)"))
+            # Connectors table
+            conn.execute(text("""CREATE TABLE IF NOT EXISTS connectors (id VARCHAR PRIMARY KEY, name VARCHAR(255) NOT NULL, connector_type VARCHAR(50) NOT NULL, config_json TEXT, status VARCHAR(50) DEFAULT 'active', last_sync_at TIMESTAMP, last_file_id VARCHAR, organisation_id VARCHAR REFERENCES organisations(id), created_by VARCHAR REFERENCES users(id), created_at TIMESTAMP DEFAULT now())"""))
+            # Pipelines table
+            conn.execute(text("""CREATE TABLE IF NOT EXISTS pipelines (id VARCHAR PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, steps_json TEXT NOT NULL DEFAULT '[]', run_count INTEGER DEFAULT 0, last_run_at TIMESTAMP, organisation_id VARCHAR REFERENCES organisations(id), created_by VARCHAR REFERENCES users(id), created_at TIMESTAMP DEFAULT now())"""))
             conn.commit()
     except Exception:
         pass
@@ -59,6 +63,8 @@ app.include_router(sheets.router, prefix="/api/sheets", tags=["Sheets"])
 app.include_router(dashboards.router, prefix="/api/dashboards", tags=["Dashboards"])
 app.include_router(dashboards.share_router, prefix="/api/share", tags=["Share"])
 app.include_router(ai.router, prefix="", tags=["AI"])
+app.include_router(connectors.router, prefix="/api/connectors", tags=["Connectors"])
+app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"])
 
 
 def _health_response():
