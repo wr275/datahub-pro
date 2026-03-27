@@ -122,9 +122,11 @@ def list_files(
             "id": f.id,
             "filename": f.original_filename,
             "size": f.file_size,
-            "rows": f.row_count,
-            "columns": f.column_count,
+            "row_count": f.row_count,
+            "column_count": f.column_count,
             "column_names": json.loads(f.columns_json) if f.columns_json else [],
+            "storage_type": f.storage_type,
+            "last_synced_at": f.last_synced_at.isoformat() if f.last_synced_at else None,
             "uploaded_at": f.created_at.isoformat()
         }
         for f in files
