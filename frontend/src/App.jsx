@@ -5,12 +5,12 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Layout from './components/Layout'
 import LandingPage from './pages/LandingPage'
+
 // HOME
 import HubHome from './pages/HubHome'
 import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DashboardBuilder from './pages/DashboardBuilder'
-import DashboardsList from './pages/DashboardsList'
-import SharedDashboard from './pages/SharedDashboard'
+
 // DATA
 import DataBlending from './pages/DataBlending'
 import DataTable from './pages/DataTable'
@@ -20,6 +20,9 @@ import DataQualityReport from './pages/DataQualityReport'
 import DataCleaner from './pages/DataCleaner'
 import AdvancedFilter from './pages/AdvancedFilter'
 import ValueFrequency from './pages/ValueFrequency'
+import ConnectData from './pages/ConnectData'
+import DataPipelines from './pages/DataPipelines'
+
 // ANALYSIS
 import PivotTable from './pages/PivotTable'
 import WhatIf from './pages/WhatIf'
@@ -33,11 +36,13 @@ import TrendAnalysis from './pages/TrendAnalysis'
 import RFMAnalysis from './pages/RFMAnalysis'
 import ParetoAnalysis from './pages/ParetoAnalysis'
 import CustomerSegmentation from './pages/CustomerSegmentation'
+
 // FORECASTING
 import Forecasting from './pages/Forecasting'
 import GoalTracker from './pages/GoalTracker'
 import BreakEvenCalculator from './pages/BreakEvenCalculator'
 import RollingAverage from './pages/RollingAverage'
+
 // VISUALISATION
 import BarChartPage from './pages/BarChartPage'
 import LineChartPage from './pages/LineChartPage'
@@ -48,8 +53,10 @@ import ScatterPlot from './pages/ScatterPlot'
 import ComboChart from './pages/ComboChart'
 import FunnelChart from './pages/FunnelChart'
 import BoxPlot from './pages/BoxPlot'
+
 // FINANCE
 import NPVAnalysis from './pages/NPVAnalysis'
+
 // AI & FORMULAS
 import FormulaEngine from './pages/FormulaEngine'
 import ExcelFunctions from './pages/ExcelFunctions'
@@ -59,12 +66,14 @@ import AutoReport from './pages/AutoReport'
 import AINarrative from './pages/AINarrative'
 import ConditionalFormat from './pages/ConditionalFormat'
 import AIInsights from './pages/AIInsights'
+
 // OPERATIONS
 import ScheduledReports from './pages/ScheduledReports'
 import Integrations from './pages/Integrations'
 import WorkspaceRoles from './pages/WorkspaceRoles'
 import AuditLog from './pages/AuditLog'
 import AISettings from './pages/AISettings'
+
 // LEGACY
 import Analytics from './pages/Analytics'
 import Files from './pages/Files'
@@ -72,8 +81,6 @@ import Trends from './pages/Trends'
 import Billing from './pages/Billing'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
-import ConnectData from './pages/ConnectData'
-import DataPipelines from './pages/DataPipelines'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -99,14 +106,10 @@ export default function App() {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
-        {/* PUBLIC â shareable dashboards (no auth required) */}
-        <Route path="/share/:token" element={<SharedDashboard />} />
-
         {/* HOME */}
         <Route path="/hub" element={<P><HubHome /></P>} />
         <Route path="/executive-dashboard" element={<P><ExecutiveDashboard /></P>} />
         <Route path="/dashboard-builder" element={<P><DashboardBuilder /></P>} />
-        <Route path="/dashboards" element={<P><DashboardsList /></P>} />
 
         {/* DATA */}
         <Route path="/data-blending" element={<P><DataBlending /></P>} />
@@ -117,6 +120,8 @@ export default function App() {
         <Route path="/data-cleaner" element={<P><DataCleaner /></P>} />
         <Route path="/advanced-filter" element={<P><AdvancedFilter /></P>} />
         <Route path="/value-frequency" element={<P><ValueFrequency /></P>} />
+        <Route path="/connect-data" element={<P><ConnectData /></P>} />
+        <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
 
         {/* ANALYSIS */}
         <Route path="/pivot-table" element={<P><PivotTable /></P>} />
@@ -178,8 +183,6 @@ export default function App() {
         <Route path="/team" element={<P><Team /></P>} />
         <Route path="/settings" element={<P><Settings /></P>} />
 
-        <Route path="/connect-data" element={<ConnectData />} />
-        <Route path="/data-pipelines" element={<DataPipelines />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
