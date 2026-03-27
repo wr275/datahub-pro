@@ -16,6 +16,7 @@ if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -75,6 +76,9 @@ class DataFile(Base):
     s3_key = Column(String(1000), nullable=True)
     storage_type = Column(String(50), default="local")
     file_content = Column(LargeBinary, nullable=True)
+    # Google Sheets connector fields
+    source_url = Column(String(2000), nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
