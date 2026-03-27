@@ -149,13 +149,6 @@ async def greet_file(req: GreetRequest, db: Session = Depends(get_db)):
     cols = req.cols or file.column_count or 0
 
     greeting = f"I've loaded **{name}**"
-    , detail="File not found")
-
-    name = req.filename or file.filename or "your file"
-    rows = req.rows or file.row_count or 0
-    cols = req.cols or file.column_count or 0
-
-    greeting = f"I've loaded **{name}**"
     if rows and cols:
         greeting += f" — {rows:,} rows, {cols} columns."
     elif rows:
