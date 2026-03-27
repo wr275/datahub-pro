@@ -72,6 +72,8 @@ import Trends from './pages/Trends'
 import Billing from './pages/Billing'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
+import ConnectData from './pages/ConnectData'
+import DataPipelines from './pages/DataPipelines'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -176,6 +178,8 @@ export default function App() {
         <Route path="/team" element={<P><Team /></P>} />
         <Route path="/settings" element={<P><Settings /></P>} />
 
+        <Route path="/connect-data" element={<ConnectData />} />
+        <Route path="/data-pipelines" element={<DataPipelines />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
