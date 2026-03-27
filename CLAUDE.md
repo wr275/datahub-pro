@@ -1,35 +1,42 @@
 # CLAUDE.md — Project Rules for AI Assistants
 
 > This file is read by Claude (and any AI assistant) at the start of every session.
-> These rules are NON-NEGOTIABLE and must be followed before taking any action.
+> These rules are NON-NEGOTIABLE and must be followed before taking any action on this repo.
 
 ---
 
-## 🚨 DEPLOYMENT ENVIRONMENTS — READ FIRST
+## 🚨 DEPLOYMENT ENVIRONMENTS — READ THIS FIRST, EVERY TIME
 
-This project has TWO Railway deployments. They are NOT interchangeable.
+This project has TWO Railway deployments. They are completely separate and must never be confused.
 
-### ✅ EXPERIMENT / DEMO environment — deploy here freely
-- **URL:** https://modest-renewal-demo.up.railway.app
-- **Purpose:** Features under development, experiments, demos shown to enterprise prospects
-- **GitHub branch:** `demo` (or whichever branch feeds this service — verify in Railway)
-- **Rule:** All new feature work, fixes, and experiments go here ONLY
+---
 
-### 🚫 PRODUCTION environment — DO NOT TOUCH without explicit approval
+### ✅ DEVELOPMENT / EXPERIMENT environment — work here freely
 - **URL:** https://datahub-pro-production.up.railway.app
-- **Purpose:** Live users, real data
+- **Railway project:** generous-charm / production
 - **GitHub branch:** `main`
-- **Rule:** NEVER commit to `main` or deploy anything here unless Waqas explicitly says
-  "deploy to production" or "push to main". No exceptions.
+- **Purpose:** Active development, new features, experiments, day-to-day work
+- **Rule:** All commits to `main` deploy here automatically. This is the normal working environment.
 
 ---
 
-## ⚠️ BEFORE EVERY CODING SESSION
+### 🚫 CLIENT DEMO environment — DO NOT TOUCH. EVER. Without explicit approval.
+- **URL:** https://modest-renewal-demo.up.railway.app
+- **Backend API:** https://splendid-wholeness-demo.up.railway.app
+- **GitHub branch:** `stable` (frozen at tag `v1.0-stable`)
+- **Purpose:** Stable demo shown to enterprise prospects and potential clients
+- **Rule:** NEVER commit to the `stable` branch or touch this deployment under any circumstances.
+  This URL is shared with clients. It must remain frozen and stable at all times.
+  The ONLY way to update it is if Waqas explicitly says "update the demo" or "push to stable".
 
-1. Confirm which environment the task targets.
-2. If the user has not said explicitly, ASK before touching any branch.
-3. Default assumption: work goes to the **demo/experiment** environment only.
-4. Changes to `main` branch = changes to production = requires explicit approval.
+---
+
+## ⚠️ BEFORE EVERY CODING SESSION — MANDATORY CHECKLIST
+
+1. All work defaults to the `main` branch → deploys to datahub-pro-production.up.railway.app ✅
+2. NEVER touch the `stable` branch or modest-renewal-demo.up.railway.app 🚫
+3. If asked to "deploy to demo" or "update the client demo", STOP and confirm with Waqas first.
+4. If ever unsure which environment is meant, ASK before doing anything.
 
 ---
 
