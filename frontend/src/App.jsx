@@ -9,6 +9,7 @@ import LandingPage from './pages/LandingPage'
 import HubHome from './pages/HubHome'
 import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DashboardBuilder from './pages/DashboardBuilder'
+import DashboardsList from './pages/DashboardsList'
 import SharedDashboard from './pages/SharedDashboard'
 // DATA
 import DataBlending from './pages/DataBlending'
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/hub" element={<P><HubHome /></P>} />
         <Route path="/executive-dashboard" element={<P><ExecutiveDashboard /></P>} />
         <Route path="/dashboard-builder" element={<P><DashboardBuilder /></P>} />
+        <Route path="/dashboards" element={<P><DashboardsList /></P>} />
 
         {/* DATA */}
         <Route path="/data-blending" element={<P><DataBlending /></P>} />
