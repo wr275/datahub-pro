@@ -6,9 +6,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from database import get_db
+from database import get_db, DataFile
 from sqlalchemy.orm import Session
-from models import File
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -32,37 +31,41 @@ Be helpful, accurate, and data-focused. Keep responses brief unless detail is re
 
 
 class StreamRequest(BaseModel):
-    file_id: int
+    file_id: str
     question: str
 
 
 class GreetRequest(BaseModel):
-    file_id: int
+    file_id: str
     filename: Optional[str] = None
     rows: Optional[int] = None
     cols: Optional[int] = None
 
 
 class PromptRequest(BaseModel):
-    file_id: int
+    file_id: str
     question: str
 
 
-def build_context(file: File, question: str) -> str:
+def build_context(file: DataFile, question: str) -> str:
     parts = [f"File: {file.filename}"]
     if file.row_count:
         parts.append(f"Rows: {file.row_count}")
     if file.column_count:
         parts.append(f"Columns: {file.column_count}")
-    if file.columns:
+    if file.columns_json:
         try:
-            cols = json.loads(file.columns) if isinstance(file.columns, str) else file.columns
-            parts.append(f"Column names: {', '.join(cols[:20])}")
+            cols = json.loads(file.columns_json) if isinstance(file.columns_json, str) else file.columns_json
+            parts.append(f"Column names: {', '.join(str(c) for c in cols[:20])}")
         except Exception:
             pass
-    if file.content:
-        preview = file.content[:3000]
-        parts.append(f"\nData preview:\n{preview}")
+    if file.file_content:
+        try:
+            raw = file.file_content
+            preview = raw.decode("utf-8", errors="replace")[:3000] if isinstance(raw, bytes) else str(raw)[:3000]
+            parts.append(f"\nData preview:\n{preview}")
+        except Exception:
+            pass
     parts.append(f"\nUser question: {question}")
     return "\n".join(parts)
 
@@ -72,7 +75,7 @@ async def stream_ai(req: StreamRequest, db: Session = Depends(get_db)):
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
-    file = db.query(File).filter(File.id == req.file_id).first()
+    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -137,9 +140,16 @@ async def stream_ai(req: StreamRequest, db: Session = Depends(get_db)):
 
 @router.post("/greet")
 async def greet_file(req: GreetRequest, db: Session = Depends(get_db)):
-    file = db.query(File).filter(File.id == req.file_id).first()
+    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
+
+    name = req.filename or file.filename or "your file"
+    rows = req.rows or file.row_count or 0
+    cols = req.cols or file.column_count or 0
+
+    greeting = f"I've loaded **{name}**"
+    , detail="File not found")
 
     name = req.filename or file.filename or "your file"
     rows = req.rows or file.row_count or 0
@@ -163,7 +173,7 @@ async def prompt_ai(req: PromptRequest, db: Session = Depends(get_db)):
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
-    file = db.query(File).filter(File.id == req.file_id).first()
+    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
