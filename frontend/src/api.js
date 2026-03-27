@@ -64,4 +64,9 @@ export const aiApi = {
   prompt: (fileId, prompt) => api.post('/ai/prompt', { file_id: fileId, prompt }),
 }
 
+export const sheetsApi = {
+    connect: (url, displayName) => api.post('/sheets/connect', { url, display_name: displayName }),
+    sync: (fileId) => api.post(`/sheets/${fileId}/sync`),
+}
+
 export default api
