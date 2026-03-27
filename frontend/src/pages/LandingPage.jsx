@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const BRAND = { navy: '#0c1446', pink: '#e91e8c', teal: '#0097b2' }
 
@@ -70,6 +71,7 @@ const ALL_TOOLS = [
 ]
 
 export default function LandingPage() {
+  const { user } = useAuth()
   const [annual, setAnnual] = useState(false)
   const [statsVisible, setStatsVisible] = useState(false)
   const statsRef = useRef(null)
@@ -94,8 +96,12 @@ export default function LandingPage() {
             <a key={h} href={h} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', textDecoration: 'none', fontWeight: 500 }}
               onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,0.7)'}>{l}</a>
           ))}
-          <Link to="/login" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', textDecoration: 'none', fontWeight: 500 }}>Sign in</Link>
-          <Link to="/register" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '9px 22px', borderRadius: 8, fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none', boxShadow: '0 4px 14px rgba(233,30,140,0.4)' }}>Start free trial →</Link>
+          {user ? (
+            <Link to="/hub" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '9px 22px', borderRadius: 8, fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none', boxShadow: '0 4px 14px rgba(233,30,140,0.4)' }}>Go to Dashboard →</Link>
+          ) : (<>
+            <Link to="/login" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', textDecoration: 'none', fontWeight: 500 }}>Sign in</Link>
+            <Link to="/register" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '9px 22px', borderRadius: 8, fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none', boxShadow: '0 4px 14px rgba(233,30,140,0.4)' }}>Start free trial →</Link>
+          </>)}
         </div>
       </nav>
 
@@ -116,7 +122,10 @@ export default function LandingPage() {
             50 analytics tools, AI narrative, forecasting, RFM and cohort analysis — all from your existing spreadsheets. No analyst, no BI team, no wait.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
-            <Link to="/register" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 800, fontSize: '1rem', textDecoration: 'none', boxShadow: '0 8px 32px rgba(233,30,140,0.45)' }}>Start 14-day free trial →</Link>
+            {user
+                ? <Link to="/hub" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 800, fontSize: '1rem', textDecoration: 'none', boxShadow: '0 8px 32px rgba(233,30,140,0.45)' }}>Open Dashboard →</Link>
+                : <Link to="/register" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 800, fontSize: '1rem', textDecoration: 'none', boxShadow: '0 8px 32px rgba(233,30,140,0.45)' }}>Start 14-day free trial →</Link>
+              }
             <a href="#features" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 600, fontSize: '1rem', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.18)' }}>See all 50 tools ↓</a>
           </div>
           <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem' }}>No credit card required · Cancel anytime · GDPR compliant</p>

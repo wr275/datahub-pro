@@ -60,4 +60,8 @@ export const usersApi = {
   auditLog: () => api.get('/users/audit-log'),
 }
 
+export const aiApi = {
+  prompt: (fileId, prompt) => api.post('/ai/prompt', { file_id: fileId, prompt }),
+}
+
 export default api

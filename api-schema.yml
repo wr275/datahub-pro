@@ -1,0 +1,274 @@
+openapi: "3.1.0"
+
+info:
+  title: DataHub Pro API
+  version: "1.0.0"
+  description: |
+    This schema is the single source of truth for API response shapes.
+    Both backend implementation and frontend consumer code MUST align with
+    the types defined here. Mismatches should be treated as bugs.
+
+servers:
+  - url: https://datahub-pro-production.up.railway.app
+    description: Production
+  - url: https://modest-renewal-demo.up.railway.app
+    description: Demo
+  - url: http://localhost:8000
+    description: Local development
+
+paths:
+
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Liveness probe (root)
+      tags: [Health]
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+  /api/health:
+    get:
+      operationId: apiHealthCheck
+      summary: Liveness probe (/api prefix)
+      tags: [Health]
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+  /api/auth/register:
+    post:
+      operationId: register
+      summary: Create a new user account
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "200":
+          description: Registration successful
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: Authenticate and obtain a JWT
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+
+  /api/files:
+    get:
+      operationId: listFiles
+      summary: List all files for the current organisation
+      tags: [Files]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Array of file metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FileMetadata" }
+
+  /api/analytics/summary/{fileId}:
+    post:
+      operationId: getAnalyticsSummary
+      summary: Statistical summary of every column
+      description: |
+        IMPORTANT — response shape consumed by AI Insights:
+          { filename, rows, columns, summary: { colName: { type, count, ... } } }
+
+        rows and columns are root-level integers — NOT nested inside summary.
+        Frontend must read data.rows and data.columns (Bug 3 was reading
+        data.summary.total_rows which does not exist).
+      tags: [Analytics]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: Column-level statistics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SummaryResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/analytics/preview/{fileId}:
+    get:
+      operationId: previewFile
+      summary: First rows of a file (headers + data)
+      tags: [Analytics]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: File preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreviewResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/analytics/kpi/{fileId}:
+    post:
+      operationId: getKPIs
+      summary: KPI aggregates for all numeric columns
+      tags: [Analytics]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: Array of per-column KPI objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/KPIColumn" }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    fileId:
+      name: fileId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    NotFound:
+      description: File not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorDetail" }
+
+  schemas:
+
+    HealthResponse:
+      type: object
+      required: [status, service]
+      properties:
+        status:  { type: string, enum: [healthy] }
+        service: { type: string, example: "DataHub Pro API" }
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name, company]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        name:     { type: string }
+        company:  { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string }
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token: { type: string }
+        token_type:   { type: string, example: bearer }
+
+    FileMetadata:
+      type: object
+      required: [id, filename, original_filename, created_at]
+      properties:
+        id:                { type: string, format: uuid }
+        filename:          { type: string }
+        original_filename: { type: string }
+        created_at:        { type: string, format: date-time }
+
+    SummaryResponse:
+      type: object
+      required: [filename, rows, columns, summary]
+      properties:
+        filename: { type: string }
+        rows:
+          type: integer
+          description: "Total record count. Read as data.rows — NOT data.summary.total_rows"
+          example: 29
+        columns:
+          type: integer
+          description: "Total column count. Read as data.columns — NOT data.summary.total_columns"
+          example: 17
+        summary:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/ColumnSummary" }
+
+    ColumnSummary:
+      type: object
+      required: [type, count]
+      properties:
+        type:  { type: string, enum: [numeric, text] }
+        count: { type: integer }
+        sum:   { type: number }
+        mean:  { type: number }
+        min:   { type: number }
+        max:   { type: number }
+        unique:     { type: integer }
+        top_values: { type: array, items: { type: string }, maxItems: 10 }
+
+    PreviewResponse:
+      type: object
+      required: [filename, headers, rows]
+      properties:
+        filename: { type: string }
+        headers:  { type: array, items: { type: string } }
+        rows:     { type: array, items: { type: object, additionalProperties: true } }
+
+    KPIColumn:
+      type: object
+      required: [column, sum, mean, min, max, count]
+      properties:
+        column: { type: string }
+        sum:    { type: number }
+        mean:   { type: number }
+        min:    { type: number }
+        max:    { type: number }
+        count:  { type: integer }
+
+    ErrorDetail:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }

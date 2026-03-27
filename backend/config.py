@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     SENDGRID_API_KEY: Optional[str] = None
     FROM_EMAIL: str = "noreply@datahubpro.io"
 
+    # OpenAI — used by POST /api/ai/prompt
+    OPENAI_API_KEY: Optional[str] = None
+
     # App
     FRONTEND_URL: str = "http://localhost:3000"
     TRIAL_DAYS: int = 14
