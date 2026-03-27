@@ -127,3 +127,30 @@ class AuditLog(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="audit_logs")
+
+
+class Connector(Base):
+    __tablename__ = "connectors"
+    id = Column(String, primary_key=True)
+    name = Column(String(255), nullable=False)
+    connector_type = Column(String(50), nullable=False)
+    config_json = Column(Text, nullable=True)
+    status = Column(String(50), default="active")
+    last_sync_at = Column(DateTime, nullable=True)
+    last_file_id = Column(String, nullable=True)
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Pipeline(Base):
+    __tablename__ = "pipelines"
+    id = Column(String, primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    steps_json = Column(Text, nullable=False, default="[]")
+    run_count = Column(Integer, default=0)
+    last_run_at = Column(DateTime, nullable=True)
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
