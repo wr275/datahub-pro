@@ -89,17 +89,17 @@ export const shareApi = {
 export default api
 
 export const connectorsApi = {
-  list: () => apiFetch('/api/connectors'),
-  connectShopify: (data) => apiFetch('/api/connectors/shopify/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-  sync: (id) => apiFetch('/api/connectors/shopify/sync/' + id, { method: 'POST' }),
-  remove: (id) => apiFetch('/api/connectors/' + id, { method: 'DELETE' }),
-};
+  list: () => api.get('/connectors/'),
+  connectShopify: (data) => api.post('/connectors/shopify/connect', data),
+  sync: (id) => api.post('/connectors/shopify/sync/' + id),
+  remove: (id) => api.delete('/connectors/' + id),
+}
 
 export const pipelinesApi = {
-  list: () => apiFetch('/api/pipelines'),
-  create: (data) => apiFetch('/api/pipelines', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-  update: (id, data) => apiFetch('/api/pipelines/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-  remove: (id) => apiFetch('/api/pipelines/' + id, { method: 'DELETE' }),
-  preview: (id, data) => apiFetch('/api/pipelines/' + id + '/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-  run: (id, data) => apiFetch('/api/pipelines/' + id + '/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
-};
+  list: () => api.get('/pipelines/'),
+  create: (data) => api.post('/pipelines/', data),
+  update: (id, data) => api.put('/pipelines/' + id, data),
+  remove: (id) => api.delete('/pipelines/' + id),
+  preview: (id, data) => api.post('/pipelines/' + id + '/preview', data),
+  run: (id, data) => api.post('/pipelines/' + id + '/run', data),
+}
