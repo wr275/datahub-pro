@@ -84,4 +84,12 @@ export const budgetApi = {
   deleteBudget: (name) => api.delete('/budget/' + encodeURIComponent(name)),
 }
 
+export const dashboardsApi = {
+  list: () => api.get('/dashboards/'),
+  create: (data) => api.post('/dashboards/', data),
+  update: (id, data) => api.put('/dashboards/' + id, data),
+  delete: (id) => api.delete('/dashboards/' + id),
+  share: (id) => api.post('/dashboards/' + id + '/share'),
+}
+
 export default api
