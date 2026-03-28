@@ -143,3 +143,14 @@ class BudgetEntry(Base):
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
+
+
+class CalculatedFieldSet(Base):
+    __tablename__ = "calculated_field_sets"
+    id = Column(String, primary_key=True)
+    name = Column(String(255), nullable=False)
+    file_id = Column(String, ForeignKey("data_files.id"), nullable=False)
+    fields_json = Column(Text, nullable=False, default="[]")
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
