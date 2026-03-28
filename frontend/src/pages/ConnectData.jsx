@@ -235,7 +235,7 @@ export default function ConnectData() {
                   style={{ width: '100%', padding: '10px 12px', border: '1px solid #e8eaf4', borderRadius: 8, fontSize: '0.9rem', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style=u{{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
                   Shop Domain
                   <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 6 }}>e.g. mystore.myshopify.com</span>
                 </label>
