@@ -4,78 +4,79 @@ import { filesApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 const SECTIONS = [
-  { label: 'DATA', color: '#0c1446', icon: '🗄️', tools: [
-    { path: '/data-table', icon: '📋', label: 'Data View', desc: 'Browse & explore' },
-    { path: '/data-summary', icon: '📊', label: 'Data Summary', desc: 'Column stats' },
-    { path: '/data-quality', icon: '✅', label: 'Quality Report', desc: 'Missing values' },
-    { path: '/data-cleaner', icon: '🧹', label: 'Data Cleaner', desc: 'Fix & dedupe' },
-    { path: '/data-blending', icon: '🔀', label: 'Data Blending', desc: 'Merge sources' },
-    { path: '/advanced-filter', icon: '🔍', label: 'Advanced Filter', desc: 'Complex filters' },
-    { path: '/kpi-dashboard', icon: '🔢', label: 'KPI Dashboard', desc: 'Key metrics' },
-    { path: '/value-frequency', icon: '📊', label: 'Value Frequency', desc: 'Distribution' },
-    { path: '/connect-data', icon: '🔌', label: 'Connect Data', desc: 'Live connectors', tooltip: 'Pull live data from Shopify, QuickBooks and more directly into DataHub — no manual exports needed.' },
-    { path: '/data-pipelines', icon: '⚙️', label: 'Data Pipelines', desc: 'Auto transforms', tooltip: 'Build repeatable multi-step transforms: remove nulls, rename columns, filter rows, and join datasets automatically.' },
+  { label: 'DATA', color: '#0c1446', icon: 'ðï¸', tools: [
+    { path: '/data-table', icon: 'ð', label: 'Data View', desc: 'Browse & explore' },
+    { path: '/data-summary', icon: 'ð', label: 'Data Summary', desc: 'Column stats' },
+    { path: '/data-quality', icon: 'â', label: 'Quality Report', desc: 'Missing values' },
+    { path: '/data-cleaner', icon: 'ð§¹', label: 'Data Cleaner', desc: 'Fix & dedupe' },
+    { path: '/data-blending', icon: 'ð', label: 'Data Blending', desc: 'Merge sources' },
+    { path: '/advanced-filter', icon: 'ð', label: 'Advanced Filter', desc: 'Complex filters' },
+    { path: '/kpi-dashboard', icon: 'ð¢', label: 'KPI Dashboard', desc: 'Key metrics' },
+    { path: '/value-frequency', icon: 'ð', label: 'Value Frequency', desc: 'Distribution' },
+    { path: '/connect-data', icon: 'ð', label: 'Connect Data', desc: 'Live connectors', tooltip: 'Pull live data from Shopify, QuickBooks and more directly into DataHub â no manual exports needed.' },
+    { path: '/data-pipelines', icon: 'âï¸', label: 'Data Pipelines', desc: 'Auto transforms', tooltip: 'Build repeatable multi-step transforms: remove nulls, rename columns, filter rows, and join datasets automatically.' },
   ]},
-  { label: 'ANALYSIS', color: '#0097b2', icon: '🔬', tools: [
-    { path: '/pivot-table', icon: '🔄', label: 'Pivot Table', desc: 'Drag-drop pivots' },
-    { path: '/what-if', icon: '🤔', label: 'What-If', desc: 'Scenario model' },
-    { path: '/anomaly-detection', icon: '⚠️', label: 'Anomaly Detection', desc: 'Flag outliers' },
-    { path: '/period-comparison', icon: '📅', label: 'Period Comparison', desc: 'vs prior period' },
-    { path: '/variance-analysis', icon: '📐', label: 'Variance Analysis', desc: 'Actual vs budget' },
-    { path: '/regression', icon: '📈', label: 'Regression', desc: 'Trend lines' },
-    { path: '/correlation', icon: '🔗', label: 'Correlation Matrix', desc: 'Find patterns' },
-    { path: '/cohort-analysis', icon: '👥', label: 'Cohort Analysis', desc: 'Retention' },
-    { path: '/trend-analysis', icon: '📉', label: 'Trend Analysis', desc: 'Over time' },
-    { path: '/rfm', icon: '🎯', label: 'RFM Analysis', desc: 'Customer score' },
+  { label: 'ANALYSIS', color: '#0097b2', icon: 'ð¬', tools: [
+    { path: '/pivot-table', icon: 'ð', label: 'Pivot Table', desc: 'Drag-drop pivots' },
+    { path: '/what-if', icon: 'ð¤', label: 'What-If', desc: 'Scenario model' },
+    { path: '/anomaly-detection', icon: 'â ï¸', label: 'Anomaly Detection', desc: 'Flag outliers' },
+    { path: '/period-comparison', icon: 'ð', label: 'Period Comparison', desc: 'vs prior period' },
+    { path: '/variance-analysis', icon: 'ð', label: 'Variance Analysis', desc: 'Actual vs budget' },
+        { path: '/budget-actuals', icon: '📊', label: 'Budget vs Actuals', desc: 'Budget vs actual variance reports', tooltip: 'Import budget and actuals CSVs to generate variance reports with auto-generated commentary for every line item. Supports monthly, quarterly and annual views.' },
+    { path: '/regression', icon: 'ð', label: 'Regression', desc: 'Trend lines' },
+    { path: '/correlation', icon: 'ð', label: 'Correlation Matrix', desc: 'Find patterns' },
+    { path: '/cohort-analysis', icon: 'ð¥', label: 'Cohort Analysis', desc: 'Retention' },
+    { path: '/trend-analysis', icon: 'ð', label: 'Trend Analysis', desc: 'Over time' },
+    { path: '/rfm', icon: 'ð¯', label: 'RFM Analysis', desc: 'Customer score' },
     { path: '/pareto', icon: '80%', label: 'Pareto Analysis', desc: '80/20 rule' },
-    { path: '/segmentation', icon: '🎯', label: 'Segmentation', desc: 'Group customers' },
+    { path: '/segmentation', icon: 'ð¯', label: 'Segmentation', desc: 'Group customers' },
   ]},
-  { label: 'FORECASTING', color: '#7c3aed', icon: '🔮', tools: [
-    { path: '/forecasting', icon: '🔮', label: 'Forecasting', desc: 'Predict future' },
-    { path: '/goal-tracker', icon: '🏁', label: 'Goal Tracker', desc: 'Track targets' },
-    { path: '/break-even', icon: '⚖️', label: 'Break-Even', desc: 'BEP analysis' },
-    { path: '/rolling-average', icon: '〰️', label: 'Rolling Average', desc: 'Smooth trends' },
-    { path: '/npv', icon: '💰', label: 'NPV Calculator', desc: 'Investment ROI' },
+  { label: 'FORECASTING', color: '#7c3aed', icon: 'ð®', tools: [
+    { path: '/forecasting', icon: 'ð®', label: 'Forecasting', desc: 'Predict future' },
+    { path: '/goal-tracker', icon: 'ð', label: 'Goal Tracker', desc: 'Track targets' },
+    { path: '/break-even', icon: 'âï¸', label: 'Break-Even', desc: 'BEP analysis' },
+    { path: '/rolling-average', icon: 'ã°ï¸', label: 'Rolling Average', desc: 'Smooth trends' },
+    { path: '/npv', icon: 'ð°', label: 'NPV Calculator', desc: 'Investment ROI' },
   ]},
-  { label: 'VISUALISE', color: '#e91e8c', icon: '📊', tools: [
-    { path: '/bar-chart', icon: '📊', label: 'Bar Chart', desc: 'Compare values' },
-    { path: '/line-chart', icon: '📈', label: 'Line Chart', desc: 'Time series' },
-    { path: '/pie-chart', icon: '🥧', label: 'Pie Chart', desc: 'Proportions' },
-    { path: '/heatmap', icon: '🌡️', label: 'Heatmap', desc: 'Intensity map' },
-    { path: '/waterfall', icon: '💧', label: 'Waterfall', desc: 'Contribution' },
-    { path: '/scatter-plot', icon: '✦', label: 'Scatter Plot', desc: 'Relationships' },
-    { path: '/combo-chart', icon: '📉', label: 'Combo Chart', desc: 'Dual axis' },
-    { path: '/funnel-chart', icon: '🔻', label: 'Funnel Chart', desc: 'Conversion' },
-    { path: '/box-plot', icon: '📦', label: 'Box Plot', desc: 'Distribution' },
+  { label: 'VISUALISE', color: '#e91e8c', icon: 'ð', tools: [
+    { path: '/bar-chart', icon: 'ð', label: 'Bar Chart', desc: 'Compare values' },
+    { path: '/line-chart', icon: 'ð', label: 'Line Chart', desc: 'Time series' },
+    { path: '/pie-chart', icon: 'ð¥§', label: 'Pie Chart', desc: 'Proportions' },
+    { path: '/heatmap', icon: 'ð¡ï¸', label: 'Heatmap', desc: 'Intensity map' },
+    { path: '/waterfall', icon: 'ð§', label: 'Waterfall', desc: 'Contribution' },
+    { path: '/scatter-plot', icon: 'â¦', label: 'Scatter Plot', desc: 'Relationships' },
+    { path: '/combo-chart', icon: 'ð', label: 'Combo Chart', desc: 'Dual axis' },
+    { path: '/funnel-chart', icon: 'ð»', label: 'Funnel Chart', desc: 'Conversion' },
+    { path: '/box-plot', icon: 'ð¦', label: 'Box Plot', desc: 'Distribution' },
   ]},
-  { label: 'AI & FORMULAS', color: '#059669', icon: '🤖', tools: [
-    { path: '/formula-engine', icon: '⚗️', label: 'Formula Engine', desc: '200+ functions' },
-    { path: '/excel-functions', icon: '📗', label: 'Excel Functions', desc: 'Reference guide' },
-    { path: '/formula-builder', icon: '🔧', label: 'Formula Builder AI', desc: 'AI-generated' },
-    { path: '/ask-your-data', icon: '💬', label: 'Ask Your Data', desc: 'Plain English' },
-    { path: '/auto-report', icon: '📄', label: 'Auto Report', desc: 'AI narrative' },
-    { path: '/ai-narrative', icon: '✍️', label: 'AI Narrative', desc: 'Story telling' },
-    { path: '/conditional-format', icon: '🎨', label: 'Cond. Format', desc: 'Rules engine' },
-    { path: '/ai-insights', icon: '🧠', label: 'AI Insights', desc: 'Deep analysis' },
+  { label: 'AI & FORMULAS', color: '#059669', icon: 'ð¤', tools: [
+    { path: '/formula-engine', icon: 'âï¸', label: 'Formula Engine', desc: '200+ functions' },
+    { path: '/excel-functions', icon: 'ð', label: 'Excel Functions', desc: 'Reference guide' },
+    { path: '/formula-builder', icon: 'ð§', label: 'Formula Builder AI', desc: 'AI-generated' },
+    { path: '/ask-your-data', icon: 'ð¬', label: 'Ask Your Data', desc: 'Plain English' },
+    { path: '/auto-report', icon: 'ð', label: 'Auto Report', desc: 'AI narrative' },
+    { path: '/ai-narrative', icon: 'âï¸', label: 'AI Narrative', desc: 'Story telling' },
+    { path: '/conditional-format', icon: 'ð¨', label: 'Cond. Format', desc: 'Rules engine' },
+    { path: '/ai-insights', icon: 'ð§ ', label: 'AI Insights', desc: 'Deep analysis' },
   ]},
-  { label: 'OPERATIONS', color: '#d97706', icon: '⚙️', tools: [
-    { path: '/scheduled-reports', icon: '⏰', label: 'Scheduled Reports', desc: 'Auto delivery' },
-    { path: '/integrations', icon: '🔌', label: 'Integrations', desc: 'Connect tools' },
-    { path: '/workspace-roles', icon: '👥', label: 'Workspace & Roles', desc: 'Permissions' },
-    { path: '/audit-log', icon: '📜', label: 'Audit Log', desc: 'Activity trail' },
-    { path: '/ai-settings', icon: '⚙️', label: 'AI Settings', desc: 'Configure AI' },
-    { path: '/executive-dashboard', icon: '📊', label: 'Exec Dashboard', desc: 'C-suite view' },
-    { path: '/dashboard-builder', icon: '🎨', label: 'Dashboard Builder', desc: 'Custom layout' },
+  { label: 'OPERATIONS', color: '#d97706', icon: 'âï¸', tools: [
+    { path: '/scheduled-reports', icon: 'â°', label: 'Scheduled Reports', desc: 'Auto delivery' },
+    { path: '/integrations', icon: 'ð', label: 'Integrations', desc: 'Connect tools' },
+    { path: '/workspace-roles', icon: 'ð¥', label: 'Workspace & Roles', desc: 'Permissions' },
+    { path: '/audit-log', icon: 'ð', label: 'Audit Log', desc: 'Activity trail' },
+    { path: '/ai-settings', icon: 'âï¸', label: 'AI Settings', desc: 'Configure AI' },
+    { path: '/executive-dashboard', icon: 'ð', label: 'Exec Dashboard', desc: 'C-suite view' },
+    { path: '/dashboard-builder', icon: 'ð¨', label: 'Dashboard Builder', desc: 'Custom layout' },
   ]},
 ]
 
 const QUICK_ACTIONS = [
-  { label: 'Upload Data', path: '/files', icon: '📂', color: '#e91e8c' },
-  { label: 'AI Insights', path: '/ai-insights', icon: '🧠', color: '#7c3aed' },
-  { label: 'Executive View', path: '/executive-dashboard', icon: '📊', color: '#0097b2' },
-  { label: 'Ask Your Data', path: '/ask-your-data', icon: '💬', color: '#059669' },
-  { label: 'Auto Report', path: '/auto-report', icon: '📄', color: '#d97706' },
-  { label: 'RFM Analysis', path: '/rfm', icon: '🎯', color: '#0c1446' },
+  { label: 'Upload Data', path: '/files', icon: 'ð', color: '#e91e8c' },
+  { label: 'AI Insights', path: '/ai-insights', icon: 'ð§ ', color: '#7c3aed' },
+  { label: 'Executive View', path: '/executive-dashboard', icon: 'ð', color: '#0097b2' },
+  { label: 'Ask Your Data', path: '/ask-your-data', icon: 'ð¬', color: '#059669' },
+  { label: 'Auto Report', path: '/auto-report', icon: 'ð', color: '#d97706' },
+  { label: 'RFM Analysis', path: '/rfm', icon: 'ð¯', color: '#0c1446' },
 ]
 
 export default function HubHome() {
@@ -106,7 +107,7 @@ export default function HubHome() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, gap: 20, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.02em' }}>
-            {greeting}, {firstName} 👋
+            {greeting}, {firstName} ð
           </h1>
           <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -116,9 +117,9 @@ export default function HubHome() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: 12 }}>
           {[
-            { label: 'Files', value: loading ? '—' : stats.files, icon: '📁', color: '#0097b2' },
-            { label: 'Total Rows', value: loading ? '—' : stats.rows.toLocaleString(), icon: '📊', color: '#e91e8c' },
-            { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: '⭐', color: '#7c3aed' },
+            { label: 'Files', value: loading ? 'â' : stats.files, icon: 'ð', color: '#0097b2' },
+            { label: 'Total Rows', value: loading ? 'â' : stats.rows.toLocaleString(), icon: 'ð', color: '#e91e8c' },
+            { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: 'â­', color: '#7c3aed' },
           ].map(s => (
             <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 100, border: '1px solid #f0f2f8' }}>
               <div style={{ fontSize: '1.1rem', marginBottom: 2 }}>{s.icon}</div>
@@ -148,8 +149,8 @@ export default function HubHome() {
       {recentFiles.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 24px', marginBottom: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446' }}>📂 Recent Files</div>
-            <button onClick={() => navigate('/files')} style={{ fontSize: '0.8rem', color: '#e91e8c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View all →</button>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446' }}>ð Recent Files</div>
+            <button onClick={() => navigate('/files')} style={{ fontSize: '0.8rem', color: '#e91e8c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View all â</button>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {recentFiles.map(f => (
@@ -157,8 +158,8 @@ export default function HubHome() {
                 style={{ flex: 1, minWidth: 180, padding: '12px 16px', background: '#f8f9ff', border: '1px solid #e8eaf4', borderRadius: 10, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#e91e8c'; e.currentTarget.style.background = '#fff5f9' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.background = '#f8f9ff' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {f.filename}</div>
-                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.rows || 0).toLocaleString()} rows · {f.columns || 0} cols</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>ð {f.filename}</div>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.rows || 0).toLocaleString()} rows Â· {f.columns || 0} cols</div>
               </button>
             ))}
           </div>
@@ -179,7 +180,7 @@ export default function HubHome() {
                   <span style={{ fontWeight: 800, color: '#0c1446', fontSize: '0.9rem', letterSpacing: '0.02em' }}>{label}</span>
                   <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>{tools.length} tools</span>
                 </div>
-                <span style={{ fontSize: '0.8rem', color: '#9ca3af', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>▼</span>
+                <span style={{ fontSize: '0.8rem', color: '#9ca3af', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>â¼</span>
               </button>
               {isExpanded && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2, padding: 8 }}>
