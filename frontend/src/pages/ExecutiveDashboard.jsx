@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { filesApi, analyticsApi } from '../api'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
@@ -11,8 +11,17 @@ export default function ExecutiveDashboard() {
   const [fileId, setFileId] = useState('')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const dashRef = useRef(null)
 
-  useEffect(() => { filesApi.list().then(r => { const fs = r.data || []; setFiles(fs); const paramId = searchParams.get('fileId'); const target = paramId ? fs.find(f => f.id === paramId) : fs[0]; if (target) load(target.id); }).catch(() => {}) }, [])
+  useEffect(() => {
+    filesApi.list().then(r => {
+      const fs = r.data || []
+      setFiles(fs)
+      const paramId = searchParams.get('fileId')
+      const target = paramId ? fs.find(f => f.id === paramId) : fs[0]
+      if (target) load(target.id)
+    }).catch(() => {})
+  }, [])
 
   function load(id) {
     setFileId(id); setData(null)
@@ -21,17 +30,15 @@ export default function ExecutiveDashboard() {
     Promise.all([analyticsApi.summary(id), analyticsApi.preview(id)]).then(([sRes, pRes]) => {
       const summary = sRes.data.summary || {}; const rows = pRes.data.rows || []; const headers = pRes.data.headers || []
       const numericCols = Object.entries(summary).filter(([, v]) => v.type === 'numeric').slice(0, 4)
-      const textCols = Object.entries(summary).filter(([col, v]) => { if (v.type === 'numeric') return false; const lower = col.toLowerCase(); return !lower.includes('date') && !lower.includes('time') && !lower.includes('_at') && lower !== 'id'; }).slice(0, 2)
+      const textCols = Object.entries(summary).filter(([, v]) => v.type !== 'numeric').slice(0, 2)
       const kpis = numericCols.map(([col, stats]) => ({
         label: col, value: (stats.mean || 0).toFixed(2), subtext: `Total: ${((stats.mean || 0) * (stats.count || 0)).toFixed(0)}`, color: COLORS[Math.floor(Math.random() * COLORS.length)]
       }))
-      // Time series: try to use first numeric col with row index
-      const trendData = rows.slice(0, 20).map((r, i) => {
+      const trendData = rows.slice(0, 30).map((r, i) => {
         const pt = { index: i + 1 }
         numericCols.slice(0, 2).forEach(([col]) => { pt[col] = parseFloat(r[col]) || 0 })
         return pt
       })
-      // Distribution of first text col
       let distData = []
       if (textCols.length) {
         const [col] = textCols[0]; const freq = {}
@@ -42,17 +49,59 @@ export default function ExecutiveDashboard() {
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
+  function handleExportPDF() {
+    const style = document.createElement('style')
+    style.id = 'print-override'
+    style.innerHTML = `
+      @media print {
+        body > * { display: none !important; }
+        #exec-dashboard-print { display: block !important; position: static !important; }
+        #exec-dashboard-print { padding: 20px !important; }
+        .no-print { display: none !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+    `
+    document.head.appendChild(style)
+    const el = dashRef.current
+    if (el) el.id = 'exec-dashboard-print'
+    window.print()
+    setTimeout(() => {
+      document.head.removeChild(style)
+      if (el) el.removeAttribute('id')
+    }, 1000)
+  }
+
   return (
-    <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+    <div ref={dashRef} style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
+      {/* Print CSS */}
+      <style>{`
+        @media print {
+          aside, header, .no-print { display: none !important; }
+          body { background: #fff !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flewWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: '0 0 4px', fontSize: '1.6rem', fontWeight: 800, color: '#0c1446' }}>Executive Dashboard</h1>
           <p style={{ margin: 0, color: '#6b7280' }}>High-level KPI overview and trends</p>
         </div>
-        <select value={fileId} onChange={e => load(e.target.value)} style={{ padding: '9px 16px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', minWidth: 200 }}>
-          <option value="">-- Select Dataset --</option>
-          {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flewWrap: 'wrap' }} className="no-print">
+          {data && (
+            <button onClick={handleExportPDF}
+              style={{ padding: '9px 16px', background: '#0c1446', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => e.currentTarget.style.background = '#1a2a6c'}
+              onMouseLeave={e => e.currentTarget.style.background = '#0c1446'}>
+              📥 Export PDF
+            </button>
+          )}
+          <select value={fileId} onChange={e => load(e.target.value)}
+            style={{ padding: '9px 16px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem', minWidth: 200 }}>
+            <option value="">-- Select Dataset --</option>
+            {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
+          </select>
+        </div>
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>Loading dashboard...</div>}
@@ -96,7 +145,8 @@ export default function ExecutiveDashboard() {
               {data.distData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={data.distData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                    <Pie data={data.distData} cx="50%" cy="50%" outerRadius={80} dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                       {data.distData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />
@@ -123,7 +173,12 @@ export default function ExecutiveDashboard() {
         </div>
       )}
 
-      {!data && !loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div><div>Select a dataset to load the executive dashboard</div></div>}
+      {!data && !loading && (
+        <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div>
+          <div>Select a dataset to load the executive dashboard</div>
+        </div>
+      )}
     </div>
   )
 }
