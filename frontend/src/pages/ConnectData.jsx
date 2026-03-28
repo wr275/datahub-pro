@@ -45,7 +45,7 @@ function Tooltip({ text }) {
       background: '#0c1446', color: '#fff', fontSize: '0.75rem', padding: '6px 10px',
       borderRadius: 6, whiteSpace: 'nowrap', zIndex: 100, pointerEvents: 'none',
       boxShadow: '0 4px 12px rgba(0,0,0,0.2)', marginBottom: 6,
-      maxWidth: 240, whiteSpace: 'normal', textAlign: 'center', lineHeight: 1.4,
+      maxWidth: 240, textAlign: 'center', lineHeight: 1.4,
     }}>
       {text}
       <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #0c1446' }} />
