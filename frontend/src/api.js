@@ -92,4 +92,9 @@ export const dashboardsApi = {
   share: (id) => api.post('/dashboards/' + id + '/share'),
 }
 
+export const sheetsApi = {
+  connect: (url, name) => api.post('/sheets/connect', { url, name }),
+  sync: (fileId) => api.post('/sheets/' + fileId + '/sync'),
+}
+
 export default api
