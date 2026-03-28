@@ -154,7 +154,7 @@ export default function HubHome() {
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {recentFiles.map(f => (
-              <button key={f.id} onClick={() => navigate(`/analytics/${f.id}`)}
+              <button key={f.id} onClick={() => navigate(`/executive-dashboard?fileId=${f.id}`)}
                 style={{ flex: 1, minWidth: 180, padding: '12px 16px', background: '#f8f9ff', border: '1px solid #e8eaf4', borderRadius: 10, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#e91e8c'; e.currentTarget.style.background = '#fff5f9' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.background = '#f8f9ff' }}>
