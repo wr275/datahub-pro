@@ -20,7 +20,7 @@ const NAV = [
       { label: 'Data Summary', path: '/data-summary', icon: '📝' },
       { label: 'Data Quality', path: '/data-quality', icon: '✅' },
       { label: 'Data Cleaner', path: '/data-cleaner', icon: '🧹' },
-      { label: 'Calculated Fields', path: '/calculated-fields', icon: '??' },
+      { label: 'Calculated Fields', path: '/calculated-fields', icon: '🧭' },
       { label: 'Advanced Filter', path: '/advanced-filter', icon: '🔍' },
       { label: 'Value Frequency', path: '/value-frequency', icon: '📊' },
       { label: 'Connect Data', path: '/connect-data', icon: '🔌' },
