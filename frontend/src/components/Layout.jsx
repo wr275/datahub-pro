@@ -120,7 +120,7 @@ export default function Layout({ children }) {
               {sidebarOpen ? (
                 <button onClick={() => toggleSection(section)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   <span>{section}</span>
-                  <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? '▶' : '▼'}|/span>
+                  <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? '▶' : '▼'}</span>
                 </button>
               ) : (
                 <div style={{ padding: '8px 0 4px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem' }}>{icon}</div>
