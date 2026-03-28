@@ -7,7 +7,7 @@ const NAV = [
     section: 'HOME', icon: '🏠',
     items: [
       { label: 'Hub Home', path: '/hub', icon: '🏠' },
-      { label: 'Executive Dashboard', path: '/executive-dahoard', icon: '📊' },
+      { label: 'Executive Dashboard', path: '/executive-dashboard', icon: '📊' },
       { label: 'Dashboard Builder', path: '/dashboard-builder', icon: '🎨' },
     ]
   },
