@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """))
-                        conn.execute(text("""
+            conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS calculated_field_sets (
                     id VARCHAR PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
