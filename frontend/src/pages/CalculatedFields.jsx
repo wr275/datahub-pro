@@ -200,7 +200,7 @@ export default function CalculatedFields() {
         <label style={{ fontWeight: 600, color: '#374151', fontSize: '0.88rem', display: 'block', marginBottom: 8 }}>Select data file</label>
         <select value={fileId} onChange={e => setFileId(e.target.value)} style={{ ...SEL, minWidth: 280 }}>
           <option value="">— choose an uploaded file —</option>
-          {files.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
         </select>
       </div>
 
