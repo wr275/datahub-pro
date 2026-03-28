@@ -10,7 +10,7 @@ export default function ExecutiveDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
+  useEffect(() => { filesApi.list().then(r => { const fs = r.data || []; setFiles(fs); if (fs.length > 0) load(fs[0].id); }).catch(() => {}) }, [])
 
   function load(id) {
     setFileId(id); setData(null)
@@ -75,7 +75,7 @@ export default function ExecutiveDashboard() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>
             <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Trend (first 20 rows)</div>
+              <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Performance Trend</div>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={data.trendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
