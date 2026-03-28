@@ -4,79 +4,79 @@ import { filesApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 const SECTIONS = [
-  { label: 'DATA', color: '#0c1446', icon: '🗄️', tools: [
-    { path: '/data-table', icon: '📋', label: 'Data View', desc: 'Browse & explore', tooltip: 'View, sort, search and paginate every row and column in your uploaded file. Apply quick filters to find exactly what you need.' },
-    { path: '/data-summary', icon: '📊', label: 'Data Summary', desc: 'Column stats', tooltip: 'Get instant statistical summaries for every column — count, mean, min, max, and standard deviation — for both numeric and text columns.' },
-    { path: '/data-quality', icon: '✅', label: 'Quality Report', desc: 'Missing values', tooltip: 'Scan your dataset for missing values, duplicates, and type inconsistencies. Get a completeness score and actionable fix recommendations.' },
-    { path: '/data-cleaner', icon: '🧹', label: 'Data Cleaner', desc: 'Fix & dedupe', tooltip: 'Remove duplicates, fill or drop nulls, trim whitespace, standardise formats, and rename columns — all without writing a single line of code.' },
-    { path: '/data-blending', icon: '🔀', label: 'Data Blending', desc: 'Merge sources', tooltip: 'Join two datasets on a common key using inner, left, or full outer joins to create a unified view across multiple sources.' },
-    { path: '/advanced-filter', icon: '🔍', label: 'Advanced Filter', desc: 'Complex filters', tooltip: 'Apply multi-condition filters with AND/OR logic, comparison operators, and custom sort orders to slice your dataset with precision.' },
-    { path: '/kpi-dashboard', icon: '🔢', label: 'KPI Dashboard', desc: 'Key metrics', tooltip: 'Auto-generate KPI cards for every numeric column — totals, averages, min/max — laid out in a clean, shareable dashboard.' },
-    { path: '/value-frequency', icon: '📊', label: 'Value Frequency', desc: 'Distribution', tooltip: 'Count how often each unique value appears in any column and visualise the distribution as a bar chart or ranked table.' },
-    { path: '/connect-data', icon: '🔌', label: 'Connect Data', desc: 'Live connectors', tooltip: 'Pull live data from Shopify, QuickBooks and more directly into DataHub — no manual exports needed.' },
-    { path: '/data-pipelines', icon: '⚙️', label: 'Data Pipelines', desc: 'Auto transforms', tooltip: 'Build repeatable multi-step transforms: remove nulls, rename columns, filter rows, and join datasets automatically.' },
+  { label: 'DATA', color: '#0c1446', icon: 'ðï¸', tools: [
+    { path: '/data-table', icon: 'ð', label: 'Data View', desc: 'Browse & explore', tooltip: 'View, sort, search and paginate every row and column in your uploaded file. Apply quick filters to find exactly what you need.' },
+    { path: '/data-summary', icon: 'ð', label: 'Data Summary', desc: 'Column stats', tooltip: 'Get instant statistical summaries for every column â count, mean, min, max, and standard deviation â for both numeric and text columns.' },
+    { path: '/data-quality', icon: 'â', label: 'Quality Report', desc: 'Missing values', tooltip: 'Scan your dataset for missing values, duplicates, and type inconsistencies. Get a completeness score and actionable fix recommendations.' },
+    { path: '/data-cleaner', icon: 'ð§¹', label: 'Data Cleaner', desc: 'Fix & dedupe', tooltip: 'Remove duplicates, fill or drop nulls, trim whitespace, standardise formats, and rename columns â all without writing a single line of code.' },
+    { path: '/data-blending', icon: 'ð', label: 'Data Blending', desc: 'Merge sources', tooltip: 'Join two datasets on a common key using inner, left, or full outer joins to create a unified view across multiple sources.' },
+    { path: '/advanced-filter', icon: 'ð', label: 'Advanced Filter', desc: 'Complex filters', tooltip: 'Apply multi-condition filters with AND/OR logic, comparison operators, and custom sort orders to slice your dataset with precision.' },
+    { path: '/kpi-dashboard', icon: 'ð¢', label: 'KPI Dashboard', desc: 'Key metrics', tooltip: 'Auto-generate KPI cards for every numeric column â totals, averages, min/max â laid out in a clean, shareable dashboard.' },
+    { path: '/value-frequency', icon: 'ð', label: 'Value Frequency', desc: 'Distribution', tooltip: 'Count how often each unique value appears in any column and visualise the distribution as a bar chart or ranked table.' },
+    { path: '/connect-data', icon: 'ð', label: 'Connect Data', desc: 'Live connectors', tooltip: 'Pull live data from Shopify, QuickBooks and more directly into DataHub â no manual exports needed.' },
+    { path: '/data-pipelines', icon: 'âï¸', label: 'Data Pipelines', desc: 'Auto transforms', tooltip: 'Build repeatable multi-step transforms: remove nulls, rename columns, filter rows, and join datasets automatically.' },
   ]},
-  { label: 'ANALYSIS', color: '#0097b2', icon: '🔬', tools: [
-    { path: '/pivot-table', icon: '🔄', label: 'Pivot Table', desc: 'Drag-drop pivots', tooltip: 'Drag and drop rows, columns, and values to create pivot tables — summarise, group, and aggregate your data without Excel.' },
-    { path: '/what-if', icon: '🤔', label: 'What-If', desc: 'Scenario model', tooltip: 'Adjust key inputs with sliders and see how outcomes change in real time. Ideal for pricing, capacity planning, and growth scenarios.' },
-    { path: '/anomaly-detection', icon: '⚠️', label: 'Anomaly Detection', desc: 'Flag outliers', tooltip: 'Automatically flag rows or values that fall outside expected statistical ranges using z-score and IQR detection methods.' },
-    { path: '/period-comparison', icon: '📅', label: 'Period Comparison', desc: 'vs prior period', tooltip: 'Compare metrics side by side across different time periods — month over month, quarter over quarter, or any custom date range.' },
-    { path: '/variance-analysis', icon: '📐', label: 'Variance Analysis', desc: 'Actual vs budget', tooltip: 'Calculate absolute and percentage variances between actuals and budget with colour-coded over/under formatting for every line item.' },
-        { path: '/budget-actuals', icon: '💰', label: 'Budget vs Actuals', desc: 'Budget vs actual variance reports', tooltip: 'Import budget and actuals CSVs to generate variance reports with auto-generated commentary for every line item. Supports monthly, quarterly and annual views.' },
-    { path: '/regression', icon: '📈', label: 'Regression', desc: 'Trend lines', tooltip: 'Fit linear and polynomial trend lines to your data, review R² scores, and forecast future values based on historical patterns.' },
-    { path: '/correlation', icon: '🔗', label: 'Correlation Matrix', desc: 'Find patterns', tooltip: 'Compute pairwise correlations between all numeric columns and visualise them as a colour-coded heatmap to surface hidden relationships.' },
-    { path: '/cohort-analysis', icon: '👥', label: 'Cohort Analysis', desc: 'Retention', tooltip: 'Group customers by acquisition date and track how each cohort behaves over time — ideal for retention, churn, and LTV analysis.' },
-    { path: '/trend-analysis', icon: '📉', label: 'Trend Analysis', desc: 'Over time', tooltip: 'Chart any metric over time with smoothing options, rolling averages, and year-on-year overlays to spot trends and seasonality.' },
-    { path: '/rfm', icon: '🎯', label: 'RFM Analysis', desc: 'Customer score', tooltip: 'Score every customer on Recency, Frequency, and Monetary value to identify your best customers, at-risk churners, and untapped growth.' },
-    { path: '/pareto', icon: '📊', label: 'Pareto Analysis', desc: '80/20 rule', tooltip: 'Identify the 20% of products, customers, or issues driving 80% of your results with a ranked cumulative contribution chart.' },
-    { path: '/segmentation', icon: '🎯', label: 'Segmentation', desc: 'Group customers', tooltip: 'Cluster your customers or records into meaningful groups using rule-based logic to personalise campaigns and prioritise outreach.' },
+  { label: 'ANALYSIS', color: '#0097b2', icon: 'ð¬', tools: [
+    { path: '/pivot-table', icon: 'ð', label: 'Pivot Table', desc: 'Drag-drop pivots', tooltip: 'Drag and drop rows, columns, and values to create pivot tables â summarise, group, and aggregate your data without Excel.' },
+    { path: '/what-if', icon: 'ð¤', label: 'What-If', desc: 'Scenario model', tooltip: 'Adjust key inputs with sliders and see how outcomes change in real time. Ideal for pricing, capacity planning, and growth scenarios.' },
+    { path: '/anomaly-detection', icon: 'â ï¸', label: 'Anomaly Detection', desc: 'Flag outliers', tooltip: 'Automatically flag rows or values that fall outside expected statistical ranges using z-score and IQR detection methods.' },
+    { path: '/period-comparison', icon: 'ð', label: 'Period Comparison', desc: 'vs prior period', tooltip: 'Compare metrics side by side across different time periods â month over month, quarter over quarter, or any custom date range.' },
+    { path: '/variance-analysis', icon: 'ð', label: 'Variance Analysis', desc: 'Actual vs budget', tooltip: 'Calculate absolute and percentage variances between actuals and budget with colour-coded over/under formatting for every line item.' },
+        { path: '/budget-actuals', icon: 'ð°', label: 'Budget vs Actuals', desc: 'Budget vs actual variance reports', tooltip: 'Import budget and actuals CSVs to generate variance reports with auto-generated commentary for every line item. Supports monthly, quarterly and annual views.' },
+    { path: '/regression', icon: 'ð', label: 'Regression', desc: 'Trend lines', tooltip: 'Fit linear and polynomial trend lines to your data, review RÂ² scores, and forecast future values based on historical patterns.' },
+    { path: '/correlation', icon: 'ð', label: 'Correlation Matrix', desc: 'Find patterns', tooltip: 'Compute pairwise correlations between all numeric columns and visualise them as a colour-coded heatmap to surface hidden relationships.' },
+    { path: '/cohort-analysis', icon: 'ð¥', label: 'Cohort Analysis', desc: 'Retention', tooltip: 'Group customers by acquisition date and track how each cohort behaves over time â ideal for retention, churn, and LTV analysis.' },
+    { path: '/trend-analysis', icon: 'ð', label: 'Trend Analysis', desc: 'Over time', tooltip: 'Chart any metric over time with smoothing options, rolling averages, and year-on-year overlays to spot trends and seasonality.' },
+    { path: '/rfm', icon: 'ð¯', label: 'RFM Analysis', desc: 'Customer score', tooltip: 'Score every customer on Recency, Frequency, and Monetary value to identify your best customers, at-risk churners, and untapped growth.' },
+    { path: '/pareto', icon: 'ð', label: 'Pareto Analysis', desc: '80/20 rule', tooltip: 'Identify the 20% of products, customers, or issues driving 80% of your results with a ranked cumulative contribution chart.' },
+    { path: '/segmentation', icon: 'ð¯', label: 'Segmentation', desc: 'Group customers', tooltip: 'Cluster your customers or records into meaningful groups using rule-based logic to personalise campaigns and prioritise outreach.' },
   ]},
-  { label: 'FORECASTING', color: '#7c3aed', icon: '🔮', tools: [
-    { path: '/forecasting', icon: '🔮', label: 'Forecasting', desc: 'Predict future', tooltip: 'Project future values using moving averages, exponential smoothing, or linear extrapolation based on your historical data.' },
-    { path: '/goal-tracker', icon: '🏁', label: 'Goal Tracker', desc: 'Track targets', tooltip: 'Set numeric targets for any metric and visually track progress against actuals with gap calculations and status indicators.' },
-    { path: '/break-even', icon: '⚖️', label: 'Break-Even', desc: 'BEP analysis', tooltip: 'Calculate your break-even point by entering fixed costs, variable costs, and price per unit. See margin of safety and sensitivity analysis.' },
-    { path: '/rolling-average', icon: '〰️', label: 'Rolling Average', desc: 'Smooth trends', tooltip: 'Smooth noisy time-series data with configurable rolling average windows — 7-day, 30-day, or custom — to reveal the underlying trend.' },
-    { path: '/npv', icon: '💰', label: 'NPV Calculator', desc: 'Investment ROI', tooltip: 'Model multi-year cash flows and calculate Net Present Value, Internal Rate of Return, and payback period for any investment or project.' },
+  { label: 'FORECASTING', color: '#7c3aed', icon: 'ð®', tools: [
+    { path: '/forecasting', icon: 'ð®', label: 'Forecasting', desc: 'Predict future', tooltip: 'Project future values using moving averages, exponential smoothing, or linear extrapolation based on your historical data.' },
+    { path: '/goal-tracker', icon: 'ð', label: 'Goal Tracker', desc: 'Track targets', tooltip: 'Set numeric targets for any metric and visually track progress against actuals with gap calculations and status indicators.' },
+    { path: '/break-even', icon: 'âï¸', label: 'Break-Even', desc: 'BEP analysis', tooltip: 'Calculate your break-even point by entering fixed costs, variable costs, and price per unit. See margin of safety and sensitivity analysis.' },
+    { path: '/rolling-average', icon: 'ã°ï¸', label: 'Rolling Average', desc: 'Smooth trends', tooltip: 'Smooth noisy time-series data with configurable rolling average windows â 7-day, 30-day, or custom â to reveal the underlying trend.' },
+    { path: '/npv', icon: 'ð°', label: 'NPV Calculator', desc: 'Investment ROI', tooltip: 'Model multi-year cash flows and calculate Net Present Value, Internal Rate of Return, and payback period for any investment or project.' },
   ]},
-  { label: 'VISUALISE', color: '#e91e8c', icon: '📊', tools: [
-    { path: '/bar-chart', icon: '📊', label: 'Bar Chart', desc: 'Compare values', tooltip: 'Create vertical or horizontal bar charts to compare values across categories. Supports grouping, stacking, and custom colour coding.' },
-    { path: '/line-chart', icon: '📈', label: 'Line Chart', desc: 'Time series', tooltip: 'Plot time series or continuous data as smooth line charts with multiple series, custom axes, and optional trend line overlays.' },
-    { path: '/pie-chart', icon: '🥧', label: 'Pie Chart', desc: 'Proportions', tooltip: 'Visualise proportional breakdowns as pie or donut charts. Great for market share, budget allocation, or category distribution.' },
-    { path: '/heatmap', icon: '🌡️', label: 'Heatmap', desc: 'Intensity map', tooltip: 'Plot a two-dimensional matrix colour-coded by value intensity to spot patterns across rows and columns at a glance.' },
-    { path: '/waterfall', icon: '💧', label: 'Waterfall', desc: 'Contribution', tooltip: 'Show how individual positive and negative components add up to a final total — perfect for profit bridges and variance walk-throughs.' },
-    { path: '/scatter-plot', icon: '✦', label: 'Scatter Plot', desc: 'Relationships', tooltip: 'Plot two numeric variables against each other to identify correlations, clusters, and outliers across your dataset.' },
-    { path: '/combo-chart', icon: '📉', label: 'Combo Chart', desc: 'Dual axis', tooltip: 'Overlay a bar chart and a line chart on a dual axis to compare two metrics with different scales in a single view.' },
-    { path: '/funnel-chart', icon: '🔻', label: 'Funnel Chart', desc: 'Conversion', tooltip: 'Visualise drop-off and conversion rates at each stage of a pipeline — sales funnel, hiring process, or marketing journey.' },
-    { path: '/box-plot', icon: '📦', label: 'Box Plot', desc: 'Distribution', tooltip: 'Display the statistical spread of a dataset — median, quartiles, and outliers — using the standard box-and-whisker format.' },
+  { label: 'VISUALISE', color: '#e91e8c', icon: 'ð', tools: [
+    { path: '/bar-chart', icon: 'ð', label: 'Bar Chart', desc: 'Compare values', tooltip: 'Create vertical or horizontal bar charts to compare values across categories. Supports grouping, stacking, and custom colour coding.' },
+    { path: '/line-chart', icon: 'ð', label: 'Line Chart', desc: 'Time series', tooltip: 'Plot time series or continuous data as smooth line charts with multiple series, custom axes, and optional trend line overlays.' },
+    { path: '/pie-chart', icon: 'ð¥§', label: 'Pie Chart', desc: 'Proportions', tooltip: 'Visualise proportional breakdowns as pie or donut charts. Great for market share, budget allocation, or category distribution.' },
+    { path: '/heatmap', icon: 'ð¡ï¸', label: 'Heatmap', desc: 'Intensity map', tooltip: 'Plot a two-dimensional matrix colour-coded by value intensity to spot patterns across rows and columns at a glance.' },
+    { path: '/waterfall', icon: 'ð§', label: 'Waterfall', desc: 'Contribution', tooltip: 'Show how individual positive and negative components add up to a final total â perfect for profit bridges and variance walk-throughs.' },
+    { path: '/scatter-plot', icon: 'â¦', label: 'Scatter Plot', desc: 'Relationships', tooltip: 'Plot two numeric variables against each other to identify correlations, clusters, and outliers across your dataset.' },
+    { path: '/combo-chart', icon: 'ð', label: 'Combo Chart', desc: 'Dual axis', tooltip: 'Overlay a bar chart and a line chart on a dual axis to compare two metrics with different scales in a single view.' },
+    { path: '/funnel-chart', icon: 'ð»', label: 'Funnel Chart', desc: 'Conversion', tooltip: 'Visualise drop-off and conversion rates at each stage of a pipeline â sales funnel, hiring process, or marketing journey.' },
+    { path: '/box-plot', icon: 'ð¦', label: 'Box Plot', desc: 'Distribution', tooltip: 'Display the statistical spread of a dataset â median, quartiles, and outliers â using the standard box-and-whisker format.' },
   ]},
-  { label: 'AI & FORMULAS', color: '#059669', icon: '🤖', tools: [
-    { path: '/formula-engine', icon: '⚗️', label: 'Formula Engine', desc: '200+ functions', tooltip: 'Run 200+ built-in formulas across your data — VLOOKUP, SUMIF, date functions, text manipulation — without needing to open Excel.' },
-    { path: '/excel-functions', icon: '📗', label: 'Excel Functions', desc: 'Reference guide', tooltip: 'Browse a complete reference guide for Excel-compatible functions with examples, syntax, and real-world use cases for each one.' },
-    { path: '/formula-builder', icon: '🔧', label: 'Formula Builder AI', desc: 'AI-generated', tooltip: 'Describe what you want to calculate in plain English and AI will write the correct formula expression for you instantly.' },
-    { path: '/ask-your-data', icon: '💬', label: 'Ask Your Data', desc: 'Plain English', tooltip: 'Type any question about your dataset in plain English and get a data-driven answer instantly — no SQL or formulas needed.' },
-    { path: '/auto-report', icon: '📄', label: 'Auto Report', desc: 'AI narrative', tooltip: 'Generate a written narrative report of your dataset's key findings, trends, and anomalies in one click using AI.' },
-    { path: '/ai-narrative', icon: '✍️', label: 'AI Narrative', desc: 'Story telling', tooltip: 'Turn any chart or table into a written story — AI generates plain-English commentary explaining what the data means and why it matters.' },
-    { path: '/conditional-format', icon: '🎨', label: 'Cond. Format', desc: 'Rules engine', tooltip: 'Apply colour-coded highlighting rules to flag specific values, thresholds, or conditions across any column — like Excel conditional formatting.' },
-    { path: '/ai-insights', icon: '🧠', label: 'AI Insights', desc: 'Deep analysis', tooltip: 'Run a full automated analysis of your dataset and surface key findings, data quality issues, and actionable business recommendations.' },
+  { label: 'AI & FORMULAS', color: '#059669', icon: 'ð¤', tools: [
+    { path: '/formula-engine', icon: 'âï¸', label: 'Formula Engine', desc: '200+ functions', tooltip: 'Run 200+ built-in formulas across your data â VLOOKUP, SUMIF, date functions, text manipulation â without needing to open Excel.' },
+    { path: '/excel-functions', icon: 'ð', label: 'Excel Functions', desc: 'Reference guide', tooltip: 'Browse a complete reference guide for Excel-compatible functions with examples, syntax, and real-world use cases for each one.' },
+    { path: '/formula-builder', icon: 'ð§', label: 'Formula Builder AI', desc: 'AI-generated', tooltip: 'Describe what you want to calculate in plain English and AI will write the correct formula expression for you instantly.' },
+    { path: '/ask-your-data', icon: 'ð¬', label: 'Ask Your Data', desc: 'Plain English', tooltip: 'Type any question about your dataset in plain English and get a data-driven answer instantly â no SQL or formulas needed.' },
+    { path: '/auto-report', icon: 'ð', label: 'Auto Report', desc: 'AI narrative', tooltip: 'Generate a written narrative report of key findings, trends, and anomalies from your data in one click using AI.' },
+    { path: '/ai-narrative', icon: 'âï¸', label: 'AI Narrative', desc: 'Story telling', tooltip: 'Turn any chart or table into a written story â AI generates plain-English commentary explaining what the data means and why it matters.' },
+    { path: '/conditional-format', icon: 'ð¨', label: 'Cond. Format', desc: 'Rules engine', tooltip: 'Apply colour-coded highlighting rules to flag specific values, thresholds, or conditions across any column â like Excel conditional formatting.' },
+    { path: '/ai-insights', icon: 'ð§ ', label: 'AI Insights', desc: 'Deep analysis', tooltip: 'Run a full automated analysis of your dataset and surface key findings, data quality issues, and actionable business recommendations.' },
   ]},
-  { label: 'OPERATIONS', color: '#d97706', icon: '⚙️', tools: [
-    { path: '/scheduled-reports', icon: '⏰', label: 'Scheduled Reports', desc: 'Auto delivery', tooltip: 'Set up recurring reports to run automatically on a schedule and deliver results to your inbox or team channel — daily, weekly, or monthly.' },
-    { path: '/integrations', icon: '🔌', label: 'Integrations', desc: 'Connect tools', tooltip: 'Connect DataHub Pro with your existing tools — CRMs, accounting software, and cloud storage — for a seamless end-to-end data workflow.' },
-    { path: '/workspace-roles', icon: '👥', label: 'Workspace & Roles', desc: 'Permissions', tooltip: 'Invite team members, assign viewer or editor roles, and control who can access which datasets and tools in your workspace.' },
-    { path: '/audit-log', icon: '📜', label: 'Audit Log', desc: 'Activity trail', tooltip: 'Track every action in your workspace — file uploads, report runs, and user logins — for compliance, security, and accountability.' },
-    { path: '/ai-settings', icon: '⚙️', label: 'AI Settings', desc: 'Configure AI', tooltip: 'Configure your AI model preferences, API connections, and insight generation behaviour to tailor the AI experience to your needs.' },
-    { path: '/executive-dashboard', icon: '📊', label: 'Exec Dashboard', desc: 'C-suite view', tooltip: 'A single-page executive summary with auto-loaded KPI cards, trend lines, and category breakdowns — ready to share in any boardroom meeting.' },
-    { path: '/dashboard-builder', icon: '🎨', label: 'Dashboard Builder', desc: 'Custom layout', tooltip: 'Drag and drop charts, tables, and KPI widgets to build a fully custom dashboard layout and save it as a shareable view for your team.' },
+  { label: 'OPERATIONS', color: '#d97706', icon: 'âï¸', tools: [
+    { path: '/scheduled-reports', icon: 'â°', label: 'Scheduled Reports', desc: 'Auto delivery', tooltip: 'Set up recurring reports to run automatically on a schedule and deliver results to your inbox or team channel â daily, weekly, or monthly.' },
+    { path: '/integrations', icon: 'ð', label: 'Integrations', desc: 'Connect tools', tooltip: 'Connect DataHub Pro with your existing tools â CRMs, accounting software, and cloud storage â for a seamless end-to-end data workflow.' },
+    { path: '/workspace-roles', icon: 'ð¥', label: 'Workspace & Roles', desc: 'Permissions', tooltip: 'Invite team members, assign viewer or editor roles, and control who can access which datasets and tools in your workspace.' },
+    { path: '/audit-log', icon: 'ð', label: 'Audit Log', desc: 'Activity trail', tooltip: 'Track every action in your workspace â file uploads, report runs, and user logins â for compliance, security, and accountability.' },
+    { path: '/ai-settings', icon: 'âï¸', label: 'AI Settings', desc: 'Configure AI', tooltip: 'Configure your AI model preferences, API connections, and insight generation behaviour to tailor the AI experience to your needs.' },
+    { path: '/executive-dashboard', icon: 'ð', label: 'Exec Dashboard', desc: 'C-suite view', tooltip: 'A single-page executive summary with auto-loaded KPI cards, trend lines, and category breakdowns â ready to share in any boardroom meeting.' },
+    { path: '/dashboard-builder', icon: 'ð¨', label: 'Dashboard Builder', desc: 'Custom layout', tooltip: 'Drag and drop charts, tables, and KPI widgets to build a fully custom dashboard layout and save it as a shareable view for your team.' },
   ]},
 ]
 
 const QUICK_ACTIONS = [
-  { label: 'Upload Data', path: '/files', icon: '📂', color: '#e91e8c' },
-  { label: 'AI Insights', path: '/ai-insights', icon: '🧠', color: '#7c3aed' },
-  { label: 'Executive View', path: '/executive-dashboard', icon: '📊', color: '#0097b2' },
-  { label: 'Ask Your Data', path: '/ask-your-data', icon: '💬', color: '#059669' },
-  { label: 'Auto Report', path: '/auto-report', icon: '📄', color: '#d97706' },
-  { label: 'RFM Analysis', path: '/rfm', icon: '🎯', color: '#0c1446' },
+  { label: 'Upload Data', path: '/files', icon: 'ð', color: '#e91e8c' },
+  { label: 'AI Insights', path: '/ai-insights', icon: 'ð§ ', color: '#7c3aed' },
+  { label: 'Executive View', path: '/executive-dashboard', icon: 'ð', color: '#0097b2' },
+  { label: 'Ask Your Data', path: '/ask-your-data', icon: 'ð¬', color: '#059669' },
+  { label: 'Auto Report', path: '/auto-report', icon: 'ð', color: '#d97706' },
+  { label: 'RFM Analysis', path: '/rfm', icon: 'ð¯', color: '#0c1446' },
 ]
 
 export default function HubHome() {
@@ -107,7 +107,7 @@ export default function HubHome() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, gap: 20, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.02em' }}>
-            {greeting}, {firstName} 👋
+            {greeting}, {firstName} ð
           </h1>
           <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -117,9 +117,9 @@ export default function HubHome() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: 12 }}>
           {[
-            { label: 'Files', value: loading ? '—' : stats.files, icon: '📁', color: '#0097b2' },
-            { label: 'Total Rows', value: loading ? '—' : stats.rows.toLocaleString(), icon: '📊', color: '#e91e8c' },
-            { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: '⭐', color: '#7c3aed' },
+            { label: 'Files', value: loading ? 'â' : stats.files, icon: 'ð', color: '#0097b2' },
+            { label: 'Total Rows', value: loading ? 'â' : stats.rows.toLocaleString(), icon: 'ð', color: '#e91e8c' },
+            { label: 'Plan', value: user?.organisation?.subscription_tier || 'Trial', icon: 'â­', color: '#7c3aed' },
           ].map(s => (
             <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 100, border: '1px solid #f0f2f8' }}>
               <div style={{ fontSize: '1.1rem', marginBottom: 2 }}>{s.icon}</div>
@@ -149,8 +149,8 @@ export default function HubHome() {
       {recentFiles.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 24px', marginBottom: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446' }}>📂 Recent Files</div>
-            <button onClick={() => navigate('/files')} style={{ fontSize: '0.8rem', color: '#e91e8c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View all →</button>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446' }}>ð Recent Files</div>
+            <button onClick={() => navigate('/files')} style={{ fontSize: '0.8rem', color: '#e91e8c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View all â</button>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {recentFiles.map(f => (
@@ -158,8 +158,8 @@ export default function HubHome() {
                 style={{ flex: 1, minWidth: 180, padding: '12px 16px', background: '#f8f9ff', border: '1px solid #e8eaf4', borderRadius: 10, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#e91e8c'; e.currentTarget.style.background = '#fff5f9' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.background = '#f8f9ff' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {f.filename}</div>
-                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.row_count || 0).toLocaleString()} rows · {f.column_count || 0} cols</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>ð {f.filename}</div>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.row_count || 0).toLocaleString()} rows Â· {f.column_count || 0} cols</div>
               </button>
             ))}
           </div>
@@ -180,7 +180,7 @@ export default function HubHome() {
                   <span style={{ fontWeight: 800, color: '#0c1446', fontSize: '0.9rem', letterSpacing: '0.02em' }}>{label}</span>
                   <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>{tools.length} tools</span>
                 </div>
-                <span style={{ fontSize: '0.8rem', color: '#9ca3af', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>▼</span>
+                <span style={{ fontSize: '0.8rem', color: '#9ca3af', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>â¼</span>
               </button>
               {isExpanded && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2, padding: 8 }}>
