@@ -20,6 +20,7 @@ const NAV = [
       { label: 'Data Summary', path: '/data-summary', icon: 'ðŸ“' },
       { label: 'Data Quality', path: '/data-quality', icon: 'âœ…' },
       { label: 'Data Cleaner', path: '/data-cleaner', icon: 'ðŸ§¹' },
+      { label: 'Calculated Fields', path: '/calculated-fields', icon: '🧮' },
       { label: 'Advanced Filter', path: '/advanced-filter', icon: 'ðŸ”' },
       { label: 'Value Frequency', path: '/value-frequency', icon: 'ðŸ“Š' },
       { label: 'Connect Data', path: '/connect-data', icon: 'ðŸ”Œ' },
