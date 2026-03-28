@@ -8,7 +8,7 @@ import os
 import json
 from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -126,7 +126,7 @@ def list_files(
             "column_count": f.column_count,
             "column_names": json.loads(f.columns_json) if f.columns_json else [],
             "storage_type": f.storage_type,
-            "last_synced_at": f.last_synced_at.isoformat() if f.last_synced_at else None,
+            "last_synced_at": getattr(f, "last_synced_at", None) and getattr(f, "last_synced_at").isoformat(),
             "uploaded_at": f.created_at.isoformat()
         }
         for f in files
