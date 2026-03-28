@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
 
-from routers import auth, files, analytics, billing, users, connectors, pipelines
+from routers import auth, files, analytics, billing, users, connectors, pipelines, budget
 from database import engine, Base
 from config import settings
 
@@ -43,6 +43,22 @@ async def lifespan(app: FastAPI):
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS budget_entries (
+                    id VARCHAR PRIMARY KEY,
+                    budget_name VARCHAR(255) NOT NULL,
+                    category VARCHAR(255) NOT NULL,
+                    department VARCHAR(255),
+                    period VARCHAR(50) NOT NULL,
+                    budgeted FLOAT DEFAULT 0,
+                    actual FLOAT,
+                    line_type VARCHAR(50) DEFAULT 'expense',
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
             conn.commit()
     except Exception:
         pass
@@ -55,7 +71,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Build allowed origins from env — supports comma-separated list
+# Build allowed origins from env â supports comma-separated list
 # e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
@@ -78,6 +94,7 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(connectors.router, prefix="/api/connectors", tags=["Connectors"])
 app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"])
+app.include_router(budget.router, prefix="/api/budget", tags=["Budget"])
 
 @app.get("/health")
 def health_check():
