@@ -22,13 +22,13 @@ const SECTIONS = [
     { path: '/anomaly-detection', icon: '⚠️', label: 'Anomaly Detection', desc: 'Flag outliers' },
     { path: '/period-comparison', icon: '📅', label: 'Period Comparison', desc: 'vs prior period' },
     { path: '/variance-analysis', icon: '📐', label: 'Variance Analysis', desc: 'Actual vs budget' },
-        { path: '/budget-actuals', icon: '??', label: 'Budget vs Actuals', desc: 'Budget vs actual variance reports', tooltip: 'Import budget and actuals CSVs to generate variance reports with auto-generated commentary for every line item. Supports monthly, quarterly and annual views.' },
+        { path: '/budget-actuals', icon: '💰', label: 'Budget vs Actuals', desc: 'Budget vs actual variance reports', tooltip: 'Import budget and actuals CSVs to generate variance reports with auto-generated commentary for every line item. Supports monthly, quarterly and annual views.' },
     { path: '/regression', icon: '📈', label: 'Regression', desc: 'Trend lines' },
     { path: '/correlation', icon: '🔗', label: 'Correlation Matrix', desc: 'Find patterns' },
     { path: '/cohort-analysis', icon: '👥', label: 'Cohort Analysis', desc: 'Retention' },
     { path: '/trend-analysis', icon: '📉', label: 'Trend Analysis', desc: 'Over time' },
     { path: '/rfm', icon: '🎯', label: 'RFM Analysis', desc: 'Customer score' },
-    { path: '/pareto', icon: '80%', label: 'Pareto Analysis', desc: '80/20 rule' },
+    { path: '/pareto', icon: '📊', label: 'Pareto Analysis', desc: '80/20 rule' },
     { path: '/segmentation', icon: '🎯', label: 'Segmentation', desc: 'Group customers' },
   ]},
   { label: 'FORECASTING', color: '#7c3aed', icon: '🔮', tools: [
@@ -93,7 +93,7 @@ export default function HubHome() {
   useEffect(() => {
     filesApi.list().then(r => {
       const files = r.data || []
-      setStats({ files: files.length, rows: files.reduce((a, f) => a + (f.rows || 0), 0) })
+      setStats({ files: files.length, rows: files.reduce((a, f) => a + (f.row_count || 0), 0) })
       setRecentFiles(files.slice(0, 3))
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
@@ -159,7 +159,7 @@ export default function HubHome() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#e91e8c'; e.currentTarget.style.background = '#fff5f9' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.background = '#f8f9ff' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {f.filename}</div>
-                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.rows || 0).toLocaleString()} rows · {f.columns || 0} cols</div>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{(f.row_count || 0).toLocaleString()} rows · {f.column_count || 0} cols</div>
               </button>
             ))}
           </div>
