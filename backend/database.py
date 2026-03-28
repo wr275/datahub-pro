@@ -128,3 +128,18 @@ class Pipeline(Base):
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+class BudgetEntry(Base):
+    __tablename__ = "budget_entries"
+    id = Column(String, primary_key=True)
+    budget_name = Column(String(255), nullable=False)
+    category = Column(String(255), nullable=False)
+    department = Column(String(255), nullable=True)
+    period = Column(String(50), nullable=False)
+    budgeted = Column(Float, default=0.0)
+    actual = Column(Float, nullable=True)
+    line_type = Column(String(50), default="expense")
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
