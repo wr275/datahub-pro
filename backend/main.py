@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
 
-from routers import auth, files, analytics, billing, users, connectors, pipelines, budget
+from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields
 from database import engine, Base
 from config import settings
 
@@ -59,6 +59,17 @@ async def lifespan(app: FastAPI):
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """))
+                        conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS calculated_field_sets (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    file_id VARCHAR NOT NULL REFERENCES data_files(id) ON DELETE CASCADE,
+                    fields_json TEXT NOT NULL DEFAULT '[]',
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
             conn.commit()
     except Exception:
         pass
@@ -95,6 +106,7 @@ app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(connectors.router, prefix="/api/connectors", tags=["Connectors"])
 app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"])
 app.include_router(budget.router, prefix="/api/budget", tags=["Budget"])
+app.include_router(calculated_fields.router, prefix="/api/calculated-fields", tags=["Calculated Fields"])
 
 @app.get("/health")
 def health_check():
