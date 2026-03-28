@@ -4,9 +4,9 @@ import toast from 'react-hot-toast'
 
 const OPERATORS = [
   { value: '+', label: '+ Add' },
-  { value: '-', label: '− Subtract' },
-  { value: '*', label: '× Multiply' },
-  { value: '/', label: '÷ Divide' },
+  { value: '-', label: 'â Subtract' },
+  { value: '*', label: 'Ã Multiply' },
+  { value: '/', label: 'Ã· Divide' },
   { value: '%', label: '% Pct of' },
 ]
 const PINK = '#e91e8c'
@@ -30,7 +30,7 @@ function OperandPicker({ type, col, const_, columns, onTypeChange, onColChange, 
       </div>
       {type === 'column' ? (
         <select value={col} onChange={e => onColChange(e.target.value)} style={{ ...SEL, minWidth: 120 }}>
-          <option value="">— pick column —</option>
+          <option value="">â pick column â</option>
           {columns.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       ) : (
@@ -49,7 +49,7 @@ function OperandPicker({ type, col, const_, columns, onTypeChange, onColChange, 
 function FieldRow({ field, columns, updateField, removeField, canRemove, index }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '12px 14px', borderRadius: 10, background: '#fdf2f8', border: '1px solid #fbc8e4', marginBottom: 10 }}>
-      <span style={{ color: PINK, fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>✦</span>
+      <span style={{ color: PINK, fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>â¦</span>
       <input
         placeholder="New column name"
         value={field.name}
@@ -79,7 +79,7 @@ function FieldRow({ field, columns, updateField, removeField, canRemove, index }
         onConstChange={v => updateField('const_b', v)}
       />
       {canRemove && (
-        <button onClick={removeField} style={{ ...BTN({ background: '#fee2e2', color: '#dc2626' }), padding: '6px 10px', marginLeft: 'auto', flexShrink: 0 }}>✕</button>
+        <button onClick={removeField} style={{ ...BTN({ background: '#fee2e2', color: '#dc2626' }), padding: '6px 10px', marginLeft: 'auto', flexShrink: 0 }}>â</button>
       )}
     </div>
   )
@@ -113,8 +113,9 @@ export default function CalculatedFields() {
 
   useEffect(() => {
     if (!fileId) { setColumns([]); return }
-    analyticsApi.columns(fileId).then(r => setColumns(r.data)).catch(() => {})
-  }, [fileId])
+    const file = files.find(f => f.id === fileId)
+    setColumns(file?.column_names || [])
+  }, [fileId, files])
 
   const loadSets = () => {
     calculatedFieldsApi.list().then(r => setSavedSets(r.data)).catch(() => {})
@@ -189,9 +190,9 @@ export default function CalculatedFields() {
   return (
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>🧮 Calculated Fields</h1>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>ð§® Calculated Fields</h1>
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: 6 }}>
-          Create new columns from your data without writing code — profit, LTV, margins, and more.
+          Create new columns from your data without writing code â profit, LTV, margins, and more.
         </p>
       </div>
 
@@ -199,7 +200,7 @@ export default function CalculatedFields() {
       <div style={CARD}>
         <label style={{ fontWeight: 600, color: '#374151', fontSize: '0.88rem', display: 'block', marginBottom: 8 }}>Select data file</label>
         <select value={fileId} onChange={e => setFileId(e.target.value)} style={{ ...SEL, minWidth: 280 }}>
-          <option value="">— choose an uploaded file —</option>
+          <option value="">â choose an uploaded file â</option>
           {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
         </select>
       </div>
@@ -223,10 +224,10 @@ export default function CalculatedFields() {
         ))}
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           <button onClick={handlePreview} disabled={loading} style={BTN({ background: PINK, color: '#fff' })}>
-            {loading ? 'Loading…' : '👁 Preview (50 rows)'}
+            {loading ? 'Loadingâ¦' : 'ð Preview (50 rows)'}
           </button>
           <button onClick={handleExport} disabled={loading} style={BTN({ background: '#1e293b', color: '#fff' })}>
-            ⬇ Export CSV
+            â¬ Export CSV
           </button>
         </div>
       </div>
@@ -236,12 +237,12 @@ export default function CalculatedFields() {
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: 14, marginTop: 0 }}>Save Field Set</h2>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
           <input
-            placeholder="Name this field set…"
+            placeholder="Name this field setâ¦"
             value={setName}
             onChange={e => setSetName(e.target.value)}
             style={{ ...INPUT, width: 260 }}
           />
-          <button onClick={handleSave} style={BTN({ background: '#6366f1', color: '#fff' })}>💾 Save</button>
+          <button onClick={handleSave} style={BTN({ background: '#6366f1', color: '#fff' })}>ð¾ Save</button>
         </div>
         {savedSets.length > 0 && (
           <>
@@ -270,7 +271,7 @@ export default function CalculatedFields() {
                 <tr>
                   {previewCols.map(c => (
                     <th key={c} style={{ padding: '8px 12px', background: calcNames.has(c) ? '#fdf2f8' : '#f8fafc', color: calcNames.has(c) ? PINK : '#374151', fontWeight: 700, borderBottom: '2px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>
-                      {calcNames.has(c) ? '✦ ' : ''}{c}
+                      {calcNames.has(c) ? 'â¦ ' : ''}{c}
                     </th>
                   ))}
                 </tr>
