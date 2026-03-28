@@ -22,6 +22,7 @@ import AdvancedFilter from './pages/AdvancedFilter'
 import ValueFrequency from './pages/ValueFrequency'
 import ConnectData from './pages/ConnectData'
 import DataPipelines from './pages/DataPipelines'
+import BudgetActuals from './pages/BudgetActuals'
 
 // ANALYSIS
 import PivotTable from './pages/PivotTable'
@@ -121,7 +122,8 @@ export default function App() {
         <Route path="/advanced-filter" element={<P><AdvancedFilter /></P>} />
         <Route path="/value-frequency" element={<P><ValueFrequency /></P>} />
         <Route path="/connect-data" element={<P><ConnectData /></P>} />
-        <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
+        <Route path="/budget-actuals" element={<PrivateRoute><BudgetActuals /></PrivateRoute>} />
+              <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
 
         {/* ANALYSIS */}
         <Route path="/pivot-table" element={<P><PivotTable /></P>} />
