@@ -4,96 +4,96 @@ import { useAuth } from '../context/AuthContext'
 
 const NAV = [
   {
-    section: 'HOME', icon: 'ðŸ ',
+    section: 'HOME', icon: '🏠',
     items: [
-      { label: 'Hub Home', path: '/hub', icon: 'ðŸ ' },
-      { label: 'Executive Dashboard', path: '/executive-dahoard', icon: 'ðŸ“Š' },
-      { label: 'Dashboard Builder', path: '/dashboard-builder', icon: 'ðŸŽ¨' },
+      { label: 'Hub Home', path: '/hub', icon: '🏠' },
+      { label: 'Executive Dashboard', path: '/executive-dahoard', icon: '📊' },
+      { label: 'Dashboard Builder', path: '/dashboard-builder', icon: '🎨' },
     ]
   },
   {
-    section: 'DATA', icon: 'ðŸ—„ï¸',
+    section: 'DATA', icon: '🗄️',
     items: [
-      { label: 'Data Blending', path: '/data-blending', icon: 'ðŸ”€' },
-      { label: 'Data Table', path: '/data-table', icon: 'ðŸ“‹' },
-      { label: 'KPI Dashboard', path: '/kpi-dashboard', icon: 'ðŸ”¢' },
-      { label: 'Data Summary', path: '/data-summary', icon: 'ðŸ“' },
-      { label: 'Data Quality', path: '/data-quality', icon: 'âœ…' },
-      { label: 'Data Cleaner', path: '/data-cleaner', icon: 'ðŸ§¹' },
-      { label: 'Calculated Fields', path: '/calculated-fields', icon: '🧮' },
-      { label: 'Advanced Filter', path: '/advanced-filter', icon: 'ðŸ”' },
-      { label: 'Value Frequency', path: '/value-frequency', icon: 'ðŸ“Š' },
-      { label: 'Connect Data', path: '/connect-data', icon: 'ðŸ”Œ' },
-      { label: 'Data Pipelines', path: '/data-pipelines', icon: 'âš™ï¸' },
+      { label: 'Data Blending', path: '/data-blending', icon: '🔀' },
+      { label: 'Data Table', path: '/data-table', icon: '📋' },
+      { label: 'KPI Dashboard', path: '/kpi-dashboard', icon: '🔢' },
+      { label: 'Data Summary', path: '/data-summary', icon: '📝' },
+      { label: 'Data Quality', path: '/data-quality', icon: '✅' },
+      { label: 'Data Cleaner', path: '/data-cleaner', icon: '🧹' },
+      { label: 'Calculated Fields', path: '/calculated-fields', icon: '??' },
+      { label: 'Advanced Filter', path: '/advanced-filter', icon: '🔍' },
+      { label: 'Value Frequency', path: '/value-frequency', icon: '📊' },
+      { label: 'Connect Data', path: '/connect-data', icon: '🔌' },
+      { label: 'Data Pipelines', path: '/data-pipelines', icon: '⚙️' },
     ]
   },
   {
-    section: 'ANALYSIS', icon: 'ðŸ”¬',
+    section: 'ANALYSIS', icon: '🔬',
     items: [
-      { label: 'Pivot Table', path: '/pivot-table', icon: 'ðŸ”„' },
-      { label: 'What-If Scenarios', path: '/what-if', icon: 'ðŸ¤”' },
-      { label: 'Anomaly Detection', path: '/anomaly-detection', icon: 'âš ï¸' },
-      { label: 'Period Comparison', path: '/period-comparison', icon: 'ðŸ“…' },
-      { label: 'Variance Analysis', path: '/variance-analysis', icon: 'ðŸ“' },
-      { label: 'Regression Analysis', path: '/regression', icon: 'ðŸ“ˆ' },
-      { label: 'Correlation Matrix', path: '/correlation', icon: 'ðŸ”—' },
-      { label: 'Cohort Analysis', path: '/cohort-analysis', icon: 'ðŸ‘¥' },
-      { label: 'Trend Analysis', path: '/trend-analysis', icon: 'ðŸ“‰' },
-      { label: 'RFM Analysis', path: '/rfm', icon: 'ðŸŽ¯' },
+      { label: 'Pivot Table', path: '/pivot-table', icon: '🔄' },
+      { label: 'What-If Scenarios', path: '/what-if', icon: '🤔' },
+      { label: 'Anomaly Detection', path: '/anomaly-detection', icon: '⚠️' },
+      { label: 'Period Comparison', path: '/period-comparison', icon: '📅' },
+      { label: 'Variance Analysis', path: '/variance-analysis', icon: '📐' },
+      { label: 'Regression Analysis', path: '/regression', icon: '📈' },
+      { label: 'Correlation Matrix', path: '/correlation', icon: '🔗' },
+      { label: 'Cohort Analysis', path: '/cohort-analysis', icon: '👥' },
+      { label: 'Trend Analysis', path: '/trend-analysis', icon: '📉' },
+      { label: 'RFM Analysis', path: '/rfm', icon: '🎯' },
       { label: 'Pareto Analysis', path: '/pareto', icon: '80%' },
-      { label: 'Customer Segmentation', path: '/segmentation', icon: 'ðŸŽ¯' },
+      { label: 'Customer Segmentation', path: '/segmentation', icon: '🎯' },
     ]
   },
   {
-    section: 'FORECASTING', icon: 'ðŸ”®',
+    section: 'FORECASTING', icon: '🔮',
     items: [
-      { label: 'Forecasting', path: '/forecasting', icon: 'ðŸ”®' },
-      { label: 'Goal Tracker', path: '/goal-tracker', icon: 'ðŸ' },
-      { label: 'Break-Even Calculator', path: '/break-even', icon: 'âš–ï¸' },
-      { label: 'Rolling Average', path: '/rolling-average', icon: 'ã€°ï¸' },
+      { label: 'Forecasting', path: '/forecasting', icon: '🔮' },
+      { label: 'Goal Tracker', path: '/goal-tracker', icon: '🏁' },
+      { label: 'Break-Even Calculator', path: '/break-even', icon: '⚖️' },
+      { label: 'Rolling Average', path: '/rolling-average', icon: '〰️' },
     ]
   },
   {
-    section: 'VISUALISATION', icon: 'ðŸ“Š',
+    section: 'VISUALISATION', icon: '📊',
     items: [
-      { label: 'Bar Chart', path: '/bar-chart', icon: 'ðŸ“Š' },
-      { label: 'Line Chart', path: '/line-chart', icon: 'ðŸ“ˆ' },
-      { label: 'Pie Chart', path: '/pie-chart', icon: 'ðŸ¥§' },
-      { label: 'Heatmap', path: '/heatmap', icon: 'ðŸŒ¡ï¸' },
-      { label: 'Waterfall', path: '/waterfall', icon: 'ðŸ’§' },
-      { label: 'Scatter Plot', path: '/scatter-plot', icon: 'âœ¦' },
-      { label: 'Combo Chart', path: '/combo-chart', icon: 'ðŸ“‰' },
-      { label: 'Funnel Chart', path: '/funnel-chart', icon: 'ðŸ”»' },
-      { label: 'Box Plot', path: '/box-plot', icon: 'ðŸ“¦' },
+      { label: 'Bar Chart', path: '/bar-chart', icon: '📊' },
+      { label: 'Line Chart', path: '/line-chart', icon: '📈' },
+      { label: 'Pie Chart', path: '/pie-chart', icon: '🥧' },
+      { label: 'Heatmap', path: '/heatmap', icon: '🌡️' },
+      { label: 'Waterfall', path: '/waterfall', icon: '💧' },
+      { label: 'Scatter Plot', path: '/scatter-plot', icon: '✦' },
+      { label: 'Combo Chart', path: '/combo-chart', icon: '📉' },
+      { label: 'Funnel Chart', path: '/funnel-chart', icon: '🔻' },
+      { label: 'Box Plot', path: '/box-plot', icon: '📦' },
     ]
   },
   {
-    section: 'FINANCE', icon: 'ðŸ’°',
+    section: 'FINANCE', icon: '💰',
     items: [
-      { label: 'NPV Calculator', path: '/npv', icon: 'ðŸ’°' },
+      { label: 'NPV Calculator', path: '/npv', icon: '💰' },
     ]
   },
   {
-    section: 'AI & FORMULAS', icon: 'ðŸ¤–',
+    section: 'AI & FORMULAS', icon: '🤖',
     items: [
-      { label: 'Formula Engine', path: '/formula-engine', icon: 'Úš—ï¸' },
-      { label: 'Excel Functions', path: '/excel-functions', icon: 'ðŸ“—' },
-      { label: 'Formula Builder AI', path: '/formula-builder', icon: 'ðŸ”§' },
-      { label: 'Ask Your Data', path: '/ask-your-data', icon: 'ðŸ’¬' },
-      { label: 'Auto Report', path: '/auto-report', icon: 'ðŸ“„' },
-      { label: 'AI Narrative', path: '/ai-narrative', icon: 'âœï¸' },
-      { label: 'Conditional Format', path: '/conditional-format', icon: 'ðŸŽ¨' },
-      { label: 'AI Insights', path: '/ai-insights', icon: 'ðŸ§ ' },
+      { label: 'Formula Engine', path: '/formula-engine', icon: 'ښ�️' },
+      { label: 'Excel Functions', path: '/excel-functions', icon: '📗' },
+      { label: 'Formula Builder AI', path: '/formula-builder', icon: '🔧' },
+      { label: 'Ask Your Data', path: '/ask-your-data', icon: '💬' },
+      { label: 'Auto Report', path: '/auto-report', icon: '📄' },
+      { label: 'AI Narrative', path: '/ai-narrative', icon: '✍️' },
+      { label: 'Conditional Format', path: '/conditional-format', icon: '🎨' },
+      { label: 'AI Insights', path: '/ai-insights', icon: '🧠' },
     ]
   },
   {
-    section: 'OPERATIONS', icon: 'âš™ï¸',
+    section: 'OPERATIONS', icon: '⚙️',
     items: [
-      { label: 'Scheduled Reports', path: '/scheduled-reports', icon: 'â°' },
-      { label: 'Integrations', path: '/integrations', icon: 'ðŸ”Œ' },
-      { label: 'Workspace & Roles', path: '/workspace-roles', icon: 'ðŸ‘¥' },
-      { label: 'Audit Log', path: '/audit-log', icon: 'ðŸ“œ' },
-      { label: 'AI Settings', path: '/ai-settings', icon: 'âš™ï¸' },
+      { label: 'Scheduled Reports', path: '/scheduled-reports', icon: '⏰' },
+      { label: 'Integrations', path: '/integrations', icon: '🔌' },
+      { label: 'Workspace & Roles', path: '/workspace-roles', icon: '👥' },
+      { label: 'Audit Log', path: '/audit-log', icon: '📜' },
+      { label: 'AI Settings', path: '/ai-settings', icon: '⚙️' },
     ]
   },
 ]
@@ -121,7 +121,7 @@ export default function Layout({ children }) {
               {sidebarOpen ? (
                 <button onClick={() => toggleSection(section)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   <span>{section}</span>
-                  <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? 'â–¶' : 'â–¼'}</span>
+                  <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? '▶' : '▼'}</span>
                 </button>
               ) : (
                 <div style={{ padding: '8px 0 4px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem' }}>{icon}</div>
@@ -152,7 +152,7 @@ export default function Layout({ children }) {
             </div>
           )}
           <button onClick={handleLogout} style={{ width: '100%', padding: sidebarOpen ? '8px' : '8px 0', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span>â†’</span>
+            <span>→</span>
             {sidebarOpen && <span>Log out</span>}
           </button>
         </div>
@@ -161,7 +161,7 @@ export default function Layout({ children }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
           <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, color: '#6b7280', fontSize: '1.2rem' }}>
-            â˜°
+            ☰
           </button>
           <div style={{ flex: 1 }} />
           <NavLink to="/files" style={{ padding: '6px 14px', background: '#e91e8c', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
