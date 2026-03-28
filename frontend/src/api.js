@@ -14,7 +14,7 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Handle 401 — redirect to login
+// Handle 401 â redirect to login
 api.interceptors.response.use(
   res => res,
   err => {
@@ -74,6 +74,14 @@ export const pipelinesApi = {
   remove: (id) => api.delete('/pipelines/' + id),
   preview: (id, data) => api.post('/pipelines/' + id + '/preview', data),
   run: (id, data) => api.post('/pipelines/' + id + '/run', data),
+}
+
+
+export const budgetApi = {
+  listBudgets: () => api.get('/budget/budgets'),
+  getSummary: (name, period) => api.get('/budget/' + encodeURIComponent(name) + '/summary', { params: period ? { period } : {} }),
+  upload: (data) => api.post('/budget/upload', data),
+  deleteBudget: (name) => api.delete('/budget/' + encodeURIComponent(name)),
 }
 
 export default api
