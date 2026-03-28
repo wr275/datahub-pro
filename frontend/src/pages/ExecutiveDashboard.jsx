@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { filesApi, analyticsApi } from '../api'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6']
 
 export default function ExecutiveDashboard() {
+  const [searchParams] = useSearchParams()
   const [files, setFiles] = useState([])
   const [fileId, setFileId] = useState('')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { filesApi.list().then(r => { const fs = r.data || []; setFiles(fs); if (fs.length > 0) load(fs[0].id); }).catch(() => {}) }, [])
+  useEffect(() => { filesApi.list().then(r => { const fs = r.data || []; setFiles(fs); const paramId = searchParams.get('fileId'); const target = paramId ? fs.find(f => f.id === paramId) : fs[0]; if (target) load(target.id); }).catch(() => {}) }, [])
 
   function load(id) {
     setFileId(id); setData(null)
