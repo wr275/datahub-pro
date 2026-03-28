@@ -8,7 +8,7 @@ import os
 import json
 from datetime import datetime
 
-router = APIRouter(
+router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
