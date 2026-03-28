@@ -82,6 +82,7 @@ import Trends from './pages/Trends'
 import Billing from './pages/Billing'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
+import CalculatedFields from './pages/CalculatedFields'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="/value-frequency" element={<P><ValueFrequency /></P>} />
         <Route path="/connect-data" element={<P><ConnectData /></P>} />
         <Route path="/budget-actuals" element={<PrivateRoute><BudgetActuals /></PrivateRoute>} />
+        <Route path="/calculated-fields" element={<PrivateRoute><CalculatedFields /></PrivateRoute>} />
               <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
 
         {/* ANALYSIS */}
