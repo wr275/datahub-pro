@@ -97,4 +97,12 @@ export const sheetsApi = {
   sync: (fileId) => api.post('/sheets/' + fileId + '/sync'),
 }
 
+export const calculatedFieldsApi = {
+  list: () => api.get('/calculated-fields/'),
+  save: (data) => api.post('/calculated-fields/', data),
+  preview: (data) => api.post('/calculated-fields/preview', data),
+  export: (data) => api.post('/calculated-fields/export', data, { responseType: 'blob' }),
+  delete: (id) => api.delete('/calculated-fields/' + id),
+}
+
 export default api
