@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 
 /* ─────────────────────────────────────────────────────────────
    DataHub Pro — Product Demo Player  v3
+   Visual style: light/warm theme matching the real app.
    8 screens: Exec Dashboard → Pivot Table → RFM → Forecast →
-              Cohort Analysis → Churn → AI Insights → KPI
+              Cohort → Churn → AI Insights → KPI
 ───────────────────────────────────────────────────────────── */
 
 const SCREENS = [
@@ -12,7 +13,7 @@ const SCREENS = [
   { id: 'rfm',     label: 'RFM Segmentation',    duration: 5500 },
   { id: 'forecast',label: 'Revenue Forecast',    duration: 5500 },
   { id: 'cohort',  label: 'Cohort Analysis',     duration: 5500 },
-  { id: 'churn',   label: 'Churn Analysis',      duration: 5000 },
+  { id: 'churn',   label: 'Churn Risk Analysis', duration: 5000 },
   { id: 'ai',      label: 'AI Insights',         duration: 7000 },
   { id: 'kpi',     label: 'KPI Dashboard',       duration: 5000 },
 ];
@@ -30,7 +31,7 @@ const NAV = [
   { icon: '💬', label: 'Ask Your Data',       screen: null },
 ];
 
-const AI_TEXT = `Revenue is up 18.4% QoQ, driven by the Analytics Pro line (52% of revenue). Sarah Chen accounts for 47% of all sales — this concentration is a risk worth managing.\n\nYour 8 Champion-tier customers haven't been offered Data Suite. Based on order history, cross-sell potential is £8,000–£12,000.\n\nImmediate action: BrightStar Inc and Delta Systems haven't purchased in 90+ days. Both are historically high-value. Outreach this week could recover £4,200 in at-risk ARR.`;
+const AI_TEXT = `Revenue is up 18.4% quarter-on-quarter, driven by the Analytics Pro product line (52% of revenue). Sarah Chen accounts for 47% of all sales — this concentration is a risk worth managing.\n\nYour 8 Champion-tier customers haven't been offered the Data Suite product. Based on their order history, cross-sell potential is £8,000–£12,000.\n\nImmediate action: BrightStar Inc and Delta Systems haven't purchased in 90+ days. Both are historically high-value. Outreach this week could recover £4,200 in at-risk ARR.`;
 
 // ─── AnimNumber ──────────────────────────────────────────────
 function AnimNumber({ target, prefix = '', suffix = '', duration = 1200, delay = 0 }) {
@@ -52,13 +53,20 @@ function AnimNumber({ target, prefix = '', suffix = '', duration = 1200, delay =
   return <span>{prefix}{val.toLocaleString()}{suffix}</span>;
 }
 
-// ─── SVG Area Chart ──────────────────────────────────────────
-function AreaChart({ data, color = '#6366f1', height = 80, width = 300 }) {
-  const pad = { l: 4, r: 4, t: 8, b: 4 };
+// ─── Shared card ─────────────────────────────────────────────
+const C = ({ children, style }) => (
+  <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e4e0', padding: '18px 20px', ...style }}>
+    {children}
+  </div>
+);
+
+// ─── SVG Area Chart (light theme) ────────────────────────────
+function AreaChart({ data, color = '#f59e0b', height = 90, width = 400 }) {
+  const pad = { l: 6, r: 6, t: 10, b: 4 };
   const w = width - pad.l - pad.r;
   const h = height - pad.t - pad.b;
   const max = Math.max(...data);
-  const min = Math.min(...data);
+  const min = Math.min(...data) * 0.95;
   const range = max - min || 1;
   const pts = data.map((v, i) => [
     pad.l + (i / (data.length - 1)) * w,
@@ -66,829 +74,792 @@ function AreaChart({ data, color = '#6366f1', height = 80, width = 300 }) {
   ]);
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const area = `${line} L${pts[pts.length - 1][0].toFixed(1)},${(pad.t + h).toFixed(1)} L${pts[0][0].toFixed(1)},${(pad.t + h).toFixed(1)} Z`;
-  const id = `grad-${color.replace('#', '')}`;
+  const gid = `ag${color.replace('#', '')}`;
   return (
     <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height }} preserveAspectRatio="none">
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
           <stop offset="100%" stopColor={color} stopOpacity="0.02" />
         </linearGradient>
       </defs>
-      <path d={area} fill={`url(#${id})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {pts.map((p, i) => i === pts.length - 1 ? (
-        <circle key={i} cx={p[0]} cy={p[1]} r="3.5" fill={color} />
+        <circle key={i} cx={p[0]} cy={p[1]} r="4" fill={color} stroke="#fff" strokeWidth="1.5" />
       ) : null)}
     </svg>
   );
 }
 
-// ─── SVG Donut Chart ─────────────────────────────────────────
+// ─── SVG Donut (light theme) ──────────────────────────────────
 function DonutChart({ slices, size = 100 }) {
   const r = 36; const cx = size / 2; const cy = size / 2;
-  const circumference = 2 * Math.PI * r;
+  const circ = 2 * Math.PI * r;
   const total = slices.reduce((s, sl) => s + sl.value, 0);
   let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {slices.map((sl, i) => {
-        const dash = (sl.value / total) * circumference;
-        const gap = circumference - dash;
+        const dash = (sl.value / total) * circ;
         const el = (
           <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-            stroke={sl.color} strokeWidth="18"
-            strokeDasharray={`${dash} ${gap}`}
+            stroke={sl.color} strokeWidth="16"
+            strokeDasharray={`${dash} ${circ - dash}`}
             strokeDashoffset={-offset}
             transform={`rotate(-90 ${cx} ${cy})`}
-            style={{ transition: 'stroke-dasharray 0.8s ease' }}
           />
         );
         offset += dash;
         return el;
       })}
-      <circle cx={cx} cy={cy} r="24" fill="#0f172a" />
+      <circle cx={cx} cy={cy} r="26" fill="#fff" />
     </svg>
   );
 }
 
-// ─── Dual-line SVG Chart ─────────────────────────────────────
-function DualLineChart({ actual, forecast, width = 320, height = 90 }) {
-  const pad = { l: 6, r: 6, t: 10, b: 6 };
-  const w = width - pad.l - pad.r;
-  const h = height - pad.t - pad.b;
-  const all = [...actual, ...forecast];
-  const max = Math.max(...all); const min = Math.min(...all);
-  const range = max - min || 1;
-  const pts = (arr) => arr.map((v, i) => [
-    pad.l + (i / (arr.length - 1)) * w,
-    pad.t + h - ((v - min) / range) * h,
-  ]);
-  const toPath = (arr) => pts(arr).map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const apts = pts(actual); const fpts = pts(forecast);
+// ─── Sparkline (bar style, light) ────────────────────────────
+function SparkBars({ data, up = true }) {
+  const max = Math.max(...data);
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height }} preserveAspectRatio="none">
-      <path d={toPath(actual)} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <path d={toPath(forecast)} fill="none" stroke="#a78bfa" strokeWidth="2" strokeDasharray="5 3" strokeLinejoin="round" strokeLinecap="round" />
-      {apts.map((p, i) => i === apts.length - 1 ? <circle key={i} cx={p[0]} cy={p[1]} r="3" fill="#f59e0b" /> : null)}
-      {fpts.map((p, i) => i === fpts.length - 1 ? <circle key={i} cx={p[0]} cy={p[1]} r="3" fill="#a78bfa" /> : null)}
-    </svg>
-  );
-}
-
-// ─── Sparkline ───────────────────────────────────────────────
-function Sparkline({ data, color = '#6366f1' }) {
-  const w = 72; const h = 28;
-  const max = Math.max(...data); const min = Math.min(...data);
-  const range = max - min || 1;
-  const pts = data.map((v, i) => [
-    (i / (data.length - 1)) * w,
-    h - ((v - min) / range) * (h - 4) - 2,
-  ]);
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  return (
-    <svg width={w} height={h} style={{ display: 'block' }}>
-      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// ─── Shared Shell ─────────────────────────────────────────────
-function Shell({ activeScreen, children }) {
-  return (
-    <div style={{ display: 'flex', height: '100%', background: '#0f172a', color: '#e2e8f0', fontFamily: 'Inter,system-ui,sans-serif', fontSize: 12, overflow: 'hidden' }}>
-      {/* Sidebar */}
-      <div style={{ width: 168, background: '#0a1120', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid #1e293b' }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#6366f1', letterSpacing: '-0.3px' }}>DataHub Pro</div>
-          <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>Analytics Platform</div>
-        </div>
-        <div style={{ padding: '6px 6px', flex: 1, overflowY: 'auto' }}>
-          {NAV.map((n) => (
-            <div key={n.label} style={{
-              display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 6, marginBottom: 1,
-              background: activeScreen === n.screen ? '#1e1b4b' : 'transparent',
-              color: activeScreen === n.screen ? '#a5b4fc' : '#94a3b8',
-              fontWeight: activeScreen === n.screen ? 600 : 400,
-              cursor: 'default',
-            }}>
-              <span style={{ fontSize: 13 }}>{n.icon}</span>
-              <span style={{ fontSize: 11 }}>{n.label}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '10px 14px', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>W</div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600 }}>Waqas R.</div>
-            <div style={{ fontSize: 9, color: '#64748b' }}>Admin</div>
-          </div>
-        </div>
-      </div>
-      {/* Main */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {children}
-      </div>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32 }}>
+      {data.map((v, j) => (
+        <div key={j} style={{
+          flex: 1,
+          background: up ? '#f59e0b' : '#ef4444',
+          borderRadius: '2px 2px 0 0',
+          height: `${(v / max) * 100}%`,
+          opacity: 0.5 + (j / data.length) * 0.5,
+        }} />
+      ))}
     </div>
   );
 }
 
 // ─── Screen: Executive Dashboard ─────────────────────────────
-function ScreenExec({ reveal }) {
-  const revenueData = [142, 158, 147, 165, 172, 189, 195, 208, 198, 224, 231, 247];
+function ScreenExec() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const kpis = [
+    { label: 'Total Revenue',     value: 89420, prefix: '£', badge: '▲ 18.4%', up: true },
+    { label: 'Active Customers',  value: 28,    prefix: '',  badge: '▲ 9.2%',  up: true },
+    { label: 'Avg Order Value',   value: 1788,  prefix: '£', badge: '▼ 2.1%',  up: false },
+    { label: 'Total Orders',      value: 50,    prefix: '',  badge: '▲ 12%',   up: true },
+  ];
+
+  const revenueData = [8840, 11200, 10900, 13400, 12600, 15900, 16580, 17200, 16100, 18400, 20100, 21800];
+  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
   const donutSlices = [
-    { label: 'Analytics Pro', value: 52, color: '#6366f1' },
-    { label: 'Data Suite',    value: 28, color: '#8b5cf6' },
-    { label: 'Reporting',     value: 20, color: '#a78bfa' },
+    { label: 'Analytics Pro', value: 52, color: '#f59e0b' },
+    { label: 'Data Suite',    value: 34, color: '#ec4899' },
+    { label: 'Reporting',     value: 14, color: '#10b981' },
   ];
+
   const reps = [
-    { name: 'Sarah Chen', pct: 78, val: '£94.2k' },
-    { name: 'James Park', pct: 52, val: '£63.1k' },
-    { name: 'Aisha Noor', pct: 41, val: '£49.7k' },
-    { name: 'Tom Walsh',  pct: 29, val: '£35.2k' },
+    { name: 'Sarah Chen', pct: 82, val: '£73.2k' },
+    { name: 'James Park', pct: 54, val: '£48.3k' },
+    { name: 'Aisha Noor', pct: 38, val: '£33.9k' },
+    { name: 'Tom Walsh',  pct: 26, val: '£23.2k' },
   ];
+
   return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>Executive Dashboard</div>
-        <div style={{ fontSize: 11, color: '#64748b' }}>Q1 2025 · All regions · Live data</div>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Executive Dashboard</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>Q1–Q2 2025 · Q1_2026_sales.csv · 50 rows</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.8s</span>
       </div>
+
       {/* KPI row */}
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 14 }}>
-          {[
-            { label: 'Total Revenue', val: 247000, prefix: '£', suffix: '', change: '+18.4%', up: true, data: [142,158,147,165,172,189,195,208,198,224,231,247], color: '#6366f1' },
-            { label: 'Active Customers', val: 143, prefix: '', suffix: '', change: '+12', up: true, data: [98,104,108,112,116,119,124,128,131,136,139,143], color: '#22c55e' },
-            { label: 'Avg Order Value', val: 1728, prefix: '£', suffix: '', change: '+5.3%', up: true, data: [1420,1510,1480,1560,1620,1590,1650,1680,1710,1690,1715,1728], color: '#f59e0b' },
-            { label: 'Churn Rate', val: 3.2, prefix: '', suffix: '%', change: '-0.8%', up: false, data: [5.1,4.8,5.2,4.6,4.3,4.5,4.1,3.9,3.7,3.5,3.4,3.2], color: '#ef4444' },
-          ].map((k, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 8, padding: '10px 12px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>
-                {reveal >= 1 ? <AnimNumber target={k.val} prefix={k.prefix} suffix={k.suffix} duration={1000} delay={i * 120} /> : '—'}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <span style={{ fontSize: 10, color: k.up ? '#22c55e' : '#ef4444' }}>{k.change}</span>
-                <div style={{ width: 70 }}><AreaChart data={k.data} color={k.color} height={28} width={70} /></div>
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
+        {kpis.map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#1a1714', marginBottom: 5 }}>
+              {show ? <AnimNumber target={k.value} prefix={k.prefix} delay={i * 100} /> : '—'}
             </div>
-          ))}
-        </div>
-      )}
-      {reveal >= 2 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: 12, marginBottom: 12 }}>
-          {/* Revenue area chart */}
-          <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>Monthly Revenue</div>
-            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>Jan–Dec 2024 (£k)</div>
-            <AreaChart data={revenueData} color="#6366f1" height={80} width={340} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#475569', marginTop: 4 }}>
-              {['J','F','M','A','M','J','J','A','S','O','N','D'].map(m => <span key={m}>{m}</span>)}
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: k.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: k.up ? '#10b981' : '#ef4444' }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.9fr', gap: 12 }}>
+        {/* Revenue area chart */}
+        <C style={{ padding: '14px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 2 }}>Monthly Revenue</div>
+          <div style={{ fontSize: 11, color: '#9c9490', marginBottom: 10 }}>12-month trend (£)</div>
+          {show && <AreaChart data={revenueData} color="#f59e0b" height={90} width={320} />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#b8b0a8', marginTop: 4 }}>
+            {months.map(m => <span key={m}>{m}</span>)}
+          </div>
+        </C>
+
+        {/* Donut */}
+        <C style={{ padding: '14px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 10 }}>Revenue by Product</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {show && <DonutChart slices={donutSlices} size={82} />}
+            <div style={{ flex: 1 }}>
+              {donutSlices.map((sl, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: sl.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, fontSize: 10, color: '#6b6560' }}>{sl.label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1a1714' }}>{sl.value}%</div>
+                </div>
+              ))}
             </div>
           </div>
-          {/* Donut */}
-          <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>Revenue Mix</div>
-            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>By product line</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <DonutChart slices={donutSlices} size={90} />
-              <div style={{ flex: 1 }}>
-                {donutSlices.map((sl, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: sl.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, fontSize: 10, color: '#94a3b8' }}>{sl.label}</div>
-                    <div style={{ fontSize: 10, fontWeight: 600 }}>{sl.value}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {reveal >= 3 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Sales Rep Performance</div>
+        </C>
+
+        {/* Sales reps */}
+        <C style={{ padding: '14px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 10 }}>Top Reps</div>
           {reps.map((rep, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 7 }}>
-              <div style={{ width: 70, fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>{rep.name}</div>
-              <div style={{ flex: 1, height: 8, background: '#1e293b', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${rep.pct}%`, height: '100%', background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: 4, transition: 'width 1s ease' }} />
+            <div key={i} style={{ marginBottom: 9 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 3 }}>
+                <span style={{ color: '#4b4540' }}>{rep.name}</span>
+                <span style={{ fontWeight: 700, color: '#1a1714' }}>{rep.val}</span>
               </div>
-              <div style={{ width: 42, fontSize: 11, fontWeight: 600, textAlign: 'right' }}>{rep.val}</div>
+              <div style={{ background: '#f0ede9', borderRadius: 100, height: 5, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: '#f59e0b', borderRadius: 100, width: show ? `${rep.pct}%` : '0%', transition: `width 0.8s ease ${0.4 + i * 0.12}s` }} />
+              </div>
             </div>
           ))}
-        </div>
-      )}
+        </C>
+      </div>
     </div>
   );
 }
 
-// ─── Screen: Pivot Table ──────────────────────────────────────
-function ScreenPivot({ reveal }) {
+// ─── Screen: Pivot Table ─────────────────────────────────────
+function ScreenPivot() {
+  const [show, setShow] = useState(false);
+  const [hovered, setHovered] = useState(null);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
   const products = ['Analytics Pro', 'Data Suite', 'Reporting Lite', 'API Access'];
   const regions  = ['London', 'North', 'Midlands', 'Scotland', 'Wales'];
   const data = [
-    [94200, 38100, 21400, 9300, 5800],
-    [51300, 22700, 14100, 6200, 3400],
-    [28400, 12100, 8700, 3900, 2100],
-    [14600, 7200, 4300, 2100, 1100],
+    [46200, 18700, 10400, 4600, 2800],
+    [25300, 11200, 6900, 3100, 1700],
+    [13800, 6000, 4300, 1900, 1100],
+    [7100,  3600, 2100, 1000,  500],
   ];
-  const rowTotals = data.map(r => r.reduce((a, b) => a + b, 0));
-  const colTotals = regions.map((_, ci) => data.reduce((s, r) => s + r[ci], 0));
+  const rowTotals  = data.map(r => r.reduce((a, b) => a + b, 0));
+  const colTotals  = regions.map((_, ci) => data.reduce((s, r) => s + r[ci], 0));
   const grandTotal = rowTotals.reduce((a, b) => a + b, 0);
-  const maxVal = Math.max(...data.flat());
+  const maxVal     = Math.max(...data.flat());
 
-  const heatColor = (v) => {
+  const cellBg = (v) => {
     const pct = v / maxVal;
-    if (pct > 0.7) return 'rgba(99,102,241,0.55)';
-    if (pct > 0.45) return 'rgba(99,102,241,0.35)';
-    if (pct > 0.25) return 'rgba(99,102,241,0.18)';
-    return 'rgba(99,102,241,0.07)';
+    if (pct > 0.7)  return 'rgba(245,158,11,0.30)';
+    if (pct > 0.45) return 'rgba(245,158,11,0.18)';
+    if (pct > 0.25) return 'rgba(245,158,11,0.09)';
+    return 'transparent';
   };
 
-  const [hovered, setHovered] = useState(null);
-
   return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>Pivot Table</div>
-        <div style={{ fontSize: 11, color: '#64748b' }}>Revenue by Product × Region · FY 2024</div>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Pivot Table</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>Revenue by Product × Region · FY 2024 · heat-mapped</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.6s</span>
       </div>
 
-      {reveal >= 1 && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Row dimension', val: 'Product Line', icon: '📦' },
-            { label: 'Column dimension', val: 'Region', icon: '🌍' },
-            { label: 'Value metric', val: 'Revenue (£)', icon: '💷' },
-            { label: 'Aggregation', val: 'SUM', icon: '∑' },
-          ].map((f, i) => (
-            <div key={i} style={{ background: '#131c2e', border: '1px solid #1e293b', borderRadius: 6, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 12 }}>{f.icon}</span>
-              <span style={{ fontSize: 10, color: '#64748b' }}>{f.label}:</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#a5b4fc' }}>{f.val}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Config chips */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Rows', val: 'Product Line',   icon: '📦' },
+          { label: 'Columns', val: 'Region',       icon: '🌍' },
+          { label: 'Values', val: 'Revenue (£)',   icon: '💷' },
+          { label: 'Aggregation', val: 'SUM',      icon: '∑' },
+        ].map((f, i) => (
+          <div key={i} style={{ background: '#f7f6f5', border: '1px solid #e8e4e0', borderRadius: 20, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 6, opacity: show ? 1 : 0, transition: `opacity 0.3s ease ${i * 0.08}s` }}>
+            <span style={{ fontSize: 12 }}>{f.icon}</span>
+            <span style={{ fontSize: 10, color: '#9c9490' }}>{f.label}:</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#1a1714' }}>{f.val}</span>
+          </div>
+        ))}
+      </div>
 
-      {reveal >= 2 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, border: '1px solid #1e293b', overflow: 'hidden', marginBottom: 12 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#0a1120' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#64748b', borderBottom: '1px solid #1e293b', fontWeight: 600 }}>Product \ Region</th>
-                {regions.map(r => (
-                  <th key={r} style={{ padding: '8px 10px', textAlign: 'right', fontSize: 11, color: '#94a3b8', borderBottom: '1px solid #1e293b', fontWeight: 600 }}>{r}</th>
-                ))}
-                <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 11, color: '#6366f1', borderBottom: '1px solid #1e293b', fontWeight: 700 }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((prod, ri) => (
-                <tr key={ri} style={{ borderBottom: '1px solid #1e2537' }}>
-                  <td style={{ padding: '7px 12px', fontSize: 11, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>{prod}</td>
-                  {data[ri].map((val, ci) => {
-                    const isHov = hovered && hovered[0] === ri && hovered[1] === ci;
-                    return (
-                      <td key={ci}
-                        onMouseEnter={() => setHovered([ri, ci])}
-                        onMouseLeave={() => setHovered(null)}
-                        style={{
-                          padding: '7px 10px', textAlign: 'right', fontSize: 11,
-                          background: isHov ? 'rgba(99,102,241,0.3)' : heatColor(val),
-                          color: isHov ? '#fff' : '#cbd5e1',
-                          cursor: 'default', transition: 'background 0.15s',
-                          fontWeight: isHov ? 700 : 400,
-                        }}>
-                        £{(val / 1000).toFixed(1)}k
-                      </td>
-                    );
-                  })}
-                  <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#a5b4fc' }}>
-                    £{(rowTotals[ri] / 1000).toFixed(1)}k
-                  </td>
-                </tr>
+      {/* Pivot table */}
+      <C style={{ padding: 0, overflow: 'hidden', opacity: show ? 1 : 0, transition: 'opacity 0.4s ease 0.3s', marginBottom: 14 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              <th style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9c9490', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Product ↓ Region →</th>
+              {regions.map(r => (
+                <th key={r} style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#9c9490', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{r}</th>
               ))}
-              <tr style={{ background: '#0d1829', borderTop: '1px solid #334155' }}>
-                <td style={{ padding: '7px 12px', fontSize: 11, fontWeight: 700, color: '#6366f1' }}>Grand Total</td>
-                {colTotals.map((v, ci) => (
-                  <td key={ci} style={{ padding: '7px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#a5b4fc' }}>
-                    £{(v / 1000).toFixed(1)}k
-                  </td>
-                ))}
-                <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#818cf8' }}>
-                  £{(grandTotal / 1000).toFixed(0)}k
+              <th style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#f59e0b', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((prod, ri) => (
+              <tr key={ri}>
+                <td style={{ padding: '8px 14px', fontSize: 12, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{prod}</td>
+                {data[ri].map((val, ci) => {
+                  const isHov = hovered && hovered[0] === ri && hovered[1] === ci;
+                  return (
+                    <td key={ci}
+                      onMouseEnter={() => setHovered([ri, ci])}
+                      onMouseLeave={() => setHovered(null)}
+                      style={{
+                        padding: '8px 12px', textAlign: 'right', fontSize: 12,
+                        background: isHov ? 'rgba(245,158,11,0.2)' : cellBg(val),
+                        color: '#1a1714', fontWeight: isHov ? 700 : 400,
+                        borderBottom: '1px solid #f0ede9', cursor: 'default', transition: 'background 0.15s',
+                      }}>
+                      £{(val / 1000).toFixed(1)}k
+                    </td>
+                  );
+                })}
+                <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#f59e0b', borderBottom: '1px solid #f0ede9' }}>
+                  £{(rowTotals[ri] / 1000).toFixed(1)}k
                 </td>
               </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+            {/* Totals row */}
+            <tr style={{ background: '#f7f6f5' }}>
+              <td style={{ padding: '8px 14px', fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>Grand Total</td>
+              {colTotals.map((v, ci) => (
+                <td key={ci} style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#1a1714' }}>
+                  £{(v / 1000).toFixed(1)}k
+                </td>
+              ))}
+              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>
+                £{(grandTotal / 1000).toFixed(0)}k
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </C>
 
-      {reveal >= 3 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-          {[
-            { label: 'London dominance', val: '48%', sub: 'of total revenue', color: '#6366f1' },
-            { label: 'Top product', val: 'Analytics Pro', sub: '£169k · 55% share', color: '#8b5cf6' },
-            { label: 'Growth region', val: 'Scotland', sub: '+34% YoY growth', color: '#22c55e' },
-          ].map((ins, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 7, padding: '10px 12px', border: `1px solid ${ins.color}40` }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>{ins.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: ins.color }}>{ins.val}</div>
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{ins.sub}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Insight cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, opacity: show ? 1 : 0, transition: 'opacity 0.4s ease 0.6s' }}>
+        {[
+          { icon: '🏙️', label: 'London dominance', val: '48%', sub: 'of total revenue from London' },
+          { icon: '📦', label: 'Top product',       val: 'Analytics Pro', sub: '£83k · 55% revenue share' },
+          { icon: '🚀', label: 'Growth region',     val: 'Scotland',       sub: '+34% YoY, fastest growing' },
+        ].map((ins, i) => (
+          <C key={i} style={{ padding: '12px 16px' }}>
+            <div style={{ fontSize: 18, marginBottom: 6 }}>{ins.icon}</div>
+            <div style={{ fontSize: 11, color: '#9c9490', marginBottom: 2 }}>{ins.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1714' }}>{ins.val}</div>
+            <div style={{ fontSize: 11, color: '#9c9490', marginTop: 2 }}>{ins.sub}</div>
+          </C>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ─── Screen: RFM ─────────────────────────────────────────────
-function ScreenRFM({ reveal }) {
+// ─── Screen: RFM Segmentation (v2 exact) ────────────────────
+function ScreenRFM() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
   const segs = [
-    { label: 'Champions',      count: 8,  revenue: '£94.2k', color: '#22c55e', w: 85 },
-    { label: 'Loyal',          count: 21, revenue: '£71.8k', color: '#6366f1', w: 70 },
-    { label: 'At Risk',        count: 14, revenue: '£38.4k', color: '#f59e0b', w: 48 },
-    { label: 'Need Attention', count: 19, revenue: '£28.1k', color: '#ef4444', w: 38 },
-    { label: 'New Customers',  count: 31, revenue: '£17.3k', color: '#3b82f6', w: 28 },
-    { label: 'Hibernating',    count: 12, revenue: '£8.9k',  color: '#94a3b8', w: 16 },
+    { emoji: '🏆', label: 'Champions',      color: '#10b981', bg: 'rgba(16,185,129,0.08)',  count: 8,  revenue: '£38,240', pct: 72 },
+    { emoji: '⭐', label: 'Loyal',          color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',   count: 7,  revenue: '£29,100', pct: 56 },
+    { emoji: '⚠️', label: 'At Risk',        color: '#f97316', bg: 'rgba(249,115,22,0.08)',   count: 6,  revenue: '£12,800', pct: 34 },
+    { emoji: '❄️', label: 'Lost',           color: '#9c9490', bg: 'rgba(156,148,144,0.08)', count: 7,  revenue: '£9,280',  pct: 20 },
   ];
-  const customers = [
-    { name: 'TechFlow Ltd',   seg: 'Champions',      rfm: [5,5,5], ltv: '£28.4k' },
-    { name: 'Apex Systems',   seg: 'Champions',      rfm: [5,4,5], ltv: '£22.1k' },
-    { name: 'Delta Inc',      seg: 'At Risk',        rfm: [2,4,3], ltv: '£15.7k' },
-    { name: 'BrightStar',     seg: 'At Risk',        rfm: [1,3,4], ltv: '£12.3k' },
-    { name: 'Sunrise Co',     seg: 'Loyal',          rfm: [4,5,4], ltv: '£19.8k' },
+
+  const rows = [
+    { name: 'Acme Ltd',       seg: 'Champion', sc: '5-5-5', last: '27 Apr', orders: 3, spend: '£3,794', sc_color: '#10b981', sc_bg: 'rgba(16,185,129,0.1)' },
+    { name: 'Ironclad Inc',   seg: 'Champion', sc: '5-4-5', last: '26 May', orders: 2, spend: '£4,190', sc_color: '#10b981', sc_bg: 'rgba(16,185,129,0.1)' },
+    { name: 'NovaTech',       seg: 'Loyal',    sc: '4-4-4', last: '17 Jun', orders: 2, spend: '£3,493', sc_color: '#f59e0b', sc_bg: 'rgba(245,158,11,0.1)' },
+    { name: 'Delta Systems',  seg: 'At Risk',  sc: '2-2-3', last: '15 Jan', orders: 2, spend: '£1,196', sc_color: '#f97316', sc_bg: 'rgba(249,115,22,0.1)' },
+    { name: 'BrightStar Inc', seg: 'Lost',     sc: '1-1-2', last: '8 Jan',  orders: 1, spend: '£999',   sc_color: '#9c9490', sc_bg: 'rgba(156,148,144,0.1)' },
   ];
+
   return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>RFM Segmentation</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>143 customers · Recency / Frequency / Monetary</div>
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 12, marginBottom: 12 }}>
-          <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-            {segs.map((s, i) => (
-              <div key={i} style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-                  <span style={{ color: '#e2e8f0' }}>{s.label}</span>
-                  <span style={{ color: '#64748b' }}>{s.count} · {s.revenue}</span>
-                </div>
-                <div style={{ height: 7, background: '#1e293b', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ width: `${s.w}%`, height: '100%', background: s.color, borderRadius: 4, transition: 'width 1s ease' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Segment Value</div>
-            {segs.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, fontSize: 10, color: '#94a3b8' }}>{s.label}</div>
-                <div style={{ fontSize: 10, fontWeight: 600 }}>{s.revenue}</div>
-              </div>
-            ))}
-          </div>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>RFM Customer Segmentation</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>28 customers · scored on Recency, Frequency, Monetary value</div>
         </div>
-      )}
-      {reveal >= 2 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, border: '1px solid #1e293b', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#0a1120' }}>
-                {['Customer', 'Segment', 'R', 'F', 'M', 'LTV'].map(h => (
-                  <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: 10, color: '#64748b', borderBottom: '1px solid #1e293b' }}>{h}</th>
-                ))}
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 1.1s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+        {segs.map((s, i) => (
+          <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 12, padding: '14px 16px', opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: s.color, marginBottom: 6 }}>{s.emoji} {s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#1a1714' }}>{s.count}</div>
+            <div style={{ fontSize: 11, color: '#6b6560', marginTop: 2, marginBottom: 10 }}>{s.revenue}</div>
+            <div style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 100, height: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: s.color, borderRadius: 100, width: show ? `${s.pct}%` : '0%', transition: `width 0.8s ease ${0.3 + i * 0.12}s` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <C style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              {['Customer', 'Segment', 'Last Order', 'Orders', 'Total Spend', 'RFM Score'].map(h => (
+                <th key={h} style={{ padding: '9px 14px', fontSize: 11, fontWeight: 700, color: '#9c9490', textAlign: 'left', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.name}>
+                <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.name}</td>
+                <td style={{ padding: '9px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <span style={{ background: r.sc_bg, color: r.sc_color, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{r.seg}</span>
+                </td>
+                <td style={{ padding: '9px 14px', fontSize: 12, color: '#6b6560', borderBottom: '1px solid #f0ede9' }}>{r.last}</td>
+                <td style={{ padding: '9px 14px', fontSize: 13, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.orders}</td>
+                <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.spend}</td>
+                <td style={{ padding: '9px 14px', fontSize: 12, color: '#6b6560', borderBottom: '1px solid #f0ede9', fontFamily: 'monospace' }}>{r.sc}</td>
               </tr>
-            </thead>
-            <tbody>
-              {customers.map((c, i) => {
-                const seg = segs.find(s => s.label === c.seg);
-                return (
-                  <tr key={i} style={{ borderBottom: '1px solid #1e2537' }}>
-                    <td style={{ padding: '6px 10px', fontSize: 11 }}>{c.name}</td>
-                    <td style={{ padding: '6px 10px' }}>
-                      <span style={{ fontSize: 10, background: `${seg?.color}22`, color: seg?.color, border: `1px solid ${seg?.color}44`, borderRadius: 4, padding: '2px 6px' }}>{c.seg}</span>
-                    </td>
-                    {c.rfm.map((v, j) => (
-                      <td key={j} style={{ padding: '6px 10px', fontSize: 11, fontWeight: 600, color: v >= 4 ? '#22c55e' : v === 3 ? '#f59e0b' : '#ef4444' }}>{v}</td>
-                    ))}
-                    <td style={{ padding: '6px 10px', fontSize: 11, fontWeight: 600 }}>{c.ltv}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </tbody>
+        </table>
+      </C>
     </div>
   );
 }
 
-// ─── Screen: Forecast ────────────────────────────────────────
-function ScreenForecast({ reveal }) {
-  const actual   = [142, 158, 147, 165, 172, 189, 195, 208, 198, 224, 231, 247];
-  const forecast = [142, 158, 147, 165, 172, 189, 195, 208, 198, 224, 231, 247, 261, 278, 292, 308];
+// ─── Screen: Revenue Forecast (v2 exact) ────────────────────
+function ScreenForecast() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const historic = [
+    { m: 'Jan', v: 8840 }, { m: 'Feb', v: 11200 }, { m: 'Mar', v: 10900 },
+    { m: 'Apr', v: 13400 }, { m: 'May', v: 12600 }, { m: 'Jun', v: 15900 }, { m: 'Jul', v: 16580 },
+  ];
+  const future = [
+    { m: 'Aug', v: 17800 }, { m: 'Sep', v: 18900 }, { m: 'Oct', v: 20100 },
+    { m: 'Nov', v: 21400 }, { m: 'Dec', v: 23800 }, { m: 'Jan', v: 24600 },
+  ];
+  const allBars = [...historic.map(h => ({ ...h, isForecast: false })), ...future.map(d => ({ ...d, isForecast: true }))];
+  const maxV = 26000;
+
   return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Revenue Forecast</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>ML model · 92% accuracy · 4-month horizon</div>
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
-          {[
-            { label: 'Current MRR', val: 247000, prefix: '£', suffix: '', color: '#f59e0b' },
-            { label: 'Forecast Q2', val: 308000, prefix: '£', suffix: '', color: '#a78bfa' },
-            { label: 'Growth rate', val: 24.7, prefix: '+', suffix: '%', color: '#22c55e' },
-          ].map((k, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 8, padding: '10px 12px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: k.color }}>
-                <AnimNumber target={k.val} prefix={k.prefix} suffix={k.suffix} duration={1000} delay={i * 150} />
-              </div>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>12-Month Revenue Forecast</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>Based on 7 months of data · ARIMA + seasonal model</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 1.4s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {[
+          { label: 'Projected Next 6M', value: '£126,600', badge: '▲ 42% growth', up: true },
+          { label: 'Forecast Confidence', value: '87%', badge: 'High accuracy', up: true },
+          { label: 'Peak Month (Dec)', value: '£23,800', badge: 'Seasonal uplift', up: true },
+        ].map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1714', marginBottom: 5 }}>{k.value}</div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      <C>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714' }}>Revenue Trend + Forecast</div>
+          <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9c9490' }}>
+            <span>■ <span style={{ color: '#f59e0b' }}>Actual</span></span>
+            <span>■ <span style={{ color: '#6366f1' }}>Forecast</span></span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110 }}>
+          {allBars.map((b, i) => (
+            <div key={b.m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{
+                width: '100%',
+                background: b.isForecast
+                  ? 'repeating-linear-gradient(45deg,#6366f1,#6366f1 3px,rgba(99,102,241,0.3) 3px,rgba(99,102,241,0.3) 6px)'
+                  : 'linear-gradient(180deg,#f59e0b,#d97706)',
+                borderRadius: '3px 3px 0 0',
+                height: show ? `${(b.v / maxV) * 100}%` : '0%',
+                transition: `height 0.7s ease ${0.3 + i * 0.06}s`,
+                opacity: b.isForecast ? 0.85 : 1,
+              }} />
+              <div style={{ fontSize: 9, color: b.isForecast ? '#6366f1' : '#9c9490', fontWeight: b.isForecast ? 600 : 400 }}>{b.m}</div>
             </div>
           ))}
         </div>
-      )}
-      {reveal >= 2 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, padding: '14px 16px', border: '1px solid #1e293b', marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600 }}>Actual vs Forecast</div>
-              <div style={{ fontSize: 10, color: '#64748b' }}>Jan 2024 – Apr 2025 (£k)</div>
-            </div>
-            <div style={{ display: 'flex', gap: 12, fontSize: 10 }}>
-              <span style={{ color: '#f59e0b' }}>● Actual</span>
-              <span style={{ color: '#a78bfa' }}>- - Forecast</span>
-            </div>
-          </div>
-          <DualLineChart actual={actual} forecast={forecast} width={440} height={100} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#475569', marginTop: 6 }}>
-            {['J','F','M','A','M','J','J','A','S','O','N','D','J','F','M','A'].map((m, i) => <span key={i}>{m}</span>)}
-          </div>
-        </div>
-      )}
-      {reveal >= 3 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-          {[
-            { label: 'Model confidence', val: '92%', color: '#22c55e', sub: 'High accuracy' },
-            { label: 'Seasonality', val: 'Q4 peak', color: '#f59e0b', sub: 'Dec historically +31%' },
-            { label: 'Risk scenario', val: '£261k', color: '#ef4444', sub: 'Conservative floor' },
-          ].map((ins, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 7, padding: '10px 12px', border: `1px solid ${ins.color}40` }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>{ins.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: ins.color }}>{ins.val}</div>
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{ins.sub}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      </C>
     </div>
   );
 }
 
 // ─── Screen: Cohort Analysis ──────────────────────────────────
-function ScreenCohort({ reveal }) {
-  const cohorts = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+function ScreenCohort() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const cohorts = ['Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024'];
   const sizes   = [42, 38, 51, 35, 46, 29];
   const retention = [
     [100, 82, 71, 65, 58, 54],
-    [100, 79, 68, 61, 55],
-    [100, 85, 74, 68],
-    [100, 77, 66],
-    [100, 81],
-    [100],
+    [100, 79, 68, 61, 55, null],
+    [100, 85, 74, 68, null, null],
+    [100, 77, 66, null, null, null],
+    [100, 81, null, null, null, null],
+    [100, null, null, null, null, null],
   ];
 
-  const cellColor = (v) => {
-    if (v === null) return '#0f172a';
-    if (v >= 80) return '#166534';
-    if (v >= 65) return '#14532d';
-    if (v >= 50) return '#854d0e';
-    if (v >= 35) return '#92400e';
-    return '#7f1d1d';
+  const cellStyle = (v) => {
+    if (v === null) return { background: '#f7f6f5', color: 'transparent' };
+    if (v === 100) return { background: '#1a1714', color: '#fff' };
+    if (v >= 75)   return { background: 'rgba(16,185,129,0.55)', color: '#fff' };
+    if (v >= 60)   return { background: 'rgba(16,185,129,0.30)', color: '#1a1714' };
+    if (v >= 45)   return { background: 'rgba(245,158,11,0.35)', color: '#1a1714' };
+    return           { background: 'rgba(239,68,68,0.30)', color: '#1a1714' };
   };
 
   return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Cohort Analysis</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>Customer retention by signup month · % still active</div>
-
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
-          {[
-            { label: 'Avg Month-1 Retention', val: '81%', color: '#22c55e', sub: 'Industry avg: 70%' },
-            { label: 'Best cohort', val: 'March',   color: '#6366f1', sub: '74% at Month-3' },
-            { label: '6-month avg retention', val: '54%', color: '#f59e0b', sub: 'Target: 60%' },
-          ].map((ins, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 7, padding: '10px 12px', border: `1px solid ${ins.color}40` }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>{ins.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: ins.color }}>{ins.val}</div>
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{ins.sub}</div>
-            </div>
-          ))}
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Cohort Retention Analysis</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>% of customers still active each month after signup</div>
         </div>
-      )}
-
-      {reveal >= 2 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, border: '1px solid #1e293b', overflow: 'hidden', marginBottom: 12 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#0a1120' }}>
-                <th style={{ padding: '7px 12px', textAlign: 'left', fontSize: 10, color: '#64748b', borderBottom: '1px solid #1e293b' }}>Cohort</th>
-                <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, color: '#64748b', borderBottom: '1px solid #1e293b' }}>Size</th>
-                {['M+0','M+1','M+2','M+3','M+4','M+5'].map(m => (
-                  <th key={m} style={{ padding: '7px 10px', textAlign: 'center', fontSize: 10, color: '#64748b', borderBottom: '1px solid #1e293b' }}>{m}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cohorts.map((month, ri) => (
-                <tr key={ri} style={{ borderBottom: '1px solid #1e2537' }}>
-                  <td style={{ padding: '7px 12px', fontSize: 11, fontWeight: 600 }}>{month} 2024</td>
-                  <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 11, color: '#94a3b8' }}>{sizes[ri]}</td>
-                  {Array(6).fill(null).map((_, ci) => {
-                    const v = retention[ri][ci] ?? null;
-                    return (
-                      <td key={ci} style={{
-                        padding: '7px 10px', textAlign: 'center', fontSize: 11, fontWeight: 600,
-                        background: cellColor(v),
-                        color: v !== null ? '#e2e8f0' : 'transparent',
-                      }}>
-                        {v !== null ? `${v}%` : ''}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {reveal >= 3 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e293b', fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
-          <span style={{ color: '#f59e0b', fontWeight: 600 }}>💡 Insight: </span>
-          March cohort shows the strongest retention curve — this cohort was onboarded with the new Customer Success workflow. Rolling out the same playbook to April & May cohorts could lift 6-month retention from 54% → 62%.
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Screen: Churn Analysis ──────────────────────────────────
-function ScreenChurn({ reveal }) {
-  const risks = [
-    { name: 'BrightStar Inc',   score: 87, revenue: '£4,200', days: 94,  reason: 'No purchase in 94d' },
-    { name: 'Delta Systems',    score: 81, revenue: '£3,100', days: 91,  reason: 'Usage dropped 60%' },
-    { name: 'Meridian Co',      score: 74, revenue: '£2,800', days: 67,  reason: 'Support tickets ×3' },
-    { name: 'Coastal Ventures', score: 62, revenue: '£1,950', days: 45,  reason: 'No logins 45d' },
-    { name: 'Apex Digital',     score: 55, revenue: '£1,700', days: 38,  reason: 'Plan downgrade' },
-  ];
-  return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Churn Analysis</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>ML churn score · 143 active accounts</div>
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 12 }}>
-          {[
-            { label: 'Churn rate', val: 3.2, suffix: '%', color: '#ef4444' },
-            { label: 'At risk ARR', val: 13750, prefix: '£', suffix: '', color: '#f59e0b' },
-            { label: 'Avg health score', val: 73, prefix: '', suffix: '/100', color: '#22c55e' },
-          ].map((k, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 8, padding: '10px 12px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: k.color }}>
-                <AnimNumber target={k.val} prefix={k.prefix || ''} suffix={k.suffix} duration={900} delay={i * 100} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {reveal >= 2 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, border: '1px solid #1e293b', overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', fontSize: 11, fontWeight: 600 }}>High-Risk Accounts</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#0a1120' }}>
-                {['Account', 'Churn Score', 'At-Risk ARR', 'Signal', 'Action'].map(h => (
-                  <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: 10, color: '#64748b', borderBottom: '1px solid #1e293b' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {risks.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #1e2537' }}>
-                  <td style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600 }}>{r.name}</td>
-                  <td style={{ padding: '7px 10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 40, height: 5, background: '#1e293b', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${r.score}%`, height: '100%', background: r.score > 75 ? '#ef4444' : r.score > 55 ? '#f59e0b' : '#22c55e', borderRadius: 3 }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: r.score > 75 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>{r.score}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '7px 10px', fontSize: 11 }}>{r.revenue}</td>
-                  <td style={{ padding: '7px 10px', fontSize: 10, color: '#94a3b8' }}>{r.reason}</td>
-                  <td style={{ padding: '7px 10px' }}>
-                    <span style={{ fontSize: 10, background: '#1e3a5f', color: '#60a5fa', borderRadius: 4, padding: '2px 6px', cursor: 'default' }}>Outreach</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Screen: AI Insights ─────────────────────────────────────
-function ScreenAI({ reveal }) {
-  const [typed, setTyped] = useState('');
-  const [dots, setDots] = useState(true);
-  useEffect(() => {
-    if (reveal < 2) return;
-    const start = 600;
-    const speed = 22;
-    let i = 0;
-    const t = setTimeout(() => {
-      setDots(false);
-      const interval = setInterval(() => {
-        i++;
-        setTyped(AI_TEXT.slice(0, i));
-        if (i >= AI_TEXT.length) clearInterval(interval);
-      }, speed);
-      return () => clearInterval(interval);
-    }, start);
-    return () => clearTimeout(t);
-  }, [reveal]);
-
-  return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>AI Insights</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>GPT-4 analysis · Updated 2 hours ago</div>
-      {reveal >= 1 && (
-        <div style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b', marginBottom: 12, display: 'flex', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🤖</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>DataHub AI</div>
-            {dots && <span style={{ fontSize: 13, color: '#6366f1' }}>●●●</span>}
-            {!dots && (
-              <div style={{ fontSize: 11, lineHeight: 1.7, color: '#cbd5e1', whiteSpace: 'pre-line' }}>
-                {typed}<span style={{ opacity: typed.length < AI_TEXT.length ? 1 : 0 }}>▋</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {reveal >= 3 && typed.length > 200 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-          {[
-            { label: 'Cross-sell opportunity', val: '£10k', color: '#22c55e', icon: '💡' },
-            { label: 'At-risk ARR',            val: '£4.2k', color: '#ef4444', icon: '⚠️' },
-            { label: 'Concentration risk',     val: '47%', color: '#f59e0b', icon: '🎯' },
-          ].map((a, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 7, padding: '10px 12px', border: `1px solid ${a.color}40` }}>
-              <div style={{ fontSize: 13, marginBottom: 4 }}>{a.icon}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: a.color }}>{a.val}</div>
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{a.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Screen: KPI Dashboard ───────────────────────────────────
-function ScreenKPI({ reveal }) {
-  const kpis = [
-    { label: 'Monthly Recurring Revenue',  val: 247000, prefix: '£', suffix: '', change: '+18.4%', up: true,  spark: [180,195,188,210,220,214,232,240,235,247], color: '#6366f1' },
-    { label: 'Net Revenue Retention',      val: 114,    prefix: '', suffix: '%',  change: '+6pts',  up: true,  spark: [101,103,104,105,107,108,109,110,112,114], color: '#22c55e' },
-    { label: 'Customer Acquisition Cost',  val: 412,    prefix: '£', suffix: '', change: '-8.1%',  up: true,  spark: [520,510,495,480,468,455,448,437,425,412], color: '#f59e0b' },
-    { label: 'Customer Lifetime Value',    val: 8240,   prefix: '£', suffix: '', change: '+11.2%', up: true,  spark: [6800,7000,7100,7300,7500,7600,7750,7900,8100,8240], color: '#8b5cf6' },
-    { label: 'Gross Margin',               val: 73,     prefix: '', suffix: '%',  change: '+2pts',  up: true,  spark: [68,69,70,70,71,71,72,72,73,73], color: '#06b6d4' },
-    { label: 'Support Ticket Volume',      val: 24,     prefix: '', suffix: '',   change: '-31%',   up: true,  spark: [62,55,49,42,38,34,32,29,27,24], color: '#ef4444' },
-  ];
-  return (
-    <div style={{ padding: '14px 18px', flex: 1, overflowY: 'auto' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>KPI Dashboard</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>Core business metrics · Real-time</div>
-      {reveal >= 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-          {kpis.map((k, i) => (
-            <div key={i} style={{ background: '#131c2e', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e293b' }}>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-                <AnimNumber target={k.val} prefix={k.prefix} suffix={k.suffix} duration={900} delay={i * 100} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: k.up ? '#22c55e' : '#ef4444' }}>{k.change}</span>
-                <Sparkline data={k.spark} color={k.color} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main DemoPlayer ─────────────────────────────────────────
-export default function DemoPlayer() {
-  const [screenIdx, setScreenIdx] = useState(0);
-  const [reveal, setReveal] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const timerRef = useRef(null);
-  const progressRef = useRef(null);
-
-  const screen = SCREENS[screenIdx];
-
-  const goTo = (idx) => {
-    clearTimeout(timerRef.current);
-    cancelAnimationFrame(progressRef.current);
-    setScreenIdx(idx);
-    setReveal(0);
-    setProgress(0);
-  };
-
-  // Auto-advance
-  useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      setScreenIdx(i => (i + 1) % SCREENS.length);
-    }, screen.duration);
-    return () => clearTimeout(timerRef.current);
-  }, [screenIdx, screen.duration]);
-
-  // Progress bar
-  useEffect(() => {
-    setProgress(0);
-    const start = performance.now();
-    const tick = (now) => {
-      const pct = Math.min((now - start) / screen.duration * 100, 100);
-      setProgress(pct);
-      if (pct < 100) progressRef.current = requestAnimationFrame(tick);
-    };
-    progressRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(progressRef.current);
-  }, [screenIdx, screen.duration]);
-
-  // Staggered reveal
-  useEffect(() => {
-    setReveal(0);
-    const t1 = setTimeout(() => setReveal(1), 300);
-    const t2 = setTimeout(() => setReveal(2), 1100);
-    const t3 = setTimeout(() => setReveal(3), 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [screenIdx]);
-
-  const currentId = SCREENS[screenIdx].id;
-
-  return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#0f172a', borderRadius: 12, overflow: 'hidden' }}>
-      {/* Top bar */}
-      <div style={{ background: '#070d19', borderBottom: '1px solid #1e293b', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {['#ef4444','#f59e0b','#22c55e'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
-        </div>
-        <div style={{ flex: 1, background: '#131c2e', borderRadius: 5, padding: '3px 10px', fontSize: 11, color: '#475569', textAlign: 'center' }}>
-          app.datahubpro.co.uk — {screen.label}
-        </div>
-        <div style={{ fontSize: 10, color: '#475569' }}>LIVE</div>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.9s</span>
       </div>
 
-      {/* Screen tabs */}
-      <div style={{ background: '#0a1120', borderBottom: '1px solid #1e293b', display: 'flex', gap: 2, padding: '5px 8px', overflowX: 'auto', flexShrink: 0 }}>
-        {SCREENS.map((s, i) => (
-          <button key={s.id} onClick={() => goTo(i)} style={{
-            padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 10, whiteSpace: 'nowrap',
-            background: i === screenIdx ? '#1e293b' : 'transparent',
-            color: i === screenIdx ? '#a5b4fc' : '#475569',
-            fontWeight: i === screenIdx ? 600 : 400,
-          }}>{s.label}</button>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 14 }}>
+        {[
+          { label: 'Avg Month-1 Retention', val: '81%', badge: '▲ vs 70% industry', up: true },
+          { label: 'Best cohort (M+3)',      val: 'March', badge: '74% at 3 months', up: true },
+          { label: '6-month avg retention',  val: '54%',  badge: 'Target: 60%', up: false },
+        ].map((k, i) => (
+          <C key={i} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1714', marginBottom: 5 }}>{k.val}</div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: k.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: k.up ? '#10b981' : '#ef4444' }}>{k.badge}</span>
+          </C>
         ))}
       </div>
 
-      {/* Progress bar */}
-      <div style={{ height: 2, background: '#1e293b', flexShrink: 0 }}>
-        <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', transition: 'width 0.1s linear' }} />
+      <C style={{ padding: 0, overflow: 'hidden', opacity: show ? 1 : 0, transition: 'opacity 0.4s ease 0.35s', marginBottom: 14 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              <th style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9c9490', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cohort</th>
+              <th style={{ padding: '9px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#9c9490', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Size</th>
+              {['M+0','M+1','M+2','M+3','M+4','M+5'].map(m => (
+                <th key={m} style={{ padding: '9px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#9c9490', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cohorts.map((month, ri) => (
+              <tr key={ri} style={{ borderBottom: '1px solid #f0ede9' }}>
+                <td style={{ padding: '8px 14px', fontSize: 12, fontWeight: 600, color: '#1a1714' }}>{month}</td>
+                <td style={{ padding: '8px 10px', textAlign: 'center', fontSize: 12, color: '#6b6560' }}>{sizes[ri]}</td>
+                {retention[ri].map((v, ci) => {
+                  const cs = cellStyle(v);
+                  return (
+                    <td key={ci} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 12, fontWeight: 600, ...cs, borderLeft: '1px solid #f0ede9' }}>
+                      {v !== null ? `${v}%` : ''}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </C>
+
+      <C style={{ opacity: show ? 1 : 0, transition: 'opacity 0.4s ease 0.6s', padding: '12px 16px' }}>
+        <div style={{ fontSize: 12, color: '#4b4540', lineHeight: 1.7 }}>
+          <span style={{ fontWeight: 700, color: '#f59e0b' }}>💡 Insight: </span>
+          March cohort shows the strongest retention curve — onboarded with the new Customer Success workflow. Rolling this playbook to April & May cohorts could lift 6-month retention from 54% → 62%.
+        </div>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: Churn (v2 exact) ────────────────────────────────
+function ScreenChurn() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const customers = [
+    { name: 'BrightStar Inc',  risk: 94, days: 80, spend: '£999',  action: 'Call today' },
+    { name: 'Delta Systems',   risk: 87, days: 74, spend: '£1,196', action: 'Send offer' },
+    { name: 'WebCore Ltd',     risk: 71, days: 62, spend: '£998',  action: 'Email sequence' },
+    { name: 'Luminary Ltd',    risk: 58, days: 40, spend: '£1,196', action: 'Check in' },
+    { name: 'MegaTrend',       risk: 42, days: 38, spend: '£999',  action: 'Monitor' },
+  ];
+  const riskColor = (r) => r >= 80 ? '#ef4444' : r >= 60 ? '#f97316' : r >= 40 ? '#f59e0b' : '#10b981';
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Churn Risk Analysis</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>ML-scored · 28 customers analysed · 5 flagged at risk</div>
+        </div>
+        <span style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚠️ 5 customers at risk</span>
       </div>
 
-      {/* Shell + screens */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Shell activeScreen={currentId}>
-          {currentId === 'exec'     && <ScreenExec    reveal={reveal} key={screenIdx} />}
-          {currentId === 'pivot'    && <ScreenPivot   reveal={reveal} key={screenIdx} />}
-          {currentId === 'rfm'      && <ScreenRFM     reveal={reveal} key={screenIdx} />}
-          {currentId === 'forecast' && <ScreenForecast reveal={reveal} key={screenIdx} />}
-          {currentId === 'cohort'   && <ScreenCohort  reveal={reveal} key={screenIdx} />}
-          {currentId === 'churn'    && <ScreenChurn   reveal={reveal} key={screenIdx} />}
-          {currentId === 'ai'       && <ScreenAI      reveal={reveal} key={screenIdx} />}
-          {currentId === 'kpi'      && <ScreenKPI     reveal={reveal} key={screenIdx} />}
-        </Shell>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {[
+          { label: 'At-Risk Revenue', value: '£4,388', badge: 'Recoverable',     color: '#ef4444' },
+          { label: 'Avg Days Inactive',value: '59 days',badge: 'Since last order',color: '#f97316' },
+          { label: 'If Retained',      value: '+£8,200',badge: '12-month value',  color: '#10b981' },
+        ].map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: k.color, marginBottom: 5 }}>{k.value}</div>
+            <span style={{ fontSize: 12, color: '#9c9490' }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      <C style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              {['Customer', 'Churn Risk', 'Days Inactive', 'Last Spend', 'Recommended Action'].map(h => (
+                <th key={h} style={{ padding: '9px 14px', fontSize: 11, fontWeight: 700, color: '#9c9490', textAlign: 'left', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((c, i) => (
+              <tr key={c.name} style={{ opacity: show ? 1 : 0, transition: `opacity 0.3s ease ${0.2 + i * 0.1}s` }}>
+                <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{c.name}</td>
+                <td style={{ padding: '10px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ background: '#f0ede9', borderRadius: 100, height: 6, width: 80, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: riskColor(c.risk), borderRadius: 100, width: show ? `${c.risk}%` : '0%', transition: `width 0.8s ease ${0.3 + i * 0.1}s` }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: riskColor(c.risk) }}>{c.risk}%</span>
+                  </div>
+                </td>
+                <td style={{ padding: '10px 14px', fontSize: 13, color: '#6b6560', borderBottom: '1px solid #f0ede9' }}>{c.days}d</td>
+                <td style={{ padding: '10px 14px', fontSize: 13, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{c.spend}</td>
+                <td style={{ padding: '10px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <span style={{ background: `${riskColor(c.risk)}15`, color: riskColor(c.risk), borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 600 }}>{c.action}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: AI Insights (v2 exact) ──────────────────────────
+function ScreenAI() {
+  const [typed, setTyped] = useState('');
+  const [cardsVisible, setCardsVisible] = useState(false);
+  useEffect(() => {
+    setTyped(''); setCardsVisible(false);
+    const t1 = setTimeout(() => setCardsVisible(true), 150);
+    let i = 0;
+    const t2 = setTimeout(() => {
+      const iv = setInterval(() => {
+        i++;
+        setTyped(AI_TEXT.slice(0, i));
+        if (i >= AI_TEXT.length) clearInterval(iv);
+      }, 14);
+      return () => clearInterval(iv);
+    }, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  const cards = [
+    { icon: '📈', title: 'Revenue Trend',       text: '+18.4% QoQ. Analytics Pro driving 52% of all revenue.' },
+    { icon: '🎯', title: 'Biggest Opportunity', text: '8 Champion customers never bought Data Suite — £8–12k cross-sell.' },
+    { icon: '⚠️', title: 'Urgent Risk',          text: "BrightStar & Delta haven't purchased in 80+ days. £4,388 at risk." },
+  ];
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>AI Insights</div>
+        <span style={{ background: 'linear-gradient(135deg,#f59e0b,#ec4899)', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>🤖 GPT-4o Powered</span>
+        <span style={{ fontSize: 11, color: '#9c9490' }}>Generated in 1.2s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {cards.map((c, i) => (
+          <C key={c.title} style={{ opacity: cardsVisible ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.15}s` }}>
+            <div style={{ fontSize: 22, marginBottom: 8 }}>{c.icon}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>{c.title}</div>
+            <div style={{ fontSize: 12, color: '#6b6560', lineHeight: 1.6 }}>{c.text}</div>
+          </C>
+        ))}
+      </div>
+
+      <C>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 12 }}>💬 Executive Summary</div>
+        <div style={{ fontSize: 13, color: '#4b4540', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>
+          {typed}
+          {typed.length < AI_TEXT.length && (
+            <span style={{ display: 'inline-block', width: 2, height: 14, background: '#f59e0b', verticalAlign: 'middle', marginLeft: 2, animation: 'blink 0.8s infinite' }} />
+          )}
+        </div>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: KPI Dashboard (v2 exact) ────────────────────────
+function ScreenKPI() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const kpis = [
+    { label: 'Revenue per Customer', value: '£3,194', trend: '+14%', up: true,  spark: [40,55,48,62,70,68,80,90] },
+    { label: 'Order Frequency',      value: '1.79x',  trend: '+8%',  up: true,  spark: [50,52,60,55,65,70,72,82] },
+    { label: 'Days Between Orders',  value: '41 days',trend: '-12%', up: true,  spark: [90,85,80,75,70,65,60,55] },
+    { label: 'Win Rate',             value: '68%',    trend: '+5%',  up: true,  spark: [55,58,60,63,65,64,67,68] },
+    { label: 'Avg Deal Size',        value: '£1,788', trend: '-2%',  up: false, spark: [80,78,82,79,76,74,72,71] },
+    { label: 'Revenue Growth MoM',   value: '6.2%',   trend: 'Accelerating', up: true, spark: [20,30,25,35,42,45,55,62] },
+  ];
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>KPI Dashboard</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>6 key metrics · auto-calculated from your data</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.6s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+        {kpis.map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8 }}>{k.label}</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1714' }}>{k.value}</div>
+              <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: k.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: k.up ? '#10b981' : '#ef4444' }}>{k.trend}</span>
+            </div>
+            <SparkBars data={k.spark} up={k.up} />
+          </C>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main DemoPlayer shell (v2 exact + new screens) ──────────
+export default function DemoPlayer() {
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef(null);
+
+  const go = (idx) => {
+    clearTimeout(timerRef.current);
+    setCurrent(idx);
+  };
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => go((current + 1) % SCREENS.length), SCREENS[current].duration);
+    return () => clearTimeout(timerRef.current);
+  }, [current]);
+
+  const screenId = SCREENS[current].id;
+
+  return (
+    <div style={{ display: 'flex', height: '100%', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", overflow: 'hidden', background: '#f7f6f5' }}>
+      <style>{`
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+      `}</style>
+
+      {/* Sidebar */}
+      <div style={{ width: 200, minWidth: 200, background: '#1a1714', display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(245,158,11,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#f59e0b,#d97706)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: '#1a1714', flexShrink: 0 }}>D</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#f5f0eb' }}>DataHub Pro</div>
+            <div style={{ fontSize: 10, color: '#6b6560' }}>Q1_2026_sales.csv</div>
+          </div>
+        </div>
+        <div style={{ padding: '10px 8px 4px', fontSize: 9, color: '#6b6560', letterSpacing: '1px', textTransform: 'uppercase' }}>Analytics</div>
+        {NAV.map(n => (
+          <div key={n.label}
+            onClick={() => { const i = SCREENS.findIndex(s => s.id === n.screen); if (i >= 0) go(i); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '7px 12px', margin: '1px 6px', borderRadius: 7,
+              fontSize: 11, cursor: n.screen ? 'pointer' : 'default',
+              color: n.screen === screenId ? '#f59e0b' : '#9c9490',
+              background: n.screen === screenId ? 'rgba(245,158,11,0.15)' : 'transparent',
+              fontWeight: n.screen === screenId ? 600 : 400,
+            }}
+          >
+            <span style={{ width: 16, textAlign: 'center', fontSize: 13 }}>{n.icon}</span>
+            {n.label}
+          </div>
+        ))}
+        <div style={{ marginTop: 'auto', padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: '#6b6560' }}>
+          <strong style={{ display: 'block', color: '#9c9490' }}>Demo User</strong>
+          DataHub Demo Co
+        </div>
+      </div>
+
+      {/* Main */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Topbar */}
+        <div style={{ background: '#fff', borderBottom: '1px solid #e8e4e0', padding: '0 22px', height: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1714' }}>{SCREENS[current].label}</span>
+            <span style={{ fontSize: 11, color: '#9c9490', background: '#f0ede9', borderRadius: 5, padding: '2px 8px' }}>Q1_2026_sales.csv</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button style={{ background: '#f0ede9', color: '#6b6560', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>📥 Export</button>
+            <button style={{ background: '#ec4899', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>▶ Run Again</button>
+          </div>
+        </div>
+
+        {/* Screen content */}
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {screenId === 'exec'     && <ScreenExec     key={current} />}
+          {screenId === 'pivot'    && <ScreenPivot    key={current} />}
+          {screenId === 'rfm'      && <ScreenRFM      key={current} />}
+          {screenId === 'forecast' && <ScreenForecast key={current} />}
+          {screenId === 'cohort'   && <ScreenCohort   key={current} />}
+          {screenId === 'churn'    && <ScreenChurn    key={current} />}
+          {screenId === 'ai'       && <ScreenAI       key={current} />}
+          {screenId === 'kpi'      && <ScreenKPI      key={current} />}
+        </div>
+
+        {/* Bottom progress bar */}
+        <div style={{ background: '#1a1714', borderTop: '1px solid rgba(245,158,11,0.15)', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: '#6b6560', whiteSpace: 'nowrap' }}>Live demo</span>
+          <div style={{ display: 'flex', gap: 5, flex: 1 }}>
+            {SCREENS.map((s, i) => (
+              <div key={s.id} onClick={() => go(i)} title={s.label}
+                style={{ flex: 1, height: 3, background: 'rgba(245,158,11,0.15)', borderRadius: 100, overflow: 'hidden', cursor: 'pointer' }}>
+                <div style={{
+                  height: '100%', background: '#f59e0b', borderRadius: 100,
+                  width: i < current ? '100%' : i === current ? '100%' : '0%',
+                  transition: i === current ? `width ${s.duration}ms linear` : 'none',
+                }} />
+              </div>
+            ))}
+          </div>
+          <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, whiteSpace: 'nowrap' }}>{SCREENS[current].label}</span>
+          <button onClick={() => go(0)} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 5, padding: '3px 9px', fontSize: 10, cursor: 'pointer' }}>↩</button>
+        </div>
       </div>
     </div>
   );
