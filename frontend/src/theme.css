@@ -1,5 +1,6 @@
 /* ─── DataHub Pro Theme Variables ─────────────────────────── */
 
+/* ── LIGHT theme (clean white, navy accents) ── */
 :root, [data-theme="light"] {
   --shell-sidebar:        #0c1446;
   --shell-sidebar-border: rgba(255,255,255,0.1);
@@ -9,8 +10,30 @@
   --shell-icon:           #6b7280;
   --shell-toggle-bg:      #f0f2f8;
   --shell-toggle-color:   #6b7280;
+  --shell-accent:         #e91e8c;
+  --shell-accent-text:    #ffffff;
+  --shell-nav-active-bg:  rgba(233,30,140,0.18);
+  --shell-nav-active-bar: #e91e8c;
 }
 
+/* ── GOLD theme (landing page palette — black + amber) ── */
+[data-theme="gold"] {
+  --shell-sidebar:        #0c0a09;
+  --shell-sidebar-border: rgba(255,255,255,0.07);
+  --shell-topbar:         #141210;
+  --shell-topbar-border:  rgba(255,255,255,0.08);
+  --shell-main-bg:        #0c0a09;
+  --shell-icon:           #a8a29e;
+  --shell-toggle-bg:      #1c1916;
+  --shell-toggle-color:   #f59e0b;
+  --shell-accent:         #f59e0b;
+  --shell-accent-text:    #000000;
+  --shell-nav-active-bg:  rgba(245,158,11,0.15);
+  --shell-nav-active-bar: #f59e0b;
+  color-scheme: dark;
+}
+
+/* ── DARK theme (kept for compatibility) ── */
 [data-theme="dark"] {
   --shell-sidebar:        #070c1f;
   --shell-sidebar-border: rgba(255,255,255,0.07);
@@ -20,8 +43,11 @@
   --shell-icon:           #94a3b8;
   --shell-toggle-bg:      #1e2736;
   --shell-toggle-color:   #f59e0b;
+  --shell-accent:         #e91e8c;
+  --shell-accent-text:    #ffffff;
+  --shell-nav-active-bg:  rgba(233,30,140,0.22);
+  --shell-nav-active-bar: #e91e8c;
 
-  /* Page-level token overrides (used by .card, .btn-secondary etc.) */
   --bg:     #0a0f1a;
   --card:   #111827;
   --border: #1e2736;
@@ -31,37 +57,30 @@
   color-scheme: dark;
 }
 
-[data-theme="dark"] body {
-  background: var(--bg);
-  color: var(--t1);
-}
-
-/* Card & common components auto-respond to dark mode */
-[data-theme="dark"] .card {
-  background: var(--card);
-  border-color: var(--border);
-}
-
-[data-theme="dark"] .btn-secondary {
-  background: #1e2736;
-  color: var(--t1);
-  border-color: #2d3748;
-}
+[data-theme="dark"] body { background: var(--bg); color: var(--t1); }
+[data-theme="dark"] .card { background: var(--card); border-color: var(--border); }
+[data-theme="dark"] .btn-secondary { background: #1e2736; color: var(--t1); border-color: #2d3748; }
 [data-theme="dark"] .btn-secondary:hover { background: #2d3748; }
-
-[data-theme="dark"] .form-input {
-  background: #1e2736;
-  color: var(--t1);
-  border-color: #2d3748;
-}
+[data-theme="dark"] .form-input { background: #1e2736; color: var(--t1); border-color: #2d3748; }
 [data-theme="dark"] .form-input:focus { border-color: #e91e8c; }
-
 [data-theme="dark"] .btn-navy { background: #1a2a6c; }
 [data-theme="dark"] .btn-navy:hover { background: #243a8a; }
-
-/* Recharts tooltip dark mode */
 [data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip {
   background: #1e2736 !important;
   border-color: #2d3748 !important;
   color: #f0f4ff !important;
+}
+
+/* ── Invert-filter: un-invert media elements so they render naturally ── */
+[data-theme="gold"] main img,
+[data-theme="gold"] main video,
+[data-theme="gold"] main iframe,
+[data-theme="gold"] main canvas,
+[data-theme="gold"] main .recharts-wrapper,
+[data-theme="dark"] main img,
+[data-theme="dark"] main video,
+[data-theme="dark"] main iframe,
+[data-theme="dark"] main canvas,
+[data-theme="dark"] main .recharts-wrapper {
+  filter: invert(1) hue-rotate(180deg);
 }

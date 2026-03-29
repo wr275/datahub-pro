@@ -25,6 +25,7 @@ const SECTIONS = [
     { path: '/regression', icon: '📈', label: 'Regression', desc: 'Trend lines', tooltip: 'Fit a trend line to your data and forecast future values using statistical regression.' },
     { path: '/correlation', icon: '🔗', label: 'Correlation Matrix', desc: 'Find patterns', tooltip: 'Discover which columns in your data are strongly related to each other.' },
     { path: '/cohort-analysis', icon: '👥', label: 'Cohort Analysis', desc: 'Retention', tooltip: 'Track how different customer groups behave over time to measure retention and loyalty.' },
+    { path: '/churn-risk', icon: '🔥', label: 'Churn Risk Analysis', desc: 'ML churn scoring', tooltip: 'ML-scored churn risk per customer — identify who is likely to leave and take action before they do.' },
     { path: '/trend-analysis', icon: '📉', label: 'Trend Analysis', desc: 'Over time', tooltip: 'Visualise how any metric changes over time with clear trend lines and annotations.' },
     { path: '/rfm', icon: '🎯', label: 'RFM Analysis', desc: 'Customer score', tooltip: 'Score customers by Recency, Frequency, and Monetary value to prioritise outreach.' },
     { path: '/pareto', icon: '📊', label: 'Pareto Analysis', desc: '80/20 rule', tooltip: 'Identify the 20% of factors driving 80% of your results with automatic ranking.' },
@@ -176,7 +177,7 @@ export default function HubHome() {
       {/* All Tool Sections */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>All 50 Tools</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>50+ Tools</div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <span style={{ position: 'absolute', left: 10, color: '#9ca3af', fontSize: '0.85rem' }}>🔍</span>
             <input

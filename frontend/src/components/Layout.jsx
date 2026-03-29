@@ -110,7 +110,12 @@ function LayoutInner({ children }) {
   const handleLogout = () => { logout(); navigate('/login') }
   const toggleSection = (s) => setCollapsed(p => ({ ...p, [s]: !p[s] }))
 
+  const isGold = theme === 'gold'
   const isDark = theme === 'dark'
+  const accent      = isGold ? '#f59e0b' : '#e91e8c'
+  const accentText  = isGold ? '#000'    : '#fff'
+  const navActiveBg = isGold ? 'rgba(245,158,11,0.15)' : 'rgba(233,30,140,0.22)'
+  const navActiveBar= isGold ? '#f59e0b' : '#e91e8c'
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--shell-main-bg)' }}>
@@ -123,7 +128,7 @@ function LayoutInner({ children }) {
       }}>
         {/* Logo */}
         <div style={{ padding: '20px 16px', borderBottom: '1px solid var(--shell-sidebar-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: '#e91e8c', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, flexShrink: 0, fontSize: '0.85rem' }}>D</div>
+          <div style={{ width: 32, height: 32, background: accent, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentText, fontWeight: 800, flexShrink: 0, fontSize: '0.85rem' }}>D</div>
           {sidebarOpen && (
             <div>
               <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>DataHub Pro</div>
@@ -151,8 +156,8 @@ function LayoutInner({ children }) {
                     padding: sidebarOpen ? '7px 16px' : '10px 0',
                     justifyContent: sidebarOpen ? 'flex-start' : 'center',
                     color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-                    background: isActive ? 'rgba(233,30,140,0.22)' : 'transparent',
-                    borderLeft: isActive ? '3px solid #e91e8c' : '3px solid transparent',
+                    background: isActive ? navActiveBg : 'transparent',
+                    borderLeft: isActive ? `3px solid ${navActiveBar}` : '3px solid transparent',
                     fontSize: '0.82rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.12s',
                     whiteSpace: 'nowrap', overflow: 'hidden', textDecoration: 'none',
                   })}>
@@ -193,37 +198,37 @@ function LayoutInner({ children }) {
           {/* 🌙 / ☀️ Theme toggle */}
           <button
             onClick={toggleTheme}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isGold ? 'Switch to light mode' : 'Switch to gold mode'}
             style={{
               background: 'var(--shell-toggle-bg)',
-              border: '1px solid var(--shell-topbar-border)',
+              border: `1px solid ${isGold ? 'rgba(245,158,11,0.3)' : 'var(--shell-topbar-border)'}`,
               borderRadius: 20,
               padding: '5px 12px',
               cursor: 'pointer',
               fontSize: '0.8rem',
               fontWeight: 600,
-              color: 'var(--shell-icon)',
+              color: isGold ? '#f59e0b' : '#6b7280',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               transition: 'all 0.2s',
             }}>
-            <span style={{ fontSize: '1rem' }}>{isDark ? '☀️' : '🌙'}</span>
-            {isDark ? 'Light' : 'Dark'}
+            <span style={{ fontSize: '1rem' }}>{isGold ? '☀️' : '✦'}</span>
+            {isGold ? 'Light' : 'Dark'}
           </button>
 
           {/* Upload */}
-          <NavLink to="/files" style={{ padding: '6px 14px', background: '#e91e8c', color: '#fff', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
+          <NavLink to="/files" style={{ padding: '6px 14px', background: accent, color: accentText, borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>
             + Upload Data
           </NavLink>
 
           {/* Avatar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, background: '#e91e8c', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem' }}>
+            <div style={{ width: 32, height: 32, background: accent, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accentText, fontWeight: 700, fontSize: '0.85rem' }}>
               {(user?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
             </div>
             {user?.organisation?.subscription_tier && (
-              <span style={{ padding: '2px 10px', background: '#e91e8c22', color: '#e91e8c', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>
+              <span style={{ padding: '2px 10px', background: isGold ? 'rgba(245,158,11,0.2)' : '#e91e8c22', color: accent, borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>
                 {user.organisation.subscription_tier}
               </span>
             )}
@@ -231,7 +236,7 @@ function LayoutInner({ children }) {
         </header>
 
         {/* Main content */}
-        <main style={{ flex: 1, overflowY: 'auto' }}>
+        <main style={{ flex: 1, overflowY: 'auto', ...((isGold || isDark) ? { filter: 'invert(1) hue-rotate(180deg)' } : {}) }}>
           {children}
         </main>
       </div>
