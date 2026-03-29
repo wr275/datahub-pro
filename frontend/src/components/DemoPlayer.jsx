@@ -1,387 +1,487 @@
 import { useState, useEffect, useRef } from 'react';
 
+/* ─────────────────────────────────────────────────────────────
+   DataHub Pro — Product Demo Player
+   Shows the tool in action with data already loaded.
+   6 screens: Exec Dashboard → RFM → Forecast → Churn → AI Insights → KPI
+───────────────────────────────────────────────────────────── */
+
 const SCREENS = [
-  { id: 'dashboard',  label: 'Hub Home',            duration: 4500 },
-  { id: 'upload',     label: 'Upload Data',          duration: 4000 },
-  { id: 'processing', label: 'Analysing…',           duration: 3500 },
-  { id: 'exec',       label: 'Executive Dashboard',  duration: 5000 },
-  { id: 'rfm',        label: 'RFM Segmentation',     duration: 5000 },
-  { id: 'ai',         label: 'AI Insights',          duration: 7000 },
+  { id: 'exec',     label: 'Executive Dashboard', duration: 5500 },
+  { id: 'rfm',      label: 'RFM Segmentation',    duration: 5000 },
+  { id: 'forecast', label: 'Revenue Forecast',     duration: 5000 },
+  { id: 'churn',    label: 'Churn Analysis',       duration: 5000 },
+  { id: 'ai',       label: 'AI Insights',          duration: 7000 },
+  { id: 'kpi',      label: 'KPI Dashboard',        duration: 5000 },
 ];
 
-const AI_TEXT = `Your Q1–Q2 2025 data shows strong revenue momentum with £89,420 total across 28 unique customers. Sarah Chen is your top performer at £42,450 — 47% of total revenue — suggesting an over-reliance risk worth monitoring.\n\nYour 8 Champion customers represent your most profitable segment and should be prioritised for upsell campaigns. The 7 At-Risk customers represent £22,080 in recurring revenue that could be lost without intervention.\n\nNorth and East regions are your strongest markets. Consider reallocating budget from West (lowest) to support expansion in high-performing territories.`;
+const AI_TEXT = `Revenue is up 18.4% quarter-on-quarter, driven by the Analytics Pro product line (52% of revenue). Sarah Chen accounts for 47% of all sales — this concentration is a risk worth managing.\n\nYour 8 Champion-tier customers haven't been offered the Data Suite product. Based on their order history, cross-sell potential is £8,000–£12,000.\n\nImmediate action: BrightStar Inc and Delta Systems haven't purchased in 90+ days. Both are historically high-value. Outreach this week could recover £4,200 in at-risk ARR.`;
 
-// ─── Tiny sub-components ────────────────────────────────────────────────────
+// ─── Shared nav items ────────────────────────────────────────
+const NAV = [
+  { icon: '📊', label: 'Executive Dashboard', screen: 'exec' },
+  { icon: '🎯', label: 'RFM Segmentation',    screen: 'rfm' },
+  { icon: '📈', label: 'Revenue Forecast',    screen: 'forecast' },
+  { icon: '⚠️', label: 'Churn Analysis',      screen: 'churn' },
+  { icon: '🤖', label: 'AI Insights',         screen: 'ai' },
+  { icon: '📋', label: 'KPI Dashboard',       screen: 'kpi' },
+  { icon: '🔀', label: 'Data Blending',       screen: null },
+  { icon: '💬', label: 'Ask Your Data',       screen: null },
+];
 
-function SidebarItem({ icon, label, active }) {
-  return (
-    <div style={{
-      display:'flex', alignItems:'center', gap:'10px',
-      padding:'9px 14px', margin:'1px 6px', borderRadius:'8px',
-      fontSize:'13px', color: active ? '#f59e0b' : '#9c9490',
-      background: active ? 'rgba(245,158,11,0.15)' : 'transparent',
-      fontWeight: active ? 600 : 400,
-    }}>
-      <span style={{width:'18px', textAlign:'center'}}>{icon}</span> {label}
-    </div>
-  );
-}
-
-function KpiCard({ label, value, badge, badgeUp, delay }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setVisible(true), delay); return () => clearTimeout(t); }, [delay]);
-  return (
-    <div style={{
-      background:'#fff', borderRadius:'12px', border:'1px solid #e8e4e0',
-      padding:'18px 20px', opacity: visible ? 1 : 0,
-      transition:'opacity 0.4s ease',
-    }}>
-      <div style={{fontSize:'11px', color:'#9c9490', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'8px'}}>{label}</div>
-      <div style={{fontSize:'26px', fontWeight:'800', color:'#1a1714', marginBottom:'6px'}}>{value}</div>
-      <span style={{
-        display:'inline-flex', alignItems:'center', gap:'4px',
-        fontSize:'12px', fontWeight:'600', padding:'3px 8px', borderRadius:'6px',
-        background: badgeUp ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-        color: badgeUp ? '#10b981' : '#ef4444',
-      }}>{badge}</span>
-    </div>
-  );
-}
-
-function AnimBar({ pct, color, delay }) {
-  const [w, setW] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setW(pct), delay + 100); return () => clearTimeout(t); }, [pct, delay]);
-  return (
-    <div style={{width:'80px', background:'#f0ede9', borderRadius:'100px', height:'4px'}}>
-      <div style={{height:'100%', borderRadius:'100px', background:color, width:`${w}%`, transition:'width 0.8s ease'}} />
-    </div>
-  );
-}
-
-// ─── Screens ────────────────────────────────────────────────────────────────
-
-function ScreenDashboard() {
-  const tools = [
-    ['Data View','Browse & explore'],['Data Summary','Column stats'],
-    ['Quality Report','Missing values'],['Data Cleaner','Fix & dedupe'],['Data Blending','Merge sources'],
-  ];
-  const tools2 = [
-    ['RFM Analysis','Segment customers'],['Cohort Analysis','Retention curves'],
-    ['Revenue Forecast','12-month model'],['Churn Predictor','At-risk customers'],['Trend Analysis','Growth patterns'],
-  ];
-  return (
-    <div style={{padding:'20px 28px', overflowY:'auto', height:'100%'}}>
-      <div style={{fontSize:'20px', fontWeight:'800', color:'#1a1714'}}>Good morning, Demo 👋</div>
-      <div style={{fontSize:'13px', color:'#9c9490', marginBottom:'20px'}}>Sunday, 29 March 2026</div>
-
-      <div style={{display:'flex', gap:'12px', marginBottom:'20px'}}>
-        {[['0','FILES','#9c9490'],['0','TOTAL ROWS','#9c9490'],['Trial','PLAN','#f59e0b']].map(([v,l,c]) => (
-          <div key={l} style={{background:'#fff',borderRadius:'10px',border:'1px solid #e8e4e0',padding:'14px 18px',flex:1,textAlign:'center'}}>
-            <div style={{fontSize:'22px',fontWeight:'800',color:c}}>{v}</div>
-            <div style={{fontSize:'10px',color:'#9c9490',marginTop:'3px'}}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{display:'flex', gap:'8px', marginBottom:'20px', flexWrap:'wrap'}}>
-        {['📂 Upload Data','🤖 AI Insights','📊 Executive View','💬 Ask Your Data','📄 Auto Report','🎯 RFM Analysis'].map(q => (
-          <div key={q} style={{background:'#fff',border:'1px solid #e8e4e0',borderRadius:'20px',padding:'7px 14px',fontSize:'12px',color:'#1a1714',fontWeight:'500'}}>{q}</div>
-        ))}
-      </div>
-
-      <div style={{fontSize:'13px', fontWeight:'700', color:'#1a1714', marginBottom:'12px'}}>ALL 50 TOOLS</div>
-
-      {[['📦 DATA', '10 tools', tools], ['📈 ANALYSIS', '12 tools', tools2]].map(([cat, count, items]) => (
-        <div key={cat} style={{marginBottom:'16px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px',fontSize:'13px',fontWeight:'700',color:'#1a1714'}}>
-            {cat} <span style={{background:'#f59e0b',color:'#1a1714',borderRadius:'20px',padding:'1px 8px',fontSize:'11px',fontWeight:'700'}}>{count}</span>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'8px'}}>
-            {items.map(([name, desc]) => (
-              <div key={name} style={{background:'#fff',border:'1px solid #e8e4e0',borderRadius:'10px',padding:'12px'}}>
-                <div style={{fontSize:'12px',fontWeight:'600',color:'#1a1714'}}>{name}</div>
-                <div style={{fontSize:'11px',color:'#9c9490'}}>{desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ScreenUpload() {
-  const [phase, setPhase] = useState('idle'); // idle → dragging → uploading → done
-  const [progress, setProgress] = useState(0);
-
+// ─── AnimNumber ──────────────────────────────────────────────
+function AnimNumber({ target, prefix = '', suffix = '', duration = 1200, delay = 0 }) {
+  const [val, setVal] = useState(0);
   useEffect(() => {
-    setPhase('idle'); setProgress(0);
-    const t1 = setTimeout(() => setPhase('dragging'), 700);
-    const t2 = setTimeout(() => { setPhase('uploading'); }, 1600);
-    let iv;
-    const t3 = setTimeout(() => {
-      let w = 0;
-      iv = setInterval(() => { w += 5; setProgress(w); if (w >= 100) clearInterval(iv); }, 50);
-    }, 1700);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearInterval(iv); };
-  }, []);
-
-  return (
-    <div style={{padding:'20px 28px'}}>
-      <div style={{fontSize:'20px',fontWeight:'800',color:'#1a1714'}}>Upload Your Data</div>
-      <div style={{fontSize:'13px',color:'#9c9490',marginBottom:'20px'}}>Supports .xlsx, .csv, .xls — any format, no clean-up needed</div>
-
-      <div style={{
-        background: phase === 'dragging' ? 'rgba(245,158,11,0.04)' : '#fff',
-        border: `2px dashed ${phase === 'dragging' ? '#f59e0b' : '#d1c9c0'}`,
-        borderRadius:'16px', padding:'48px 40px', textAlign:'center', marginBottom:'20px',
-        transition:'all 0.3s',
-        display: phase === 'uploading' || phase === 'done' ? 'none' : 'block',
-      }}>
-        <div style={{fontSize:'40px',marginBottom:'12px'}}>📂</div>
-        <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1714',marginBottom:'6px'}}>Drop a file here or click to browse</div>
-        <div style={{fontSize:'13px',color:'#9c9490',marginBottom:'12px'}}>No formatting required — we handle it automatically</div>
-        <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
-          {['.xlsx','.csv','.xls','Google Sheets','Xero Export'].map(f => (
-            <span key={f} style={{background:'#f0ede9',borderRadius:'6px',padding:'3px 10px',fontSize:'12px',color:'#6b6560',fontWeight:'500'}}>{f}</span>
-          ))}
-        </div>
-      </div>
-
-      {(phase === 'uploading' || phase === 'done') && (
-        <div style={{background:'#fff',border:'1px solid #e8e4e0',borderRadius:'10px',padding:'16px 20px',display:'flex',alignItems:'center',gap:'14px',maxWidth:'420px',margin:'0 auto',animation:'slideIn 0.3s ease'}}>
-          <span style={{fontSize:'32px'}}>📊</span>
-          <div style={{flex:1}}>
-            <div style={{fontSize:'14px',fontWeight:'600',color:'#1a1714'}}>Q1_2026_sales.csv</div>
-            <div style={{fontSize:'12px',color:'#9c9490',marginBottom:'8px'}}>50 rows · 9 columns · 4.2 KB</div>
-            <div style={{background:'#f0ede9',borderRadius:'100px',height:'4px',overflow:'hidden'}}>
-              <div style={{height:'100%',background:'linear-gradient(90deg,#f59e0b,#ec4899)',borderRadius:'100px',width:`${progress}%`,transition:'width 0.3s'}} />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    let start = null;
+    const t = setTimeout(() => {
+      const step = (ts) => {
+        if (!start) start = ts;
+        const pct = Math.min((ts - start) / duration, 1);
+        setVal(Math.round(pct * target));
+        if (pct < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }, delay);
+    return () => clearTimeout(t);
+  }, [target, duration, delay]);
+  return <span>{prefix}{val.toLocaleString()}{suffix}</span>;
 }
 
-function ScreenProcessing() {
-  const steps = [
-    'Parsing 50 rows across 9 columns',
-    'Detecting column types & relationships',
-    'Running 50 analytics tools in parallel',
-    'Generating executive summary',
-    '✅ Ready — insights available',
-  ];
-  const [visible, setVisible] = useState(0);
-  useEffect(() => {
-    setVisible(0);
-    steps.forEach((_, i) => {
-      setTimeout(() => setVisible(i + 1), i * 600 + 200);
-    });
-  }, []);
-  return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:'20px'}}>
-      <div style={{width:'52px',height:'52px',border:'3px solid rgba(245,158,11,0.2)',borderTopColor:'#f59e0b',borderRadius:'50%',animation:'spin 0.8s linear infinite'}} />
-      <div style={{fontSize:'18px',fontWeight:'700',color:'#1a1714'}}>Analysing your data…</div>
-      <div style={{display:'flex',flexDirection:'column',gap:'10px',width:'360px'}}>
-        {steps.map((s, i) => (
-          <div key={i} style={{
-            display:'flex',alignItems:'center',gap:'12px',
-            background:'#fff',borderRadius:'10px',padding:'11px 16px',
-            fontSize:'13px',color:'#1a1714',
-            opacity: visible > i ? 1 : 0,
-            transition:'opacity 0.4s ease',
-          }}>
-            <span style={{width:'20px',textAlign:'center'}}>{visible > i ? (i === 4 ? '✅' : '⚡') : '⏳'}</span>
-            {s}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// ─── Shared card ─────────────────────────────────────────────
+const C = ({ children, style }) => (
+  <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e4e0', padding: '18px 20px', ...style }}>
+    {children}
+  </div>
+);
 
+// ─── Screen: Executive Dashboard ────────────────────────────
 function ScreenExec() {
-  const months = [45,55,62,72,68,82,90];
-  const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul'];
-  const regions = [
-    {name:'North', pct:72, val:'£24.1k', color:'#f59e0b'},
-    {name:'South', pct:65, val:'£21.8k', color:'#ec4899'},
-    {name:'East',  pct:58, val:'£23.4k', color:'#10b981'},
-    {name:'West',  pct:50, val:'£20.1k', color:'#6366f1'},
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const kpis = [
+    { label: 'Total Revenue',    value: 89420, prefix: '£', badge: '▲ 18.4%', up: true },
+    { label: 'Active Customers', value: 28,    prefix: '',  badge: '▲ 9.2%',  up: true },
+    { label: 'Avg Order Value',  value: 1788,  prefix: '£', badge: '▼ 2.1%',  up: false },
+    { label: 'Total Orders',     value: 50,    prefix: '',  badge: '▲ 12%',   up: true },
   ];
-  const [barsVisible, setBarsVisible] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setBarsVisible(true), 300); return () => clearTimeout(t); }, []);
+
+  const months = [
+    { m: 'Jan', v: 8840 }, { m: 'Feb', v: 11200 }, { m: 'Mar', v: 10900 },
+    { m: 'Apr', v: 13400 }, { m: 'May', v: 12600 }, { m: 'Jun', v: 15900 }, { m: 'Jul', v: 16580 },
+  ];
+  const max = 17000;
+
+  const products = [
+    { name: 'Analytics Pro', rev: 46472, pct: 52, color: '#f59e0b' },
+    { name: 'Data Suite',     rev: 30598, pct: 34, color: '#ec4899' },
+    { name: 'Reporting Tool', rev: 12350, pct: 14, color: '#10b981' },
+  ];
 
   return (
-    <div style={{padding:'20px 28px', overflowY:'auto', height:'100%'}}>
-      <div style={{fontSize:'20px',fontWeight:'800',color:'#1a1714',marginBottom:'18px'}}>Executive Dashboard</div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'14px',marginBottom:'20px'}}>
-        <KpiCard label="Total Revenue"     value="£89,420"    badge="▲ 18.4% vs last quarter" badgeUp delay={100} />
-        <KpiCard label="Active Customers"  value="28"          badge="▲ 9.2% growth"           badgeUp delay={200} />
-        <KpiCard label="Avg Order Value"   value="£1,788"     badge="▼ 2.1% pressure"         badgeUp={false} delay={300} />
-        <KpiCard label="Top Sales Rep"     value="Sarah Chen" badge="£42,450 revenue"          badgeUp delay={400} />
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Executive Dashboard</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>Q1–Q2 2025 · Q1_2026_sales.csv · 50 rows</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.8s</span>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:'14px'}}>
-        <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e8e4e0',padding:'18px'}}>
-          <div style={{fontSize:'13px',fontWeight:'700',color:'#1a1714',marginBottom:'14px'}}>Monthly Revenue — Jan to Jul 2025</div>
-          <div style={{display:'flex',alignItems:'flex-end',gap:'6px',height:'90px'}}>
-            {months.map((h, i) => (
-              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'4px'}}>
+
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+        {kpis.map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#1a1714', marginBottom: 5 }}>
+              {show ? <AnimNumber target={k.value} prefix={k.prefix} delay={i * 100} /> : '—'}
+            </div>
+            <span style={{
+              fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+              background: k.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              color: k.up ? '#10b981' : '#ef4444',
+            }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 12 }}>
+        <C>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 12 }}>Monthly Revenue</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 100 }}>
+            {months.map((m, i) => (
+              <div key={m.m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div style={{
-                  width:'100%',background:'linear-gradient(180deg,#f59e0b,#d97706)',borderRadius:'4px 4px 0 0',
-                  height: barsVisible ? `${h}%` : '0%', transition:`height 0.6s ease ${i*0.08}s`,
+                  width: '100%', background: 'linear-gradient(180deg,#f59e0b,#d97706)', borderRadius: '3px 3px 0 0',
+                  height: show ? `${(m.v / max) * 100}%` : '0%', transition: `height 0.7s ease ${0.3 + i * 0.07}s`,
                 }} />
-                <div style={{fontSize:'10px',color:'#9c9490'}}>{labels[i]}</div>
+                <div style={{ fontSize: 9, color: '#9c9490' }}>{m.m}</div>
               </div>
             ))}
           </div>
-        </div>
-        <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e8e4e0',padding:'18px'}}>
-          <div style={{fontSize:'13px',fontWeight:'700',color:'#1a1714',marginBottom:'14px'}}>Revenue by Region</div>
-          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-            {regions.map((r, i) => (
-              <div key={r.name} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'13px'}}>
-                <div style={{width:'10px',height:'10px',borderRadius:'50%',background:r.color,flexShrink:0}} />
-                <div style={{flex:1,color:'#6b6560'}}>{r.name}</div>
-                <AnimBar pct={r.pct} color={r.color} delay={i * 100 + 400} />
-                <div style={{fontWeight:'700',color:'#1a1714',fontSize:'12px'}}>{r.val}</div>
+        </C>
+        <C>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 14 }}>Revenue by Product</div>
+          {products.map((p, i) => (
+            <div key={p.name} style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
+                <span style={{ color: '#6b6560' }}>{p.name}</span>
+                <span style={{ fontWeight: 700, color: '#1a1714' }}>£{(p.rev / 1000).toFixed(0)}k</span>
               </div>
-            ))}
-          </div>
-        </div>
+              <div style={{ background: '#f0ede9', borderRadius: 100, height: 6, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', background: p.color, borderRadius: 100,
+                  width: show ? `${p.pct}%` : '0%', transition: `width 0.8s ease ${0.4 + i * 0.15}s`,
+                }} />
+              </div>
+            </div>
+          ))}
+        </C>
       </div>
     </div>
   );
 }
 
+// ─── Screen: RFM Segmentation ────────────────────────────────
 function ScreenRFM() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
   const segs = [
-    {emoji:'🏆', label:'Champions',       color:'#10b981', count:8,  pct:'28%', revenue:'£38,240', barW:'72%', barColor:'#10b981'},
-    {emoji:'⭐', label:'Loyal Customers', color:'#f59e0b', count:7,  pct:'25%', revenue:'£29,100', barW:'58%', barColor:'#f59e0b'},
-    {emoji:'⚠️', label:'At Risk',         color:'#f97316', count:6,  pct:'21%', revenue:'£12,800', barW:'38%', barColor:'#f97316'},
-    {emoji:'❄️', label:'Lost / Inactive', color:'#9c9490', count:7,  pct:'25%', revenue:'£9,280',  barW:'25%', barColor:'#b5b0ac'},
+    { emoji: '🏆', label: 'Champions',      color: '#10b981', bg: 'rgba(16,185,129,0.08)',  count: 8,  revenue: '£38,240', pct: 72 },
+    { emoji: '⭐', label: 'Loyal',          color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',   count: 7,  revenue: '£29,100', pct: 56 },
+    { emoji: '⚠️', label: 'At Risk',        color: '#f97316', bg: 'rgba(249,115,22,0.08)',   count: 6,  revenue: '£12,800', pct: 34 },
+    { emoji: '❄️', label: 'Lost',           color: '#9c9490', bg: 'rgba(156,148,144,0.08)', count: 7,  revenue: '£9,280',  pct: 20 },
   ];
+
   const rows = [
-    ['Acme Ltd',      'Champion',  'rgba(16,185,129,0.1)','#10b981', '27 Apr 2025','3','£3,794','5-5-5'],
-    ['Ironclad Inc',  'Champion',  'rgba(16,185,129,0.1)','#10b981', '26 May 2025','2','£4,190','5-4-5'],
-    ['NovaTech',      'Loyal',     'rgba(245,158,11,0.1)','#f59e0b', '17 Jun 2025','2','£3,493','4-4-4'],
-    ['Delta Systems', 'At Risk',   'rgba(249,115,22,0.1)','#f97316', '15 Jan 2025','2','£1,196','2-2-3'],
-    ['BrightStar Inc','Lost',      'rgba(107,101,96,0.1)','#6b6560', '8 Jan 2025', '1','£999',  '1-1-2'],
+    { name: 'Acme Ltd',      seg: 'Champion', sc: '5-5-5', last: '27 Apr', orders: 3, spend: '£3,794', sc_color: '#10b981', sc_bg: 'rgba(16,185,129,0.1)' },
+    { name: 'Ironclad Inc',  seg: 'Champion', sc: '5-4-5', last: '26 May', orders: 2, spend: '£4,190', sc_color: '#10b981', sc_bg: 'rgba(16,185,129,0.1)' },
+    { name: 'NovaTech',      seg: 'Loyal',    sc: '4-4-4', last: '17 Jun', orders: 2, spend: '£3,493', sc_color: '#f59e0b', sc_bg: 'rgba(245,158,11,0.1)' },
+    { name: 'Delta Systems', seg: 'At Risk',  sc: '2-2-3', last: '15 Jan', orders: 2, spend: '£1,196', sc_color: '#f97316', sc_bg: 'rgba(249,115,22,0.1)' },
+    { name: 'BrightStar Inc',seg: 'Lost',     sc: '1-1-2', last: '8 Jan',  orders: 1, spend: '£999',   sc_color: '#9c9490', sc_bg: 'rgba(156,148,144,0.1)' },
   ];
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setVisible(true), 200); return () => clearTimeout(t); }, []);
 
   return (
-    <div style={{padding:'20px 28px', overflowY:'auto', height:'100%'}}>
-      <div style={{fontSize:'20px',fontWeight:'800',color:'#1a1714',marginBottom:'18px'}}>🎯 RFM Customer Segmentation</div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'12px',marginBottom:'16px'}}>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>RFM Customer Segmentation</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>28 customers · scored on Recency, Frequency, Monetary value</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 1.1s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
         {segs.map((s, i) => (
-          <div key={s.label} style={{background:'#fff',borderRadius:'12px',border:'1px solid #e8e4e0',padding:'16px',opacity:visible?1:0,transition:`opacity 0.4s ease ${i*0.1}s`}}>
-            <div style={{fontSize:'11px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'0.5px',color:s.color,marginBottom:'6px'}}>{s.emoji} {s.label}</div>
-            <div style={{fontSize:'30px',fontWeight:'800',color:'#1a1714'}}>{s.count}</div>
-            <div style={{fontSize:'12px',color:'#9c9490',marginTop:'3px'}}>{s.pct} · {s.revenue}</div>
-            <div style={{height:'5px',borderRadius:'100px',marginTop:'10px',background:'#f0ede9',overflow:'hidden'}}>
-              <div style={{height:'100%',background:s.barColor,width:visible?s.barW:'0%',transition:`width 0.8s ease ${i*0.15+0.3}s`}} />
+          <div key={s.label} style={{
+            background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 12, padding: '14px 16px',
+            opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s`,
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: s.color, marginBottom: 6 }}>{s.emoji} {s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#1a1714' }}>{s.count}</div>
+            <div style={{ fontSize: 11, color: '#6b6560', marginTop: 2, marginBottom: 10 }}>{s.revenue}</div>
+            <div style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 100, height: 4, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', background: s.color, borderRadius: 100,
+                width: show ? `${s.pct}%` : '0%', transition: `width 0.8s ease ${0.3 + i * 0.12}s`,
+              }} />
             </div>
           </div>
         ))}
       </div>
-      <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e8e4e0',overflow:'hidden'}}>
-        <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead style={{background:'#f7f6f5'}}>
-            <tr>{['Customer','Segment','Last Purchase','Orders','Total Spend','RFM Score'].map(h => (
-              <th key={h} style={{padding:'10px 14px',fontSize:'11px',fontWeight:'700',color:'#9c9490',textAlign:'left',borderBottom:'1px solid #e8e4e0',textTransform:'uppercase',letterSpacing:'0.5px'}}>{h}</th>
-            ))}</tr>
+
+      <C style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              {['Customer', 'Segment', 'Last Order', 'Orders', 'Total Spend', 'RFM Score'].map(h => (
+                <th key={h} style={{ padding: '9px 14px', fontSize: 11, fontWeight: 700, color: '#9c9490', textAlign: 'left', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {rows.map(([cust,seg,bg,col,date,orders,spend,score]) => (
-              <tr key={cust}>
-                <td style={{padding:'10px 14px',fontSize:'13px',color:'#1a1714',borderBottom:'1px solid #f0ede9'}}>{cust}</td>
-                <td style={{padding:'10px 14px',borderBottom:'1px solid #f0ede9'}}>
-                  <span style={{background:bg,color:col,borderRadius:'20px',padding:'3px 10px',fontSize:'11px',fontWeight:'700'}}>{seg}</span>
+            {rows.map(r => (
+              <tr key={r.name}>
+                <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.name}</td>
+                <td style={{ padding: '9px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <span style={{ background: r.sc_bg, color: r.sc_color, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{r.seg}</span>
                 </td>
-                <td style={{padding:'10px 14px',fontSize:'13px',color:'#6b6560',borderBottom:'1px solid #f0ede9'}}>{date}</td>
-                <td style={{padding:'10px 14px',fontSize:'13px',color:'#1a1714',borderBottom:'1px solid #f0ede9'}}>{orders}</td>
-                <td style={{padding:'10px 14px',fontSize:'13px',color:'#1a1714',borderBottom:'1px solid #f0ede9'}}>{spend}</td>
-                <td style={{padding:'10px 14px',fontSize:'13px',color:'#6b6560',borderBottom:'1px solid #f0ede9',fontFamily:'monospace'}}>{score}</td>
+                <td style={{ padding: '9px 14px', fontSize: 12, color: '#6b6560', borderBottom: '1px solid #f0ede9' }}>{r.last}</td>
+                <td style={{ padding: '9px 14px', fontSize: 13, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.orders}</td>
+                <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{r.spend}</td>
+                <td style={{ padding: '9px 14px', fontSize: 12, color: '#6b6560', borderBottom: '1px solid #f0ede9', fontFamily: 'monospace' }}>{r.sc}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </C>
     </div>
   );
 }
 
-function ScreenAI() {
-  const cards = [
-    {icon:'📈', title:'Revenue Growth',    text:'Revenue grew 18.4% quarter-on-quarter, driven by Analytics Pro which accounts for 52% of total sales.'},
-    {icon:'⚠️', title:'Churn Risk',         text:'7 customers haven\'t purchased in 90+ days. BrightStar Inc and Delta Systems are high-value at-risk accounts — immediate outreach recommended.'},
-    {icon:'🎯', title:'Sales Opportunity', text:'8 Champion customers have never purchased the Data Suite. Cross-sell potential of £8,000+ based on AOV benchmarks.'},
+// ─── Screen: Revenue Forecast ────────────────────────────────
+function ScreenForecast() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const data = [
+    { m: 'Aug', actual: null, forecast: 17800, lower: 16200, upper: 19400 },
+    { m: 'Sep', actual: null, forecast: 18900, lower: 17100, upper: 20700 },
+    { m: 'Oct', actual: null, forecast: 20100, lower: 18000, upper: 22200 },
+    { m: 'Nov', actual: null, forecast: 21400, lower: 19100, upper: 23700 },
+    { m: 'Dec', actual: null, forecast: 23800, lower: 21000, upper: 26600 },
+    { m: 'Jan', actual: null, forecast: 24600, lower: 21500, upper: 27700 },
   ];
+  const historic = [
+    { m: 'Jan', v: 8840 }, { m: 'Feb', v: 11200 }, { m: 'Mar', v: 10900 },
+    { m: 'Apr', v: 13400 }, { m: 'May', v: 12600 }, { m: 'Jun', v: 15900 }, { m: 'Jul', v: 16580 },
+  ];
+  const allBars = [...historic.map(h => ({ m: h.m, v: h.v, isForecast: false })), ...data.map(d => ({ m: d.m, v: d.forecast, isForecast: true }))];
+  const maxV = 28000;
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>12-Month Revenue Forecast</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>Based on 7 months of data · ARIMA + seasonal model</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 1.4s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {[
+          { label: 'Projected Next 6M', value: '£126,600', badge: '▲ 42% growth', up: true },
+          { label: 'Forecast Confidence', value: '87%', badge: 'High accuracy', up: true },
+          { label: 'Peak Month (Dec)', value: '£23,800', badge: 'Seasonal uplift', up: true },
+        ].map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1714', marginBottom: 5 }}>{k.value}</div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      <C>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714' }}>Revenue Trend + Forecast</div>
+          <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9c9490' }}>
+            <span>■ <span style={{ color: '#f59e0b' }}>Actual</span></span>
+            <span>■ <span style={{ color: '#6366f1' }}>Forecast</span></span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110 }}>
+          {allBars.map((b, i) => (
+            <div key={b.m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{
+                width: '100%',
+                background: b.isForecast
+                  ? 'repeating-linear-gradient(45deg,#6366f1,#6366f1 3px,rgba(99,102,241,0.3) 3px,rgba(99,102,241,0.3) 6px)'
+                  : 'linear-gradient(180deg,#f59e0b,#d97706)',
+                borderRadius: '3px 3px 0 0',
+                height: show ? `${(b.v / maxV) * 100}%` : '0%',
+                transition: `height 0.7s ease ${0.3 + i * 0.06}s`,
+                opacity: b.isForecast ? 0.85 : 1,
+              }} />
+              <div style={{ fontSize: 9, color: b.isForecast ? '#6366f1' : '#9c9490', fontWeight: b.isForecast ? 600 : 400 }}>{b.m}</div>
+            </div>
+          ))}
+        </div>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: Churn Analysis ──────────────────────────────────
+function ScreenChurn() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const customers = [
+    { name: 'BrightStar Inc',  risk: 94, days: 80, spend: '£999',  action: 'Call today' },
+    { name: 'Delta Systems',   risk: 87, days: 74, spend: '£1,196', action: 'Send offer' },
+    { name: 'WebCore Ltd',     risk: 71, days: 62, spend: '£998',  action: 'Email sequence' },
+    { name: 'Luminary Ltd',    risk: 58, days: 40, spend: '£1,196', action: 'Check in' },
+    { name: 'MegaTrend',       risk: 42, days: 38, spend: '£999',  action: 'Monitor' },
+  ];
+
+  const riskColor = (r) => r >= 80 ? '#ef4444' : r >= 60 ? '#f97316' : r >= 40 ? '#f59e0b' : '#10b981';
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>Churn Risk Analysis</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>ML-scored · 28 customers analysed · 5 flagged at risk</div>
+        </div>
+        <span style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚠️ 5 customers at risk</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {[
+          { label: 'At-Risk Revenue',  value: '£4,388',  badge: 'Recoverable',    color: '#ef4444' },
+          { label: 'Avg Days Inactive', value: '59 days', badge: 'Since last order', color: '#f97316' },
+          { label: 'If Retained',       value: '+£8,200', badge: '12-month value',  color: '#10b981' },
+        ].map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: k.color, marginBottom: 5 }}>{k.value}</div>
+            <span style={{ fontSize: 12, color: '#9c9490' }}>{k.badge}</span>
+          </C>
+        ))}
+      </div>
+
+      <C style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f7f6f5' }}>
+              {['Customer', 'Churn Risk', 'Days Inactive', 'Last Spend', 'Recommended Action'].map(h => (
+                <th key={h} style={{ padding: '9px 14px', fontSize: 11, fontWeight: 700, color: '#9c9490', textAlign: 'left', borderBottom: '1px solid #e8e4e0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((c, i) => (
+              <tr key={c.name} style={{ opacity: show ? 1 : 0, transition: `opacity 0.3s ease ${0.2 + i * 0.1}s` }}>
+                <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{c.name}</td>
+                <td style={{ padding: '10px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ background: '#f0ede9', borderRadius: 100, height: 6, width: 80, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: riskColor(c.risk), borderRadius: 100, width: show ? `${c.risk}%` : '0%', transition: `width 0.8s ease ${0.3 + i * 0.1}s` }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: riskColor(c.risk) }}>{c.risk}%</span>
+                  </div>
+                </td>
+                <td style={{ padding: '10px 14px', fontSize: 13, color: '#6b6560', borderBottom: '1px solid #f0ede9' }}>{c.days}d</td>
+                <td style={{ padding: '10px 14px', fontSize: 13, color: '#1a1714', borderBottom: '1px solid #f0ede9' }}>{c.spend}</td>
+                <td style={{ padding: '10px 14px', borderBottom: '1px solid #f0ede9' }}>
+                  <span style={{ background: `${riskColor(c.risk)}15`, color: riskColor(c.risk), borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 600 }}>{c.action}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: AI Insights ─────────────────────────────────────
+function ScreenAI() {
   const [typed, setTyped] = useState('');
   const [cardsVisible, setCardsVisible] = useState(false);
-
   useEffect(() => {
     setTyped(''); setCardsVisible(false);
-    const t1 = setTimeout(() => setCardsVisible(true), 200);
+    const t1 = setTimeout(() => setCardsVisible(true), 150);
     let i = 0;
     const t2 = setTimeout(() => {
       const iv = setInterval(() => {
         i++;
         setTyped(AI_TEXT.slice(0, i));
         if (i >= AI_TEXT.length) clearInterval(iv);
-      }, 16);
+      }, 14);
       return () => clearInterval(iv);
-    }, 600);
+    }, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
+  const cards = [
+    { icon: '📈', title: 'Revenue Trend',      text: '+18.4% QoQ. Analytics Pro driving 52% of all revenue.' },
+    { icon: '🎯', title: 'Biggest Opportunity', text: '8 Champion customers never bought Data Suite — £8–12k cross-sell.' },
+    { icon: '⚠️', title: 'Urgent Risk',          text: 'BrightStar & Delta haven\'t purchased in 80+ days. £4,388 at risk.' },
+  ];
+
   return (
-    <div style={{padding:'20px 28px', overflowY:'auto', height:'100%'}}>
-      <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'18px'}}>
-        <div style={{fontSize:'20px',fontWeight:'800',color:'#1a1714'}}>AI Insights</div>
-        <span style={{background:'linear-gradient(135deg,#f59e0b,#ec4899)',color:'#fff',borderRadius:'8px',padding:'5px 12px',fontSize:'12px',fontWeight:'700'}}>🤖 GPT-4o Powered</span>
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>AI Insights</div>
+        <span style={{ background: 'linear-gradient(135deg,#f59e0b,#ec4899)', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>🤖 GPT-4o Powered</span>
+        <span style={{ fontSize: 11, color: '#9c9490' }}>Generated in 1.2s</span>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'16px'}}>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
         {cards.map((c, i) => (
-          <div key={c.title} style={{background:'#fff',borderRadius:'12px',border:'1px solid #e8e4e0',padding:'18px',opacity:cardsVisible?1:0,transition:`opacity 0.4s ease ${i*0.15}s`}}>
-            <div style={{fontSize:'24px',marginBottom:'10px'}}>{c.icon}</div>
-            <div style={{fontSize:'13px',fontWeight:'700',color:'#1a1714',marginBottom:'7px'}}>{c.title}</div>
-            <div style={{fontSize:'12px',color:'#6b6560',lineHeight:'1.6'}}>{c.text}</div>
-          </div>
+          <C key={c.title} style={{ opacity: cardsVisible ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.15}s` }}>
+            <div style={{ fontSize: 22, marginBottom: 8 }}>{c.icon}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 6 }}>{c.title}</div>
+            <div style={{ fontSize: 12, color: '#6b6560', lineHeight: 1.6 }}>{c.text}</div>
+          </C>
         ))}
       </div>
-      <div style={{background:'#fff',border:'1px solid #e8e4e0',borderRadius:'12px',padding:'18px'}}>
-        <div style={{fontSize:'13px',fontWeight:'700',color:'#1a1714',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}>
+
+      <C>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1714', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           💬 Executive Summary
-          <span style={{fontSize:'11px',color:'#9c9490',fontWeight:'400'}}>Generated in 1.2s</span>
         </div>
-        <div style={{fontSize:'13px',color:'#6b6560',lineHeight:'1.8',whiteSpace:'pre-wrap'}}>
+        <div style={{ fontSize: 13, color: '#4b4540', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>
           {typed}
-          {typed.length < AI_TEXT.length && <span style={{display:'inline-block',width:'2px',height:'14px',background:'#f59e0b',verticalAlign:'middle',animation:'blink 0.8s infinite',marginLeft:'2px'}} />}
+          {typed.length < AI_TEXT.length && (
+            <span style={{ display: 'inline-block', width: 2, height: 14, background: '#f59e0b', verticalAlign: 'middle', marginLeft: 2, animation: 'blink 0.8s infinite' }} />
+          )}
         </div>
+      </C>
+    </div>
+  );
+}
+
+// ─── Screen: KPI Dashboard ───────────────────────────────────
+function ScreenKPI() {
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 100); return () => clearTimeout(t); }, []);
+
+  const kpis = [
+    { label: 'Revenue per Customer', value: '£3,194', trend: '+14%', up: true, spark: [40,55,48,62,70,68,80,90] },
+    { label: 'Order Frequency',      value: '1.79x',  trend: '+8%',  up: true, spark: [50,52,60,55,65,70,72,82] },
+    { label: 'Days Between Orders',  value: '41 days',trend: '-12%', up: true, spark: [90,85,80,75,70,65,60,55] },
+    { label: 'Win Rate',             value: '68%',    trend: '+5%',  up: true, spark: [55,58,60,63,65,64,67,68] },
+    { label: 'Avg Deal Size',        value: '£1,788', trend: '-2%',  up: false,spark: [80,78,82,79,76,74,72,71] },
+    { label: 'Revenue Growth MoM',   value: '6.2%',   trend: 'Accelerating', up: true, spark: [20,30,25,35,42,45,55,62] },
+  ];
+
+  return (
+    <div style={{ padding: '18px 24px', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1714' }}>KPI Dashboard</div>
+          <div style={{ fontSize: 12, color: '#9c9490' }}>6 key metrics · auto-calculated from your data</div>
+        </div>
+        <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>⚡ Generated in 0.6s</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+        {kpis.map((k, i) => (
+          <C key={k.label} style={{ opacity: show ? 1 : 0, transition: `opacity 0.4s ease ${i * 0.1}s` }}>
+            <div style={{ fontSize: 11, color: '#9c9490', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 8 }}>{k.label}</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1714' }}>{k.value}</div>
+              <span style={{
+                fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                background: k.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                color: k.up ? '#10b981' : '#ef4444',
+              }}>{k.trend}</span>
+            </div>
+            {/* Sparkline */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32 }}>
+              {k.spark.map((v, j) => (
+                <div key={j} style={{
+                  flex: 1, background: k.up ? '#f59e0b' : '#ef4444', borderRadius: '2px 2px 0 0',
+                  height: show ? `${v}%` : '0%', opacity: 0.6 + (j / k.spark.length) * 0.4,
+                  transition: `height 0.6s ease ${0.3 + i * 0.05 + j * 0.04}s`,
+                }} />
+              ))}
+            </div>
+          </C>
+        ))}
       </div>
     </div>
   );
 }
 
-// ─── Shell ──────────────────────────────────────────────────────────────────
-
-const NAV_ITEMS = [
-  {icon:'🏠', label:'Hub Home',           screen:'dashboard'},
-  {icon:'📊', label:'Executive Dashboard', screen:'exec'},
-  {icon:'🧩', label:'Dashboard Builder',  screen:null},
-  {icon:'🔀', label:'Data Blending',      screen:null},
-  {icon:'📋', label:'Data Table',         screen:null},
-  {icon:'📈', label:'KPI Dashboard',      screen:null},
-  {icon:'📝', label:'Data Summary',       screen:null},
-  {icon:'✅', label:'Data Quality',       screen:null},
-];
-
-const SCREEN_TITLES = { dashboard:'Hub Home', upload:'Upload Data', processing:'Analysing…', exec:'Executive Dashboard', rfm:'RFM Segmentation', ai:'AI Insights' };
-
+// ─── Shell ───────────────────────────────────────────────────
 export default function DemoPlayer() {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef(null);
@@ -392,88 +492,92 @@ export default function DemoPlayer() {
   };
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      go((current + 1) % SCREENS.length);
-    }, SCREENS[current].duration);
+    timerRef.current = setTimeout(() => go((current + 1) % SCREENS.length), SCREENS[current].duration);
     return () => clearTimeout(timerRef.current);
   }, [current]);
 
   const screenId = SCREENS[current].id;
-  const title = SCREEN_TITLES[screenId];
 
   return (
-    <div style={{display:'flex', height:'100%', fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", overflow:'hidden'}}>
+    <div style={{ display: 'flex', height: '100%', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", overflow: 'hidden', background: '#f7f6f5' }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-        @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
       {/* Sidebar */}
-      <div style={{width:'210px',minWidth:'210px',background:'#1a1714',display:'flex',flexDirection:'column',borderRight:'1px solid rgba(245,158,11,0.1)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'18px 16px 14px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-          <div style={{width:'30px',height:'30px',background:'linear-gradient(135deg,#f59e0b,#d97706)',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'800',fontSize:'15px',color:'#1a1714'}}>D</div>
+      <div style={{ width: 200, minWidth: 200, background: '#1a1714', display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(245,158,11,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#f59e0b,#d97706)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: '#1a1714', flexShrink: 0 }}>D</div>
           <div>
-            <div style={{fontSize:'13px',fontWeight:'700',color:'#f5f0eb'}}>DataHub Pro</div>
-            <div style={{fontSize:'10px',color:'#6b6560'}}>v3.8 Analytics Platform</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#f5f0eb' }}>DataHub Pro</div>
+            <div style={{ fontSize: 10, color: '#6b6560' }}>Q1_2026_sales.csv</div>
           </div>
         </div>
-        <div style={{padding:'14px 10px 4px',fontSize:'10px',color:'#6b6560',letterSpacing:'1px',textTransform:'uppercase'}}>Home</div>
-        {NAV_ITEMS.slice(0,3).map(n => <SidebarItem key={n.label} icon={n.icon} label={n.label} active={n.screen === screenId} />)}
-        <div style={{padding:'14px 10px 4px',fontSize:'10px',color:'#6b6560',letterSpacing:'1px',textTransform:'uppercase'}}>Data</div>
-        {NAV_ITEMS.slice(3).map(n => <SidebarItem key={n.label} icon={n.icon} label={n.label} active={n.screen === screenId} />)}
-        <div style={{marginTop:'auto',padding:'12px 16px',borderTop:'1px solid rgba(255,255,255,0.06)',fontSize:'12px',color:'#6b6560'}}>
-          <strong style={{display:'block',color:'#9c9490'}}>Demo User</strong>
+        <div style={{ padding: '10px 8px 4px', fontSize: 9, color: '#6b6560', letterSpacing: '1px', textTransform: 'uppercase' }}>Analytics</div>
+        {NAV.map(n => (
+          <div
+            key={n.label}
+            onClick={() => { const i = SCREENS.findIndex(s => s.id === n.screen); if (i >= 0) go(i); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', margin: '1px 6px', borderRadius: 7,
+              fontSize: 12, cursor: n.screen ? 'pointer' : 'default',
+              color: n.screen === screenId ? '#f59e0b' : '#9c9490',
+              background: n.screen === screenId ? 'rgba(245,158,11,0.15)' : 'transparent',
+              fontWeight: n.screen === screenId ? 600 : 400,
+            }}
+          >
+            <span style={{ width: 16, textAlign: 'center', fontSize: 13 }}>{n.icon}</span>
+            {n.label}
+          </div>
+        ))}
+        <div style={{ marginTop: 'auto', padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: '#6b6560' }}>
+          <strong style={{ display: 'block', color: '#9c9490' }}>Demo User</strong>
           DataHub Demo Co
         </div>
       </div>
 
       {/* Main */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',background:'#f7f6f5',overflow:'hidden'}}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Topbar */}
-        <div style={{background:'#fff',borderBottom:'1px solid #e8e4e0',padding:'0 24px',height:'52px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-          <div style={{fontSize:'15px',fontWeight:'700',color:'#1a1714'}}>{title}</div>
-          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-            <button style={{background:'#ec4899',color:'#fff',border:'none',borderRadius:'8px',padding:'7px 14px',fontSize:'12px',fontWeight:'600',cursor:'pointer'}}>+ Upload Data</button>
-            <div style={{width:'30px',height:'30px',background:'linear-gradient(135deg,#f59e0b,#d97706)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'700',fontSize:'12px',color:'#1a1714'}}>D</div>
+        <div style={{ background: '#fff', borderBottom: '1px solid #e8e4e0', padding: '0 22px', height: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1714' }}>{SCREENS[current].label}</span>
+            <span style={{ fontSize: 11, color: '#9c9490', background: '#f0ede9', borderRadius: 5, padding: '2px 8px' }}>Q1_2026_sales.csv</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button style={{ background: '#f0ede9', color: '#6b6560', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>📥 Export</button>
+            <button style={{ background: '#ec4899', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>▶ Run Again</button>
           </div>
         </div>
 
-        {/* Screen content */}
-        <div style={{flex:1,overflow:'hidden',position:'relative'}}>
-          {screenId === 'dashboard'  && <ScreenDashboard key={current} />}
-          {screenId === 'upload'     && <ScreenUpload    key={current} />}
-          {screenId === 'processing' && <ScreenProcessing key={current} />}
-          {screenId === 'exec'       && <ScreenExec      key={current} />}
-          {screenId === 'rfm'        && <ScreenRFM       key={current} />}
-          {screenId === 'ai'         && <ScreenAI        key={current} />}
+        {/* Screen */}
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {screenId === 'exec'     && <ScreenExec     key={current} />}
+          {screenId === 'rfm'      && <ScreenRFM      key={current} />}
+          {screenId === 'forecast' && <ScreenForecast key={current} />}
+          {screenId === 'churn'    && <ScreenChurn    key={current} />}
+          {screenId === 'ai'       && <ScreenAI       key={current} />}
+          {screenId === 'kpi'      && <ScreenKPI      key={current} />}
         </div>
 
         {/* Progress bar */}
-        <div style={{background:'#1a1714',borderTop:'1px solid rgba(245,158,11,0.15)',padding:'10px 20px',display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
-          <span style={{fontSize:'11px',color:'#6b6560',whiteSpace:'nowrap'}}>Demo</span>
-          <div style={{display:'flex',gap:'6px',flex:1}}>
+        <div style={{ background: '#1a1714', borderTop: '1px solid rgba(245,158,11,0.15)', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: '#6b6560', whiteSpace: 'nowrap' }}>Live demo</span>
+          <div style={{ display: 'flex', gap: 5, flex: 1 }}>
             {SCREENS.map((s, i) => (
-              <div
-                key={s.id}
-                onClick={() => go(i)}
-                title={s.label}
-                style={{flex:1,height:'3px',background:'rgba(245,158,11,0.15)',borderRadius:'100px',overflow:'hidden',cursor:'pointer'}}
-              >
+              <div key={s.id} onClick={() => go(i)} title={s.label}
+                style={{ flex: 1, height: 3, background: 'rgba(245,158,11,0.15)', borderRadius: 100, overflow: 'hidden', cursor: 'pointer' }}>
                 <div style={{
-                  height:'100%',borderRadius:'100px',background:'#f59e0b',
+                  height: '100%', background: '#f59e0b', borderRadius: 100,
                   width: i < current ? '100%' : i === current ? '100%' : '0%',
                   transition: i === current ? `width ${s.duration}ms linear` : 'none',
-                  animationFillMode: 'forwards',
                 }} />
               </div>
             ))}
           </div>
-          <span style={{fontSize:'11px',color:'#f59e0b',fontWeight:'600',whiteSpace:'nowrap'}}>{SCREENS[current].label}</span>
-          <button
-            onClick={() => go(0)}
-            style={{background:'rgba(245,158,11,0.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,0.25)',borderRadius:'6px',padding:'4px 10px',fontSize:'11px',cursor:'pointer'}}
-          >↩ Restart</button>
+          <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, whiteSpace: 'nowrap' }}>{SCREENS[current].label}</span>
+          <button onClick={() => go(0)} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 5, padding: '3px 9px', fontSize: 10, cursor: 'pointer' }}>↩</button>
         </div>
       </div>
     </div>
