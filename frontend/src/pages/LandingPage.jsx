@@ -1,8 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './LandingPage.css';
 
 export default function LandingPage() {
   const navRef = useRef(null);
+  const [demoOpen, setDemoOpen] = useState(false);
+
+  const scrollToContact = () => {
+    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     // Nav scroll effect
@@ -13,7 +18,7 @@ export default function LandingPage() {
     };
     window.addEventListener('scroll', handleScroll);
 
-    // Scroll reveal
+    // Scroll reveal — use threshold 0 so above-fold hero elements fire on load
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
@@ -21,7 +26,7 @@ export default function LandingPage() {
           observer.unobserve(e.target);
         }
       });
-    }, { threshold: 0.12 });
+    }, { threshold: 0 });
 
     document.querySelectorAll('.reveal').forEach(el => {
       observer.observe(el);
@@ -37,19 +42,20 @@ export default function LandingPage() {
     <>
       {/* ══════════ NAV ══════════ */}
       <nav className="dhp-nav" id="main-nav" ref={navRef}>
-        <a href="#" className="nav-logo">
+        <a href="/" className="nav-logo">
           <div className="nav-logo-mark">D</div>
           DataHub Pro
         </a>
         <ul className="nav-links">
+          <li><a href="#how-it-works">How it Works</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#integrations">Integrations</a></li>
           <li><a href="#pricing">Pricing</a></li>
           <li><a href="#contact">Contact</a></li>
         </ul>
         <div className="nav-right">
-          <button className="btn-ghost">Sign in</button>
-          <button className="btn-nav">Request a trial →</button>
+          <button className="btn-ghost" onClick={scrollToContact}>Sign in</button>
+          <button className="btn-nav" onClick={scrollToContact}>Request a trial →</button>
         </div>
       </nav>
 
@@ -64,8 +70,8 @@ export default function LandingPage() {
             50 analytics tools that turn your existing Excel and CSV files into clear, actionable intelligence — no analyst, no BI team, no waiting.
           </p>
           <div className="cta-row reveal reveal-delay-3">
-            <button className="btn-primary">Request a free trial →</button>
-            <button className="btn-secondary">
+            <button className="btn-primary" onClick={scrollToContact}>Request a free trial →</button>
+            <button className="btn-secondary" onClick={() => setDemoOpen(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
@@ -440,10 +446,6 @@ export default function LandingPage() {
               <div className="proof-label">Analytics tools</div>
             </div>
             <div className="proof-item">
-              <div className="proof-num">200+</div>
-              <div className="proof-label">SMEs onboarded</div>
-            </div>
-            <div className="proof-item">
               <div className="proof-num">2 min</div>
               <div className="proof-label">Average setup time</div>
             </div>
@@ -503,8 +505,8 @@ export default function LandingPage() {
                 <p style={{fontSize:'16px', color:'var(--muted2)', lineHeight:'1.75', marginBottom:'36px', maxWidth:'380px'}}>Stop running blind. Upload your first file today — get your first insights in under 2 minutes, no analyst required.</p>
 
                 <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'32px'}}>
-                  <button className="btn-primary" style={{fontSize:'16px', padding:'16px 28px', justifyContent:'center'}}>Request a free trial →</button>
-                  <button className="btn-secondary" style={{justifyContent:'center'}}>
+                  <button className="btn-primary" onClick={scrollToContact} style={{fontSize:'16px', padding:'16px 28px', justifyContent:'center'}}>Request a free trial →</button>
+                  <button className="btn-secondary" onClick={() => setDemoOpen(true)} style={{justifyContent:'center'}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
                       <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
@@ -543,7 +545,7 @@ export default function LandingPage() {
         <div className="footer-inner">
           <div className="footer-top">
             <div className="footer-brand">
-              <a href="#" className="nav-logo" style={{marginBottom:'14px'}}>
+              <a href="/" className="nav-logo" style={{marginBottom:'14px'}}>
                 <div className="nav-logo-mark">D</div>
                 DataHub Pro
               </a>
@@ -552,42 +554,96 @@ export default function LandingPage() {
             <div>
               <div className="footer-col-title">Product</div>
               <ul className="footer-links">
-                <li><a href="#">Features</a></li>
-                <li><a href="#">All 50 Tools</a></li>
-                <li><a href="#">Integrations</a></li>
-                <li><a href="#">Pricing</a></li>
-                <li><a href="#">Changelog</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How it Works</a></li>
+                <li><a href="#integrations">Integrations</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Changelog</a></li>
               </ul>
             </div>
             <div>
               <div className="footer-col-title">Company</div>
               <ul className="footer-links">
-                <li><a href="#">About</a></li>
-                <li><a href="#">Blog</a></li>
-                <li><a href="#">Careers</a></li>
-                <li><a href="#">Contact</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">About</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Blog</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Careers</a></li>
+                <li><a href="#contact">Contact</a></li>
               </ul>
             </div>
             <div>
               <div className="footer-col-title">Legal</div>
               <ul className="footer-links">
-                <li><a href="#">Privacy Policy</a></li>
-                <li><a href="#">Terms of Service</a></li>
-                <li><a href="#">Cookie Policy</a></li>
-                <li><a href="#">GDPR</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Privacy Policy</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Terms of Service</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">Cookie Policy</a></li>
+                <li><a href="mailto:hello@datahubpro.co.uk">GDPR</a></li>
               </ul>
             </div>
           </div>
           <div className="footer-bottom">
             <p>© 2026 DataHub Pro. All rights reserved. Registered in England &amp; Wales.</p>
             <div className="footer-legal">
-              <a href="#">Privacy</a>
-              <a href="#">Terms</a>
-              <a href="#">Cookies</a>
+              <a href="mailto:hello@datahubpro.co.uk">Privacy</a>
+              <a href="mailto:hello@datahubpro.co.uk">Terms</a>
+              <a href="mailto:hello@datahubpro.co.uk">Cookies</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* ══════════ DEMO MODAL ══════════ */}
+      {demoOpen && (
+        <div
+          onClick={() => setDemoOpen(false)}
+          style={{
+            position:'fixed', inset:0, background:'rgba(0,0,0,0.88)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            zIndex:9999, padding:'24px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background:'#1c1916', border:'1px solid rgba(245,158,11,0.3)',
+              borderRadius:'16px', overflow:'hidden', maxWidth:'800px',
+              width:'100%', position:'relative'
+            }}
+          >
+            <div style={{
+              display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.07)'
+            }}>
+              <span style={{fontFamily:'JetBrains Mono, monospace', fontSize:'13px', color:'var(--amber)'}}>
+                // DataHub Pro — Product Demo
+              </span>
+              <button
+                onClick={() => setDemoOpen(false)}
+                style={{
+                  background:'none', border:'none', color:'var(--muted2)',
+                  cursor:'pointer', fontSize:'20px', lineHeight:1, padding:'4px 8px'
+                }}
+              >✕</button>
+            </div>
+            <div style={{
+              aspectRatio:'16/9', background:'#0c0a09', display:'flex',
+              flexDirection:'column', alignItems:'center', justifyContent:'center',
+              gap:'16px', padding:'40px'
+            }}>
+              <div style={{
+                width:'72px', height:'72px', borderRadius:'50%',
+                background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.3)',
+                display:'flex', alignItems:'center', justifyContent:'center', fontSize:'28px'
+              }}>▶</div>
+              <p style={{color:'var(--muted2)', fontSize:'15px', textAlign:'center', maxWidth:'360px', lineHeight:'1.6'}}>
+                Product demo video coming soon.<br/>
+                <a href="mailto:hello@datahubpro.co.uk" style={{color:'var(--amber)', textDecoration:'none'}}>
+                  Contact us
+                </a> for a live walkthrough.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
