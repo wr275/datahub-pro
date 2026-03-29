@@ -183,80 +183,58 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* TESTIMONIALS */}
-      <div style={{ padding: '96px 40px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <div style={{ display: 'inline-block', background: '#f0f2f8', color: BRAND.navy, padding: '6px 16px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer Stories</div>
-          <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 900, color: BRAND.navy, margin: 0, letterSpacing: '-0.02em' }}>Trusted by finance teams across the UK</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 24 }}>
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 16, padding: 32, boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>{[...Array(5)].map((_,j)=><span key={j} style={{ color:'#f59e0b',fontSize:'1rem' }}>★</span>)}</div>
-              <p style={{ color: '#374151', lineHeight: 1.7, fontSize: '0.95rem', marginBottom: 24, fontStyle: 'italic' }}>"{t.quote}"</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 42, height: 42, background: 'linear-gradient(135deg,#e91e8c,#0097b2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: '0.85rem' }}>{t.avatar}</div>
-                <div>
-                  <div style={{ fontWeight: 700, color: BRAND.navy, fontSize: '0.9rem' }}>{t.name}</div>
-                  <div style={{ color: '#6b7280', fontSize: '0.8rem' }}>{t.role} · {t.company}</div>
-                </div>
+      {/* PHILOSOPHY */}
+      <div style={{ background: '#fff', padding: '96px 40px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '6px 16px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, marginBottom: 16, letterSpacing: '0.05em' }}>Our Philosophy</div>
+          <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 900, color: BRAND.navy, margin: '0 0 20px', letterSpacing: '-0.02em' }}>Data intelligence shouldn't be a privilege</h2>
+          <p style={{ color: '#5a6290', fontSize: '1.1rem', lineHeight: 1.8, marginBottom: 60, maxWidth: 700, margin: '0 auto 60px' }}>
+            For too long, meaningful analytics has been locked behind expensive BI teams, complex software licences, and months of setup. We built DataHub Pro because we believe every organisation — regardless of size — deserves the same quality of insight as a FTSE 100 company.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 32, textAlign: 'left', marginBottom: 64 }}>
+            {[
+              { icon: '⚡', title: 'Speed to insight', body: 'Your data is already in spreadsheets. DataHub Pro meets you there — no data migration, no warehouse, no waiting. Upload a file and have boardroom-ready answers in under 60 seconds.' },
+              { icon: '🎯', title: 'Decisions, not dashboards', body: 'Most tools give you charts. We give you conclusions. Every analysis in DataHub Pro is designed to answer a real business question — from customer retention to cash flow forecasting.' },
+              { icon: '🔒', title: 'Built for trust', body: 'Enterprise-grade security, GDPR compliance, and UK data residency — because the data you analyse is your most sensitive asset. We treat it that way.' },
+              { icon: '🤝', title: 'The whole team wins', body: 'DataHub Pro is designed for finance directors, operations leads, and CEOs — not data scientists. If you can use Excel, you can run every tool on this platform.' },
+            ].map((v, i) => (
+              <div key={i} style={{ background: '#f8f9ff', borderRadius: 16, padding: 28, border: '1px solid #e8eaf4' }}>
+                <div style={{ fontSize: '1.8rem', marginBottom: 12 }}>{v.icon}</div>
+                <div style={{ fontWeight: 800, color: BRAND.navy, fontSize: '1rem', marginBottom: 8 }}>{v.title}</div>
+                <div style={{ color: '#5a6290', fontSize: '0.9rem', lineHeight: 1.7 }}>{v.body}</div>
               </div>
+            ))}
+          </div>
+          <div style={{ background: 'linear-gradient(135deg, #0c1446, #0097b2)', borderRadius: 20, padding: '40px 48px', color: '#fff', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 12 }}>The result?</div>
+            <div style={{ fontSize: '1rem', lineHeight: 1.8, color: 'rgba(255,255,255,0.85)', maxWidth: 620, margin: '0 auto' }}>
+              Organisations using DataHub Pro run faster, make smarter bets, and stop paying for analysis they could be doing themselves. Your analyst budget becomes your growth budget.
             </div>
-          ))}
+          </div>
         </div>
       </div>
-
-      {/* PRICING */}
+      {/* CONTACT */}
       <div id="pricing" style={{ background: 'linear-gradient(135deg,#f8f9ff,#f0f2f8)', padding: '96px 40px' }}>
-        <div style={{ maxWidth: 980, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ display: 'inline-block', background: BRAND.pink, color: '#fff', padding: '6px 16px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, marginBottom: 16 }}>Pricing</div>
-          <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 900, color: BRAND.navy, margin: '0 0 12px', letterSpacing: '-0.02em' }}>Simple, transparent pricing</h2>
-          <p style={{ color: '#5a6290', marginBottom: 36 }}>Start free. No credit card. Cancel anytime.</p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 0, background: '#fff', border: '1px solid #e8eaf4', borderRadius: 32, padding: 4, marginBottom: 48 }}>
-            <button onClick={() => setAnnual(false)} style={{ padding: '8px 24px', borderRadius: 24, border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', background: !annual ? BRAND.navy : 'transparent', color: !annual ? '#fff' : '#6b7280', transition: 'all 0.2s' }}>Monthly</button>
-            <button onClick={() => setAnnual(true)} style={{ padding: '8px 24px', borderRadius: 24, border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', background: annual ? BRAND.navy : 'transparent', color: annual ? '#fff' : '#6b7280', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8 }}>
-              Annual <span style={{ background: '#10b981', color: '#fff', padding: '2px 8px', borderRadius: 10, fontSize: '0.7rem' }}>Save 20%</span>
-            </button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
-            {PLANS.map((p, i) => (
-              <div key={i} style={{ background: '#fff', borderRadius: 18, padding: '32px 28px', border: p.popular ? '2px solid #e91e8c' : '1px solid #e8eaf4', position: 'relative', boxShadow: p.popular ? '0 12px 48px rgba(233,30,140,0.18)' : '0 2px 12px rgba(0,0,0,0.05)', transition: 'transform 0.2s' }}
-                onMouseEnter={e=>e.currentTarget.style.transform='translateY(-4px)'} onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
-                {p.popular && <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '5px 18px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 800, whiteSpace: 'nowrap' }}>✦ MOST POPULAR</div>}
-                <div style={{ marginBottom: 6, fontSize: '0.78rem', fontWeight: 700, color: '#8b92b3', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{p.name}</div>
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{ fontSize: '2.8rem', fontWeight: 900, color: p.color }}>£{annual ? p.annual : p.monthly}</span>
-                  <span style={{ color: '#8b92b3', fontSize: '0.9rem' }}>/month</span>
-                </div>
-                {annual && <div style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 700, marginBottom: 12 }}>Save £{(p.monthly - p.annual) * 12}/year</div>}
-                <p style={{ color: '#6b7280', fontSize: '0.83rem', marginBottom: 24 }}>{p.desc}</p>
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', textAlign: 'left' }}>
-                  {p.features.map((f,j) => <li key={j} style={{ padding: '5px 0', fontSize: '0.85rem', color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {f}</li>)}
-                </ul>
-                <Link to="/register" style={{ display: 'block', textAlign: 'center', background: p.popular ? 'linear-gradient(135deg,#e91e8c,#c4166e)' : p.color, color: '#fff', padding: '12px', borderRadius: 10, fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', boxShadow: p.popular ? '0 6px 20px rgba(233,30,140,0.35)' : 'none' }}>{p.cta} →</Link>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
-            {['🔒 SOC2 compliant','🇬🇧 UK data residency (Enterprise)','🛡️ GDPR ready','💳 No lock-in contracts'].map((t,i)=>(
-              <div key={i} style={{ color: '#5a6290', fontSize: '0.85rem', fontWeight: 500 }}>{t}</div>
-            ))}
+          <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 900, color: BRAND.navy, margin: '0 0 12px', letterSpacing: '-0.02em' }}>Built around your needs</h2>
+          <p style={{ color: '#5a6290', marginBottom: 48, fontSize: '1.05rem' }}>Every organisation is different. We work with you to find the right fit — get in touch and we'll put together something tailored.</p>
+          <div style={{ background: '#fff', borderRadius: 24, padding: '48px 40px', boxShadow: '0 4px 24px rgba(12,20,70,0.08)', border: '1px solid #e8eaf4' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#0c1446,#0097b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: '1.8rem' }}>✉️</div>
+            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: BRAND.navy, marginBottom: 8 }}>Talk to us</div>
+            <div style={{ color: '#5a6290', marginBottom: 28, fontSize: '0.95rem', lineHeight: 1.7 }}>Tell us about your team, your data, and what you're trying to achieve. We'll come back with a solution and pricing that works for you.</div>
+            <a href="mailto:hello@datahubpro.co.uk" style={{ display: 'inline-block', background: BRAND.pink, color: '#fff', padding: '14px 32px', borderRadius: 12, fontWeight: 700, fontSize: '1rem', textDecoration: 'none', marginBottom: 20 }}>
+              hello@datahubpro.co.uk
+            </a>
+            <div style={{ color: '#9ca3af', fontSize: '0.82rem' }}>We typically respond within one business day</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 32, paddingTop: 24, borderTop: '1px solid #f0f2f8' }}>
+              {['🔒 GDPR compliant','🇬🇧 UK data residency','📋 No lock-in contracts'].map((b,i) => (
+                <div key={i} style={{ color: '#5a6290', fontSize: '0.82rem', fontWeight: 600 }}>{b}</div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-
-      {/* CTA */}
-      <div style={{ background: 'linear-gradient(135deg,#0c1446,#1a2a8c)', padding: '80px 40px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.6rem)', fontWeight: 900, color: '#fff', margin: '0 0 20px', letterSpacing: '-0.02em' }}>Ready to replace your analyst with AI?</h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', marginBottom: 36, lineHeight: 1.7 }}>Join hundreds of UK SMEs turning Excel files into competitive intelligence. 14 days free, no card needed.</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/register" style={{ background: 'linear-gradient(135deg,#e91e8c,#c4166e)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 800, fontSize: '1rem', textDecoration: 'none', boxShadow: '0 8px 32px rgba(233,30,140,0.45)' }}>Start free trial →</Link>
-            <a href="mailto:sales@datahubpro.io" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '15px 36px', borderRadius: 10, fontWeight: 600, fontSize: '1rem', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.25)' }}>Talk to sales</a>
-          </div>
-        </div>
-      </div>
-
       {/* FOOTER */}
       <footer style={{ background: '#080e30', padding: '48px 40px 32px', color: 'rgba(255,255,255,0.45)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
