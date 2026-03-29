@@ -33,6 +33,7 @@ import VarianceAnalysis from './pages/VarianceAnalysis'
 import RegressionAnalysis from './pages/RegressionAnalysis'
 import CorrelationMatrix from './pages/CorrelationMatrix'
 import CohortAnalysis from './pages/CohortAnalysis'
+import ChurnRiskAnalysis from './pages/ChurnRiskAnalysis'
 import TrendAnalysis from './pages/TrendAnalysis'
 import RFMAnalysis from './pages/RFMAnalysis'
 import ParetoAnalysis from './pages/ParetoAnalysis'
@@ -125,7 +126,7 @@ export default function App() {
         <Route path="/connect-data" element={<P><ConnectData /></P>} />
         <Route path="/budget-actuals" element={<PrivateRoute><BudgetActuals /></PrivateRoute>} />
         <Route path="/calculated-fields" element={<PrivateRoute><CalculatedFields /></PrivateRoute>} />
-              <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
+        <Route path="/data-pipelines" element={<P><DataPipelines /></P>} />
 
         {/* ANALYSIS */}
         <Route path="/pivot-table" element={<P><PivotTable /></P>} />
@@ -136,6 +137,7 @@ export default function App() {
         <Route path="/regression" element={<P><RegressionAnalysis /></P>} />
         <Route path="/correlation" element={<P><CorrelationMatrix /></P>} />
         <Route path="/cohort-analysis" element={<P><CohortAnalysis /></P>} />
+        <Route path="/churn-risk" element={<P><ChurnRiskAnalysis /></P>} />
         <Route path="/trend-analysis" element={<P><TrendAnalysis /></P>} />
         <Route path="/rfm" element={<P><RFMAnalysis /></P>} />
         <Route path="/pareto" element={<P><ParetoAnalysis /></P>} />

@@ -1,0 +1,67 @@
+/* ─── DataHub Pro Theme Variables ─────────────────────────── */
+
+:root, [data-theme="light"] {
+  --shell-sidebar:        #0c1446;
+  --shell-sidebar-border: rgba(255,255,255,0.1);
+  --shell-topbar:         #ffffff;
+  --shell-topbar-border:  #e5e7eb;
+  --shell-main-bg:        #f0f2f8;
+  --shell-icon:           #6b7280;
+  --shell-toggle-bg:      #f0f2f8;
+  --shell-toggle-color:   #6b7280;
+}
+
+[data-theme="dark"] {
+  --shell-sidebar:        #070c1f;
+  --shell-sidebar-border: rgba(255,255,255,0.07);
+  --shell-topbar:         #0d1117;
+  --shell-topbar-border:  #1e2736;
+  --shell-main-bg:        #0a0f1a;
+  --shell-icon:           #94a3b8;
+  --shell-toggle-bg:      #1e2736;
+  --shell-toggle-color:   #f59e0b;
+
+  /* Page-level token overrides (used by .card, .btn-secondary etc.) */
+  --bg:     #0a0f1a;
+  --card:   #111827;
+  --border: #1e2736;
+  --t1:     #f0f4ff;
+  --t2:     #94a3b8;
+  --t3:     #64748b;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--t1);
+}
+
+/* Card & common components auto-respond to dark mode */
+[data-theme="dark"] .card {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #1e2736;
+  color: var(--t1);
+  border-color: #2d3748;
+}
+[data-theme="dark"] .btn-secondary:hover { background: #2d3748; }
+
+[data-theme="dark"] .form-input {
+  background: #1e2736;
+  color: var(--t1);
+  border-color: #2d3748;
+}
+[data-theme="dark"] .form-input:focus { border-color: #e91e8c; }
+
+[data-theme="dark"] .btn-navy { background: #1a2a6c; }
+[data-theme="dark"] .btn-navy:hover { background: #243a8a; }
+
+/* Recharts tooltip dark mode */
+[data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #1e2736 !important;
+  border-color: #2d3748 !important;
+  color: #f0f4ff !important;
+}
