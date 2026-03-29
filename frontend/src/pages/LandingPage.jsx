@@ -18,7 +18,15 @@ export default function LandingPage() {
     };
     window.addEventListener('scroll', handleScroll);
 
-    // Scroll reveal — use threshold 0 so above-fold hero elements fire on load
+    // Immediately reveal elements already visible in the viewport (above fold)
+    document.querySelectorAll('.reveal').forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        el.classList.add('visible');
+      }
+    });
+
+    // Observer handles below-fold elements as user scrolls
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
@@ -26,9 +34,9 @@ export default function LandingPage() {
           observer.unobserve(e.target);
         }
       });
-    }, { threshold: 0 });
+    }, { threshold: 0.1 });
 
-    document.querySelectorAll('.reveal').forEach(el => {
+    document.querySelectorAll('.reveal:not(.visible)').forEach(el => {
       observer.observe(el);
     });
 
