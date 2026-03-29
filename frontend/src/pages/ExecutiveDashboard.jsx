@@ -30,7 +30,7 @@ export default function ExecutiveDashboard() {
     Promise.all([analyticsApi.summary(id), analyticsApi.preview(id)]).then(([sRes, pRes]) => {
       const summary = sRes.data.summary || {}; const rows = pRes.data.rows || []; const headers = pRes.data.headers || []
       const numericCols = Object.entries(summary).filter(([, v]) => v.type === 'numeric').slice(0, 4)
-      const textCols = Object.entries(summary).filter(([, v]) => v.type !== 'numeric').slice(0, 2)
+      const textCols = Object.entries(summary).filter(([, v]) => v.type !== 'numeric')
       const kpis = numericCols.map(([col, stats]) => ({
         label: col, value: (stats.mean || 0).toFixed(2), subtext: `Total: ${((stats.mean || 0) * (stats.count || 0)).toFixed(0)}`, color: COLORS[Math.floor(Math.random() * COLORS.length)]
       }))
