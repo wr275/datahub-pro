@@ -45,18 +45,6 @@ const FEATURES = [
   { icon: '💧', title: 'Waterfall Charts', desc: 'Visualise contribution analysis and variance breakdowns for any dataset', badge: null },
 ]
 
-const TESTIMONIALS = [
-  { quote: 'We replaced a £60k/year analyst team with DataHub Pro. The ROI was visible within 30 days.', name: 'Sarah Chen', role: 'CFO', company: 'RetailCo UK', avatar: 'SC' },
-  { quote: 'The RFM segmentation alone increased our repeat purchase rate by 34% in one quarter.', name: 'Marcus Webb', role: 'Head of Growth', company: 'EcomBrand', avatar: 'MW' },
-  { quote: "Finally, a BI tool that doesn't require a PhD in data science. Our whole team adopted it in a week.", name: 'Priya Sharma', role: 'Operations Director', company: 'LogiSME Ltd', avatar: 'PS' },
-]
-
-const PLANS = [
-  { name: 'Starter', monthly: 49, annual: 39, desc: 'Perfect for small teams', features: ['3 users', '10 uploads/month', 'All 50 analytics tools', 'AI insights (50 queries/mo)', 'Email support', '14-day free trial'], color: '#0097b2', cta: 'Start free trial' },
-  { name: 'Growth', monthly: 149, annual: 119, desc: 'For data-driven teams', features: ['10 users', 'Unlimited uploads', 'All 50 analytics tools', 'Unlimited AI insights', 'Scheduled PDF reports', 'Priority support', '14-day free trial'], color: '#e91e8c', popular: true, cta: 'Start free trial' },
-  { name: 'Enterprise', monthly: 499, annual: 399, desc: 'Full enterprise capability', features: ['Unlimited users', 'Unlimited uploads', 'All 50 analytics tools', 'Unlimited AI + custom models', 'SSO / SAML', 'UK/EU data residency', 'Dedicated CSM', 'SLA 99.9% uptime', 'Custom onboarding'], color: '#0c1446', cta: 'Book a demo' },
-]
-
 const ALL_TOOLS = [
   '📋 Data View','📊 Data Summary','✅ Data Quality','🧹 Data Cleaner','🔀 Data Blending','🔍 Advanced Filter',
   '📊 Value Frequency','🔢 KPI Dashboard','🔄 Pivot Table','🤔 What-If Scenarios','⚠️ Anomaly Detection',
@@ -92,7 +80,7 @@ export default function LandingPage() {
           DataHub Pro
         </div>
         <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-          {[['Features','#features'],['Pricing','#pricing'],['All Tools','#tools']].map(([l,h]) => (
+          {[['Features','#features'],['Contact','#pricing'],['All Tools','#tools']].map(([l,h]) => (
             <a key={h} href={h} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', textDecoration: 'none', fontWeight: 500 }}
               onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,0.7)'}>{l}</a>
           ))}
@@ -216,7 +204,7 @@ export default function LandingPage() {
       {/* CONTACT */}
       <div id="pricing" style={{ background: 'linear-gradient(135deg,#f8f9ff,#f0f2f8)', padding: '96px 40px' }}>
         <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ display: 'inline-block', background: BRAND.pink, color: '#fff', padding: '6px 16px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, marginBottom: 16 }}>Pricing</div>
+          <div style={{ display: 'inline-block', background: BRAND.pink, color: '#fff', padding: '6px 16px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, marginBottom: 16 }}>Contact</div>
           <h2 style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 900, color: BRAND.navy, margin: '0 0 12px', letterSpacing: '-0.02em' }}>Built around your needs</h2>
           <p style={{ color: '#5a6290', marginBottom: 48, fontSize: '1.05rem' }}>Every organisation is different. We work with you to find the right fit — get in touch and we'll put together something tailored.</p>
           <div style={{ background: '#fff', borderRadius: 24, padding: '48px 40px', boxShadow: '0 4px 24px rgba(12,20,70,0.08)', border: '1px solid #e8eaf4' }}>
