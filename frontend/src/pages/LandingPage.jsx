@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './LandingPage.css';
+import DemoPlayer from '../components/DemoPlayer';
 
 export default function LandingPage() {
   const navRef = useRef(null);
@@ -645,16 +646,10 @@ export default function LandingPage() {
                 }}
               >✕</button>
             </div>
-            {/* iframe demo — auto-plays through all screens */}
-            <iframe
-              src="/demo.html"
-              title="DataHub Pro Product Demo"
-              style={{
-                width:'100%', border:'none', display:'block',
-                height:'min(75vh, 680px)'
-              }}
-              allow="autoplay"
-            />
+            {/* Self-playing React demo player */}
+            <div style={{height:'min(75vh, 680px)'}}>
+              <DemoPlayer />
+            </div>
           </div>
         </div>
       )}
