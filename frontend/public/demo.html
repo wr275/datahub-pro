@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataHub Pro — Product Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d0b09;
+    color: #f5f0eb;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Shell ── */
+  .shell {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: #1a1714;
+    border-right: 1px solid rgba(245,158,11,0.12);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; color: #1a1714;
+  }
+  .logo-text { font-size: 14px; font-weight: 700; color: #f5f0eb; }
+  .logo-sub  { font-size: 10px; color: #6b6560; margin-top: 1px; }
+
+  .sidebar-section { padding: 16px 12px 4px; font-size: 10px; color: #6b6560; letter-spacing: 1px; text-transform: uppercase; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; margin: 1px 6px; border-radius: 8px;
+    font-size: 13px; color: #9c9490; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .sidebar-item:hover { background: rgba(245,158,11,0.08); color: #f5f0eb; }
+  .sidebar-item.active { background: rgba(245,158,11,0.15); color: #f59e0b; font-weight: 600; }
+  .sidebar-icon { font-size: 15px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 14px 18px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px; color: #6b6560;
+  }
+  .sidebar-footer strong { display: block; color: #9c9490; }
+
+  /* ── Main ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f7f6f5;
+    color: #1a1714;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid #e8e4e0;
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; color: #1a1714; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .btn-upload {
+    background: #ec4899; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg,#f59e0b,#d97706);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: #1a1714;
+  }
+
+  /* ── Content ── */
+  .content { flex: 1; overflow: hidden; padding: 28px; position: relative; }
+
+  /* ── Screens ── */
+  .screen {
+    position: absolute; inset: 0; padding: 28px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: auto; }
+
+  /* ── Dashboard screen ── */
+  .greeting { font-size: 22px; font-weight: 800; color: #1a1714; margin-bottom: 4px; }
+  .greeting-sub { font-size: 13px; color: #9c9490; margin-bottom: 24px; }
+
+  .stats-row { display: flex; gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: #fff; border-radius: 12px; border: 1px solid #e8e4e0;
+    padding: 18px 22px; flex: 1; text-align: center;
+  }
+  .stat-value { font-size: 26px; font-weight: 800; color: #ec4899; }
+  .stat-label { font-size: 11px; color: #9c9490; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .quick-actions { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+  .qa-btn {
+    background: #fff; border: 1px solid #e8e4e0;
+    border-radius: 20px; padding: 8px 16px; font-size: 13px;
+    color: #1a1714; display: flex; align-items: center; gap: 6px;
+    font-weight: 500;
+  }
+
+  .tools-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .tools-title { font-size: 14px; font-weight: 700; color: #1a1714; }
+  .tools-search {
+    background: #fff; border: 1px solid #e8e4e0;
+    border-radius: 8px; padding: 7px 12px; font-size: 13px;
+    color: #9c9490; width: 180px;
+  }
+
+  .tool-category { margin-bottom: 20px; }
+  .cat-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    font-size: 13px; font-weight: 700; color: #1a1714;
+  }
+  .cat-badge {
+    background: #f59e0b; color: #1a1714;
+    border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 700;
+  }
+  .tool-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .tool-card {
+    background: #fff; border: 1px solid #e8e4e0;
+    border-radius: 10px; padding: 14px 12px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tool-card:hover { border-color: #f59e0b; box-shadow: 0 2px 12px rgba(245,158,11,0.12); }
+  .tool-card-name { font-size: 13px; font-weight: 600; color: #1a1714; margin-bottom: 3px; }
+  .tool-card-desc { font-size: 11px; color: #9c9490; }
+
+  /* ── Upload screen ── */
+  .upload-zone {
+    background: #fff; border: 2px dashed #d1c9c0;
+    border-radius: 16px; padding: 60px 40px;
+    text-align: center; margin-bottom: 24px;
+    transition: all 0.4s;
+  }
+  .upload-zone.dragging {
+    border-color: #f59e0b;
+    background: rgba(245,158,11,0.04);
+  }
+  .upload-icon { font-size: 48px; margin-bottom: 16px; }
+  .upload-title { font-size: 18px; font-weight: 700; color: #1a1714; margin-bottom: 8px; }
+  .upload-sub { font-size: 13px; color: #9c9490; }
+  .upload-formats { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .format-tag {
+    background: #f0ede9; border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; color: #6b6560; font-weight: 500;
+  }
+
+  .file-chip {
+    background: #fff; border: 1px solid #e8e4e0;
+    border-radius: 10px; padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px;
+    max-width: 400px; margin: 0 auto;
+    animation: slideIn 0.4s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .file-icon { font-size: 28px; }
+  .file-name { font-size: 14px; font-weight: 600; color: #1a1714; }
+  .file-meta { font-size: 12px; color: #9c9490; }
+  .progress-bar-wrap { background: #f0ede9; border-radius: 100px; height: 4px; margin-top: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg,#f59e0b,#ec4899); border-radius: 100px; transition: width 0.6s ease; }
+
+  /* ── Processing screen ── */
+  .processing-center {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 20px;
+  }
+  .spinner {
+    width: 56px; height: 56px;
+    border: 3px solid rgba(245,158,11,0.2);
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing-title { font-size: 20px; font-weight: 700; color: #1a1714; }
+  .processing-steps { display: flex; flex-direction: column; gap: 10px; width: 360px; }
+  .proc-step {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border-radius: 10px; padding: 12px 16px;
+    font-size: 13px; color: #9c9490;
+    animation: stepIn 0.4s ease forwards;
+    opacity: 0;
+  }
+  .proc-step.done { color: #1a1714; }
+  .proc-step-icon { width: 20px; text-align: center; }
+  @keyframes stepIn { to { opacity: 1; } }
+
+  /* ── Executive Dashboard ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card {
+    background: #fff; border-radius: 12px; border: 1px solid #e8e4e0;
+    padding: 20px; animation: kpiIn 0.5s ease forwards; opacity: 0;
+  }
+  @keyframes kpiIn { to { opacity: 1; } }
+  .kpi-label { font-size: 11px; color: #9c9490; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 800; color: #1a1714; margin-bottom: 6px; }
+  .kpi-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+  }
+  .kpi-badge.up { background: rgba(16,185,129,0.1); color: #10b981; }
+  .kpi-badge.down { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+  .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .chart-card {
+    background: #fff; border-radius: 12px; border: 1px solid #e8e4e0;
+    padding: 20px;
+  }
+  .chart-title { font-size: 13px; font-weight: 700; color: #1a1714; margin-bottom: 16px; }
+
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 100px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar {
+    width: 100%; background: linear-gradient(180deg,#f59e0b,#d97706);
+    border-radius: 4px 4px 0 0;
+    animation: barGrow 0.8s ease forwards; transform-origin: bottom;
+    transform: scaleY(0);
+  }
+  @keyframes barGrow { to { transform: scaleY(1); } }
+  .bar-label { font-size: 10px; color: #9c9490; }
+
+  .pie-chart-wrap { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .pie-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .pie-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .pie-name { flex: 1; color: #6b6560; }
+  .pie-val { font-weight: 700; color: #1a1714; }
+  .pie-bar-wrap { width: 80px; background: #f0ede9; border-radius: 100px; height: 4px; }
+  .pie-bar-fill { height: 100%; border-radius: 100px; animation: barGrow 1s ease forwards; transform-origin: left; transform: scaleX(0); }
+
+  /* ── RFM screen ── */
+  .rfm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .seg-card {
+    background: #fff; border-radius: 12px; border: 1px solid #e8e4e0;
+    padding: 18px; animation: kpiIn 0.5s ease forwards; opacity: 0;
+  }
+  .seg-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .seg-count { font-size: 32px; font-weight: 800; color: #1a1714; }
+  .seg-pct { font-size: 13px; color: #9c9490; margin-top: 4px; }
+  .seg-bar { height: 6px; border-radius: 100px; margin-top: 12px; animation: barGrow 1s ease forwards; transform-origin: left; transform: scaleX(0); }
+
+  .rfm-table { background: #fff; border-radius: 12px; border: 1px solid #e8e4e0; overflow: hidden; }
+  .rfm-thead { background: #f7f6f5; }
+  .rfm-thead th { padding: 11px 16px; font-size: 11px; font-weight: 700; color: #9c9490; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e8e4e0; }
+  .rfm-tbody td { padding: 11px 16px; font-size: 13px; color: #1a1714; border-bottom: 1px solid #f0ede9; }
+  .seg-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+  /* ── AI Insights screen ── */
+  .ai-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .ai-badge { background: linear-gradient(135deg,#f59e0b,#ec4899); color: #fff; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; }
+  .ai-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .ai-card {
+    background: #fff; border-radius: 12px; border: 1px solid #e8e4e0;
+    padding: 18px; animation: kpiIn 0.6s ease forwards; opacity: 0;
+  }
+  .ai-card-icon { font-size: 24px; margin-bottom: 10px; }
+  .ai-card-title { font-size: 13px; font-weight: 700; color: #1a1714; margin-bottom: 8px; }
+  .ai-card-text { font-size: 12px; color: #6b6560; line-height: 1.6; }
+  .ai-text-box {
+    background: #fff; border: 1px solid #e8e4e0;
+    border-radius: 12px; padding: 20px;
+  }
+  .ai-text-title { font-size: 13px; font-weight: 700; color: #1a1714; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .ai-typing { font-size: 13px; color: #6b6560; line-height: 1.8; }
+  .cursor { display: inline-block; width: 2px; height: 14px; background: #f59e0b; vertical-align: middle; animation: blink 0.8s infinite; margin-left: 2px; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+  /* ── Progress indicator ── */
+  .demo-progress {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(26,23,20,0.95);
+    border-top: 1px solid rgba(245,158,11,0.2);
+    padding: 12px 28px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 100;
+  }
+  .demo-steps { display: flex; gap: 8px; flex: 1; }
+  .demo-step {
+    flex: 1; height: 3px; background: rgba(245,158,11,0.2);
+    border-radius: 100px; overflow: hidden;
+  }
+  .demo-step-fill { height: 100%; background: #f59e0b; border-radius: 100px; width: 0; transition: width linear; }
+  .demo-step.done .demo-step-fill { width: 100%; }
+  .demo-label { font-size: 12px; color: #9c9490; white-space: nowrap; }
+  .demo-name { font-size: 12px; color: #f59e0b; font-weight: 600; white-space: nowrap; }
+  .demo-restart {
+    background: rgba(245,158,11,0.15); color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">D</div>
+      <div>
+        <div class="logo-text">DataHub Pro</div>
+        <div class="logo-sub">v3.8 Analytics Platform</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Home</div>
+    <div class="sidebar-item active" id="nav-hub">🏠 <span>Hub Home</span></div>
+    <div class="sidebar-item" id="nav-exec">📊 <span>Executive Dashboard</span></div>
+    <div class="sidebar-item" id="nav-builder">🧩 <span>Dashboard Builder</span></div>
+    <div class="sidebar-section">Data</div>
+    <div class="sidebar-item" id="nav-blend">🔀 <span>Data Blending</span></div>
+    <div class="sidebar-item" id="nav-table">📋 <span>Data Table</span></div>
+    <div class="sidebar-item" id="nav-kpi">📈 <span>KPI Dashboard</span></div>
+    <div class="sidebar-item" id="nav-summary">📝 <span>Data Summary</span></div>
+    <div class="sidebar-item" id="nav-quality">✅ <span>Data Quality</span></div>
+    <div class="sidebar-footer">
+      <strong>Demo User</strong>
+      DataHub Demo Co
+    </div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Hub Home</div>
+      <div class="topbar-right">
+        <button class="btn-upload">+ Upload Data</button>
+        <div class="avatar">D</div>
+        <span style="font-size:12px;color:#9c9490;">starter</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Screen 1: Dashboard -->
+      <div class="screen active" id="screen-dashboard">
+        <div class="greeting">Good morning, Demo 👋</div>
+        <div class="greeting-sub">Sunday, 29 March 2026</div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-value" style="color:#6b6560">0</div><div class="stat-label">Files</div></div>
+          <div class="stat-card"><div class="stat-value" style="color:#6b6560">0</div><div class="stat-label">Total Rows</div></div>
+          <div class="stat-card"><div class="stat-value" style="color:#f59e0b;font-size:18px">Trial</div><div class="stat-label">Plan</div></div>
+        </div>
+        <div class="quick-actions">
+          <div class="qa-btn">📂 Upload Data</div>
+          <div class="qa-btn">🤖 AI Insights</div>
+          <div class="qa-btn">📊 Executive View</div>
+          <div class="qa-btn">💬 Ask Your Data</div>
+          <div class="qa-btn">📄 Auto Report</div>
+          <div class="qa-btn">🎯 RFM Analysis</div>
+        </div>
+        <div class="tools-header">
+          <div class="tools-title">ALL 50 TOOLS</div>
+          <input class="tools-search" placeholder="🔍 Search tools..." readonly>
+        </div>
+        <div class="tool-category">
+          <div class="cat-header"><span>📦</span> DATA <span class="cat-badge">10 tools</span></div>
+          <div class="tool-grid">
+            <div class="tool-card"><div class="tool-card-name">Data View</div><div class="tool-card-desc">Browse & explore</div></div>
+            <div class="tool-card"><div class="tool-card-name">Data Summary</div><div class="tool-card-desc">Column stats</div></div>
+            <div class="tool-card"><div class="tool-card-name">Quality Report</div><div class="tool-card-desc">Missing values</div></div>
+            <div class="tool-card"><div class="tool-card-name">Data Cleaner</div><div class="tool-card-desc">Fix & dedupe</div></div>
+            <div class="tool-card"><div class="tool-card-name">Data Blending</div><div class="tool-card-desc">Merge sources</div></div>
+          </div>
+        </div>
+        <div class="tool-category">
+          <div class="cat-header"><span>📈</span> ANALYSIS <span class="cat-badge">12 tools</span></div>
+          <div class="tool-grid">
+            <div class="tool-card"><div class="tool-card-name">RFM Analysis</div><div class="tool-card-desc">Segment customers</div></div>
+            <div class="tool-card"><div class="tool-card-name">Cohort Analysis</div><div class="tool-card-desc">Retention curves</div></div>
+            <div class="tool-card"><div class="tool-card-name">Revenue Forecast</div><div class="tool-card-desc">12-month model</div></div>
+            <div class="tool-card"><div class="tool-card-name">Churn Predictor</div><div class="tool-card-desc">At-risk customers</div></div>
+            <div class="tool-card"><div class="tool-card-name">Trend Analysis</div><div class="tool-card-desc">Growth patterns</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen 2: Upload -->
+      <div class="screen" id="screen-upload">
+        <div class="greeting">Upload Your Data</div>
+        <div class="greeting-sub">Supports .xlsx, .csv, .xls — any format, no clean-up needed</div>
+        <div class="upload-zone" id="upload-zone">
+          <div class="upload-icon">📂</div>
+          <div class="upload-title">Drop a file here or click to browse</div>
+          <div class="upload-sub">No formatting required — we handle it automatically</div>
+          <div class="upload-formats">
+            <span class="format-tag">.xlsx</span>
+            <span class="format-tag">.csv</span>
+            <span class="format-tag">.xls</span>
+            <span class="format-tag">Google Sheets</span>
+            <span class="format-tag">Xero Export</span>
+          </div>
+        </div>
+        <div id="file-chip-wrap" style="display:none">
+          <div class="file-chip">
+            <div class="file-icon">📊</div>
+            <div style="flex:1">
+              <div class="file-name">Q1_2026_sales.csv</div>
+              <div class="file-meta">50 rows · 9 columns · 4.2 KB</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="upload-progress" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen 3: Processing -->
+      <div class="screen" id="screen-processing">
+        <div class="processing-center">
+          <div class="spinner"></div>
+          <div class="processing-title">Analysing your data…</div>
+          <div class="processing-steps">
+            <div class="proc-step" id="ps1" style="animation-delay:0.2s">
+              <span class="proc-step-icon">⏳</span> Parsing 50 rows across 9 columns
+            </div>
+            <div class="proc-step" id="ps2" style="animation-delay:0.8s">
+              <span class="proc-step-icon">⏳</span> Detecting column types &amp; relationships
+            </div>
+            <div class="proc-step" id="ps3" style="animation-delay:1.4s">
+              <span class="proc-step-icon">⏳</span> Running 50 analytics tools in parallel
+            </div>
+            <div class="proc-step" id="ps4" style="animation-delay:2.0s">
+              <span class="proc-step-icon">⏳</span> Generating executive summary
+            </div>
+            <div class="proc-step" id="ps5" style="animation-delay:2.6s">
+              <span class="proc-step-icon">✅</span> Ready — insights available
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen 4: Executive Dashboard -->
+      <div class="screen" id="screen-exec">
+        <div class="greeting" style="margin-bottom:20px">Executive Dashboard</div>
+        <div class="kpi-grid">
+          <div class="kpi-card" style="animation-delay:0.1s">
+            <div class="kpi-label">Total Revenue</div>
+            <div class="kpi-value">£89,420</div>
+            <span class="kpi-badge up">▲ 18.4% vs last quarter</span>
+          </div>
+          <div class="kpi-card" style="animation-delay:0.2s">
+            <div class="kpi-label">Active Customers</div>
+            <div class="kpi-value">28</div>
+            <span class="kpi-badge up">▲ 9.2% growth</span>
+          </div>
+          <div class="kpi-card" style="animation-delay:0.3s">
+            <div class="kpi-label">Avg Order Value</div>
+            <div class="kpi-value">£1,788</div>
+            <span class="kpi-badge down">▼ 2.1% pressure</span>
+          </div>
+          <div class="kpi-card" style="animation-delay:0.4s">
+            <div class="kpi-label">Top Sales Rep</div>
+            <div class="kpi-value" style="font-size:18px">Sarah Chen</div>
+            <span class="kpi-badge up">£42,450 revenue</span>
+          </div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-title">Monthly Revenue — Jan to Jul 2025</div>
+            <div class="bar-chart">
+              <div class="bar-wrap"><div class="bar" style="height:45%;animation-delay:0.1s"></div><div class="bar-label">Jan</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:55%;animation-delay:0.2s"></div><div class="bar-label">Feb</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:62%;animation-delay:0.3s"></div><div class="bar-label">Mar</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:72%;animation-delay:0.4s"></div><div class="bar-label">Apr</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:68%;animation-delay:0.5s"></div><div class="bar-label">May</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:82%;animation-delay:0.6s"></div><div class="bar-label">Jun</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:90%;animation-delay:0.7s"></div><div class="bar-label">Jul</div></div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Revenue by Region</div>
+            <div class="pie-chart-wrap">
+              <div class="pie-row">
+                <div class="pie-dot" style="background:#f59e0b"></div>
+                <div class="pie-name">North</div>
+                <div class="pie-bar-wrap"><div class="pie-bar-fill" style="background:#f59e0b;width:72%;animation-delay:0.2s"></div></div>
+                <div class="pie-val">£24.1k</div>
+              </div>
+              <div class="pie-row">
+                <div class="pie-dot" style="background:#ec4899"></div>
+                <div class="pie-name">South</div>
+                <div class="pie-bar-wrap"><div class="pie-bar-fill" style="background:#ec4899;width:65%;animation-delay:0.3s"></div></div>
+                <div class="pie-val">£21.8k</div>
+              </div>
+              <div class="pie-row">
+                <div class="pie-dot" style="background:#10b981"></div>
+                <div class="pie-name">East</div>
+                <div class="pie-bar-wrap"><div class="pie-bar-fill" style="background:#10b981;width:58%;animation-delay:0.4s"></div></div>
+                <div class="pie-val">£23.4k</div>
+              </div>
+              <div class="pie-row">
+                <div class="pie-dot" style="background:#6366f1"></div>
+                <div class="pie-name">West</div>
+                <div class="pie-bar-wrap"><div class="pie-bar-fill" style="background:#6366f1;width:50%;animation-delay:0.5s"></div></div>
+                <div class="pie-val">£20.1k</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen 5: RFM Analysis -->
+      <div class="screen" id="screen-rfm">
+        <div class="greeting" style="margin-bottom:20px">🎯 RFM Customer Segmentation</div>
+        <div class="rfm-grid">
+          <div class="seg-card" style="animation-delay:0.1s">
+            <div class="seg-label" style="color:#10b981">🏆 Champions</div>
+            <div class="seg-count">8</div>
+            <div class="seg-pct">28% of customers · £38,240 revenue</div>
+            <div class="seg-bar" style="background:linear-gradient(90deg,#10b981,#34d399);width:72%;animation-delay:0.3s"></div>
+          </div>
+          <div class="seg-card" style="animation-delay:0.2s">
+            <div class="seg-label" style="color:#f59e0b">⭐ Loyal Customers</div>
+            <div class="seg-count">7</div>
+            <div class="seg-pct">25% of customers · £29,100 revenue</div>
+            <div class="seg-bar" style="background:linear-gradient(90deg,#f59e0b,#fbbf24);width:58%;animation-delay:0.4s"></div>
+          </div>
+          <div class="seg-card" style="animation-delay:0.25s">
+            <div class="seg-label" style="color:#f97316">⚠️ At Risk</div>
+            <div class="seg-count">6</div>
+            <div class="seg-pct">21% of customers · £12,800 revenue</div>
+            <div class="seg-bar" style="background:linear-gradient(90deg,#f97316,#fb923c);width:38%;animation-delay:0.45s"></div>
+          </div>
+          <div class="seg-card" style="animation-delay:0.3s">
+            <div class="seg-label" style="color:#6b6560">❄️ Lost / Inactive</div>
+            <div class="seg-count">7</div>
+            <div class="seg-pct">25% of customers · £9,280 revenue</div>
+            <div class="seg-bar" style="background:linear-gradient(90deg,#9c9490,#b5b0ac);width:25%;animation-delay:0.5s"></div>
+          </div>
+        </div>
+        <div class="rfm-table">
+          <table style="width:100%;border-collapse:collapse">
+            <thead class="rfm-thead">
+              <tr>
+                <th>Customer</th>
+                <th>Segment</th>
+                <th>Last Purchase</th>
+                <th>Orders</th>
+                <th>Total Spend</th>
+                <th>RFM Score</th>
+              </tr>
+            </thead>
+            <tbody class="rfm-tbody">
+              <tr><td>Acme Ltd</td><td><span class="seg-pill" style="background:rgba(16,185,129,0.1);color:#10b981">Champion</span></td><td>27 Apr 2025</td><td>3</td><td>£3,794</td><td>5-5-5</td></tr>
+              <tr><td>Ironclad Inc</td><td><span class="seg-pill" style="background:rgba(16,185,129,0.1);color:#10b981">Champion</span></td><td>26 May 2025</td><td>2</td><td>£4,190</td><td>5-4-5</td></tr>
+              <tr><td>NovaTech</td><td><span class="seg-pill" style="background:rgba(245,158,11,0.1);color:#f59e0b">Loyal</span></td><td>17 Jun 2025</td><td>2</td><td>£3,493</td><td>4-4-4</td></tr>
+              <tr><td>Delta Systems</td><td><span class="seg-pill" style="background:rgba(249,115,22,0.1);color:#f97316">At Risk</span></td><td>15 Jan 2025</td><td>2</td><td>£1,196</td><td>2-2-3</td></tr>
+              <tr><td>BrightStar Inc</td><td><span class="seg-pill" style="background:rgba(107,101,96,0.1);color:#6b6560">Lost</span></td><td>8 Jan 2025</td><td>1</td><td>£999</td><td>1-1-2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Screen 6: AI Insights -->
+      <div class="screen" id="screen-ai">
+        <div class="ai-header">
+          <div class="greeting" style="margin:0">AI Insights</div>
+          <div class="ai-badge">🤖 GPT-4o Powered</div>
+        </div>
+        <div class="ai-cards">
+          <div class="ai-card" style="animation-delay:0.1s">
+            <div class="ai-card-icon">📈</div>
+            <div class="ai-card-title">Revenue Growth</div>
+            <div class="ai-card-text">Revenue grew 18.4% quarter-on-quarter, driven primarily by the Analytics Pro product line which accounts for 52% of total sales.</div>
+          </div>
+          <div class="ai-card" style="animation-delay:0.2s">
+            <div class="ai-card-icon">⚠️</div>
+            <div class="ai-card-title">Churn Risk</div>
+            <div class="ai-card-text">7 customers haven't purchased in 90+ days. BrightStar Inc and Delta Systems are high-value at-risk accounts — recommend immediate outreach.</div>
+          </div>
+          <div class="ai-card" style="animation-delay:0.3s">
+            <div class="ai-card-icon">🎯</div>
+            <div class="ai-card-title">Sales Opportunity</div>
+            <div class="ai-card-text">8 Champion-tier customers have never purchased the Data Suite product. Cross-sell potential of £8,000+ based on AOV benchmarks.</div>
+          </div>
+        </div>
+        <div class="ai-text-box">
+          <div class="ai-text-title">💬 Executive Summary <span style="font-size:11px;color:#9c9490;font-weight:400">Generated in 1.2s</span></div>
+          <div class="ai-typing" id="ai-text"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Progress bar -->
+<div class="demo-progress">
+  <span class="demo-label">Demo</span>
+  <div class="demo-steps" id="demo-steps"></div>
+  <span class="demo-name" id="demo-name">Hub Home</span>
+  <button class="demo-restart" onclick="restartDemo()">↩ Restart</button>
+</div>
+
+<script>
+const SCREENS = [
+  { id: 'screen-dashboard', label: 'Hub Home',            nav: 'nav-hub',     title: 'Hub Home',              duration: 4500 },
+  { id: 'screen-upload',    label: 'Upload Data',         nav: null,          title: 'Upload Data',           duration: 4000 },
+  { id: 'screen-processing',label: 'Processing',          nav: null,          title: 'Analysing…',            duration: 3500 },
+  { id: 'screen-exec',      label: 'Executive Dashboard', nav: 'nav-exec',    title: 'Executive Dashboard',   duration: 5000 },
+  { id: 'screen-rfm',       label: 'RFM Analysis',        nav: null,          title: 'RFM Segmentation',      duration: 5000 },
+  { id: 'screen-ai',        label: 'AI Insights',         nav: null,          title: 'AI Insights',           duration: 6000 },
+];
+
+let current = 0;
+let timer = null;
+let fillTimer = null;
+
+// Build progress steps
+const stepsEl = document.getElementById('demo-steps');
+SCREENS.forEach((s, i) => {
+  const step = document.createElement('div');
+  step.className = 'demo-step';
+  step.id = 'step-' + i;
+  step.innerHTML = '<div class="demo-step-fill" id="stepfill-' + i + '"></div>';
+  stepsEl.appendChild(step);
+});
+
+function activateScreen(idx) {
+  // Hide all
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+
+  const s = SCREENS[idx];
+  document.getElementById(s.id).classList.add('active');
+  document.getElementById('topbar-title').textContent = s.title;
+  document.getElementById('demo-name').textContent = s.label;
+  if (s.nav) document.getElementById(s.nav)?.classList.add('active');
+
+  // Mark previous steps done
+  SCREENS.forEach((_, i) => {
+    const stepEl = document.getElementById('step-' + i);
+    const fillEl = document.getElementById('stepfill-' + i);
+    if (i < idx) {
+      stepEl.classList.add('done');
+      fillEl.style.width = '100%';
+      fillEl.style.transition = 'none';
+    } else if (i === idx) {
+      stepEl.classList.remove('done');
+      fillEl.style.width = '0%';
+      fillEl.style.transition = 'none';
+      setTimeout(() => {
+        fillEl.style.transition = `width ${s.duration}ms linear`;
+        fillEl.style.width = '100%';
+      }, 50);
+    } else {
+      stepEl.classList.remove('done');
+      fillEl.style.width = '0%';
+      fillEl.style.transition = 'none';
+    }
+  });
+
+  // Screen-specific animations
+  if (idx === 1) runUploadAnim();
+  if (idx === 2) runProcessingAnim();
+  if (idx === 5) runAiAnim();
+}
+
+function runUploadAnim() {
+  const zone = document.getElementById('upload-zone');
+  const chip = document.getElementById('file-chip-wrap');
+  const prog = document.getElementById('upload-progress');
+  chip.style.display = 'none';
+  prog.style.width = '0%';
+  zone.classList.remove('dragging');
+
+  setTimeout(() => { zone.classList.add('dragging'); }, 600);
+  setTimeout(() => {
+    zone.classList.remove('dragging');
+    chip.style.display = 'block';
+    let w = 0;
+    const iv = setInterval(() => {
+      w += 4;
+      prog.style.width = w + '%';
+      if (w >= 100) clearInterval(iv);
+    }, 40);
+  }, 1400);
+}
+
+function runProcessingAnim() {
+  ['ps1','ps2','ps3','ps4','ps5'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.style.opacity = '0';
+    el.style.animationDelay = (i * 0.55) + 's';
+    setTimeout(() => { el.style.opacity = '1'; }, i * 550 + 50);
+  });
+}
+
+const AI_TEXT = `Your Q1–Q2 2025 data shows strong revenue momentum with £89,420 total across 28 unique customers. Sarah Chen is your top performer at £42,450 — 47% of total revenue — suggesting an over-reliance risk worth monitoring.
+
+Your 8 Champion customers (RFM 5-5-5) represent your most profitable segment and should be prioritised for upsell campaigns. The 7 At-Risk customers represent £22,080 in recurring revenue that could be lost without intervention.
+
+North and East regions are your strongest markets by revenue. Consider reallocating budget from West (lowest) to support expansion in high-performing territories.`;
+
+function runAiAnim() {
+  const el = document.getElementById('ai-text');
+  el.innerHTML = '';
+  let i = 0;
+  const chars = AI_TEXT.split('');
+  const cursor = '<span class="cursor"></span>';
+
+  function type() {
+    if (i < chars.length) {
+      el.innerHTML = AI_TEXT.slice(0, i + 1).replace(/\n\n/g, '<br><br>') + cursor;
+      i++;
+      setTimeout(type, i < 20 ? 30 : 18);
+    } else {
+      el.innerHTML = AI_TEXT.replace(/\n\n/g, '<br><br>');
+    }
+  }
+  setTimeout(type, 400);
+}
+
+function nextScreen() {
+  clearTimeout(timer);
+  current = (current + 1) % SCREENS.length;
+  activateScreen(current);
+  timer = setTimeout(nextScreen, SCREENS[current].duration);
+}
+
+function restartDemo() {
+  clearTimeout(timer);
+  current = 0;
+  activateScreen(0);
+  timer = setTimeout(nextScreen, SCREENS[0].duration);
+}
+
+// Start
+activateScreen(0);
+timer = setTimeout(nextScreen, SCREENS[0].duration);
+</script>
+</body>
+</html>

@@ -604,51 +604,57 @@ export default function LandingPage() {
         <div
           onClick={() => setDemoOpen(false)}
           style={{
-            position:'fixed', inset:0, background:'rgba(0,0,0,0.88)',
+            position:'fixed', inset:0, background:'rgba(0,0,0,0.92)',
             display:'flex', alignItems:'center', justifyContent:'center',
-            zIndex:9999, padding:'24px'
+            zIndex:9999, padding:'20px'
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
               background:'#1c1916', border:'1px solid rgba(245,158,11,0.3)',
-              borderRadius:'16px', overflow:'hidden', maxWidth:'800px',
-              width:'100%', position:'relative'
+              borderRadius:'16px', overflow:'hidden',
+              width:'100%', maxWidth:'1100px', position:'relative',
+              display:'flex', flexDirection:'column'
             }}
           >
+            {/* Modal header */}
             <div style={{
               display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.07)'
+              padding:'14px 20px', borderBottom:'1px solid rgba(255,255,255,0.07)',
+              flexShrink:0
             }}>
-              <span style={{fontFamily:'JetBrains Mono, monospace', fontSize:'13px', color:'var(--amber)'}}>
-                // DataHub Pro — Product Demo
-              </span>
+              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                <div style={{
+                  width:'28px', height:'28px', borderRadius:'7px',
+                  background:'linear-gradient(135deg,#f59e0b,#d97706)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontWeight:'800', fontSize:'14px', color:'#1a1714'
+                }}>D</div>
+                <span style={{fontWeight:'700', fontSize:'14px', color:'#f5f0eb'}}>DataHub Pro</span>
+                <span style={{
+                  background:'rgba(245,158,11,0.15)', color:'#f59e0b',
+                  borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'600'
+                }}>Live Product Demo</span>
+              </div>
               <button
                 onClick={() => setDemoOpen(false)}
                 style={{
-                  background:'none', border:'none', color:'var(--muted2)',
+                  background:'none', border:'none', color:'#6b6560',
                   cursor:'pointer', fontSize:'20px', lineHeight:1, padding:'4px 8px'
                 }}
               >✕</button>
             </div>
-            <div style={{
-              aspectRatio:'16/9', background:'#0c0a09', display:'flex',
-              flexDirection:'column', alignItems:'center', justifyContent:'center',
-              gap:'16px', padding:'40px'
-            }}>
-              <div style={{
-                width:'72px', height:'72px', borderRadius:'50%',
-                background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.3)',
-                display:'flex', alignItems:'center', justifyContent:'center', fontSize:'28px'
-              }}>▶</div>
-              <p style={{color:'var(--muted2)', fontSize:'15px', textAlign:'center', maxWidth:'360px', lineHeight:'1.6'}}>
-                Product demo video coming soon.<br/>
-                <a href="mailto:hello@datahubpro.co.uk" style={{color:'var(--amber)', textDecoration:'none'}}>
-                  Contact us
-                </a> for a live walkthrough.
-              </p>
-            </div>
+            {/* iframe demo — auto-plays through all screens */}
+            <iframe
+              src="/demo.html"
+              title="DataHub Pro Product Demo"
+              style={{
+                width:'100%', border:'none', display:'block',
+                height:'min(75vh, 680px)'
+              }}
+              allow="autoplay"
+            />
           </div>
         </div>
       )}
