@@ -86,9 +86,16 @@ app = FastAPI(
 # e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
-# Always include localhost for local dev
-if "http://localhost:3000" not in allowed_origins:
-    allowed_origins.append("http://localhost:3000")
+# Always include production domain and localhost
+_always_allowed = [
+    "https://datahubpro.co.uk",
+    "https://www.datahubpro.co.uk",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+for _origin in _always_allowed:
+    if _origin not in allowed_origins:
+        allowed_origins.append(_origin)
 
 app.add_middleware(
     CORSMiddleware,
