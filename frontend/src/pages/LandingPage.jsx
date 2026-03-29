@@ -62,7 +62,7 @@ export default function LandingPage() {
           <li><a href="#contact">Contact</a></li>
         </ul>
         <div className="nav-right">
-          <button className="btn-ghost" onClick={scrollToContact}>Sign in</button>
+          <button className="btn-ghost" onClick={() => window.location.href = '/login'}>Sign in</button>
           <button className="btn-nav" onClick={scrollToContact}>Request a trial →</button>
         </div>
       </nav>
