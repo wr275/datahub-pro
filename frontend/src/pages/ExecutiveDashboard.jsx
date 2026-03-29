@@ -34,18 +34,54 @@ export default function ExecutiveDashboard() {
       const kpis = numericCols.map(([col, stats]) => ({
         label: col, value: (stats.mean || 0).toFixed(2), subtext: `Total: ${((stats.mean || 0) * (stats.count || 0)).toFixed(0)}`, color: COLORS[Math.floor(Math.random() * COLORS.length)]
       }))
-      const trendData = rows.slice(0, 30).map((r, i) => {
-        const pt = { index: i + 1 }
-        numericCols.slice(0, 2).forEach(([col]) => { pt[col] = parseFloat(r[col]) || 0 })
-        return pt
-      })
-      let distData = []
-      if (textCols.length) {
-        const [col] = textCols[0]; const freq = {}
-        rows.forEach(r => { const v = String(r[col] ?? ''); freq[v] = (freq[v] || 0) + 1 })
-        distData = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }))
-      }
-      setData({ kpis, trendData, distData, numericCols, totalRows: sRes.data.rows, filename: sRes.data.filename })
+      // Smart column detection - works for any dataset
+        const monthOrder = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
+        const timeCol = textCols.find(([col]) => /month|quarter|week/i.test(col)) ||
+          textCols.find(([col]) => /date|time|period|year/i.test(col))
+        const primaryMetric = numericCols.find(([col]) => /revenue|sales|amount|profit|income|total/i.test(col)) ||
+          numericCols[0]
+        let trendData, trendKey
+        if (timeCol) {
+          const [tcol] = timeCol; trendKey = 'name'
+          const grp = {}
+          rows.forEach(r => {
+            const k = String(r[tcol] ?? '')
+            if (!grp[k]) { grp[k] = { name: k }; numericCols.slice(0, 2).forEach(([col]) => { grp[k][col] = 0 }) }
+            numericCols.slice(0, 2).forEach(([col]) => { grp[k][col] = +((grp[k][col] + (parseFloat(r[col]) || 0)).toFixed(2)) })
+          })
+          const mo = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}
+          trendData = Object.values(grp).sort((a, b) => {
+            const am = mo[a.name.toLowerCase().slice(0,3)] || 0
+            const bm = mo[b.name.toLowerCase().slice(0,3)] || 0
+            return am - bm || a.name.localeCompare(b.name)
+          })
+        } else {
+          trendKey = 'index'
+          trendData = rows.slice(0, 30).map((r, i) => {
+            const pt = { index: i + 1 }
+            numericCols.slice(0, 2).forEach(([col]) => { pt[col] = parseFloat(r[col]) || 0 })
+            return pt
+          })
+        }
+        let distData = []
+        if (textCols.length) {
+          const catCol = textCols.find(([col]) => /categ|product|type|class/i.test(col)) ||
+            textCols.find(([col]) => /segment|region|channel|group|status/i.test(col)) ||
+            textCols.reduce((best, cur) => {
+              const bu = new Set(rows.map(r => String(r[best[0]] ?? ''))).size
+              const cu = new Set(rows.map(r => String(r[cur[0]] ?? ''))).size
+              return (cu >= 2 && cu <= 20 && (cu < bu || bu > 20)) ? cur : best
+            }, textCols[0])
+          const [col] = catCol; const freq = {}
+          if (primaryMetric) {
+            const [mc] = primaryMetric
+            rows.forEach(r => { const v = String(r[col] ?? ''); if (v) freq[v] = +((( freq[v] || 0) + (parseFloat(r[mc]) || 0)).toFixed(2)) })
+          } else {
+            rows.forEach(r => { const v = String(r[col] ?? ''); if (v) freq[v] = (freq[v] || 0) + 1 })
+          }
+          distData = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }))
+        }
+        setData({ kpis, trendData, trendKey, distData, numericCols, totalRows: sRes.data.rows, filename: sRes.data.filename })
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
@@ -130,7 +166,7 @@ export default function ExecutiveDashboard() {
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={data.trendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="index" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey={data.trendKey || 'index'} tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
                   {data.numericCols.slice(0, 2).map(([col], i) => (
