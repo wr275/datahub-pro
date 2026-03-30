@@ -50,7 +50,7 @@ export default function Login() {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.85rem', color: '#4a5280' }}>
-          Don't have an account? <Link to="/register" style={{ color: '#e91e8c', fontWeight: 600 }}>Start free trial</Link>
+          Don't have an account? <Link to="/register" style={{ color: '#e91e8c', fontWeight: 600 }}>Request access</Link>
         </p>
       </div>
     </div>

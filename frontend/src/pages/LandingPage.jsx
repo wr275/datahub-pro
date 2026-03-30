@@ -514,7 +514,7 @@ export default function LandingPage() {
                 <p style={{fontSize:'16px', color:'var(--muted2)', lineHeight:'1.75', marginBottom:'36px', maxWidth:'380px'}}>Stop running blind. Upload your first file today — get your first insights in under 2 minutes, no analyst required.</p>
 
                 <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'32px'}}>
-                  <button className="btn-primary" onClick={scrollToContact} style={{fontSize:'16px', padding:'16px 28px', justifyContent:'center'}}>Request a free trial →</button>
+                  <a href="mailto:hello@datahubpro.co.uk?subject=Trial Access Request&body=Hi, I would like to request trial access to DataHub Pro.%0A%0AName: %0ACompany: " className="btn-primary" style={{fontSize:"16px", padding:"16px 28px", justifyContent:"center", textDecoration:"none", display:"flex"}}>Request a free trial →</a>
                   <button className="btn-secondary" onClick={() => setDemoOpen(true)} style={{justifyContent:'center'}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
