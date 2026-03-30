@@ -5,6 +5,7 @@ import DemoPlayer from '../components/DemoPlayer';
 export default function LandingPage() {
   const navRef = useRef(null);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   const scrollToContact = () => {
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
@@ -64,7 +65,7 @@ export default function LandingPage() {
         </ul>
         <div className="nav-right">
           <button className="btn-ghost" onClick={() => window.location.href = '/login'}>Sign in</button>
-          <button className="btn-nav" onClick={scrollToContact}>Request a trial →</button>
+          <button className="btn-nav" onClick={() => setContactOpen(true)}>Request a trial →</button>
         </div>
       </nav>
 
@@ -79,7 +80,7 @@ export default function LandingPage() {
             50 analytics tools that turn your existing Excel and CSV files into clear, actionable intelligence — no analyst, no BI team, no waiting.
           </p>
           <div className="cta-row reveal reveal-delay-3">
-            <button className="btn-primary" onClick={scrollToContact}>Request a free trial →</button>
+            <button className="btn-primary" onClick={() => setContactOpen(true)}>Request a free trial →</button>
             <button className="btn-secondary" onClick={() => setDemoOpen(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
@@ -514,7 +515,7 @@ export default function LandingPage() {
                 <p style={{fontSize:'16px', color:'var(--muted2)', lineHeight:'1.75', marginBottom:'36px', maxWidth:'380px'}}>Stop running blind. Upload your first file today — get your first insights in under 2 minutes, no analyst required.</p>
 
                 <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'32px'}}>
-                  <a href="mailto:hello@datahubpro.co.uk?subject=Trial Access Request&body=Hi, I would like to request trial access to DataHub Pro.%0A%0AName: %0ACompany: " className="btn-primary" style={{fontSize:"16px", padding:"16px 28px", justifyContent:"center", textDecoration:"none", display:"flex"}}>Request a free trial →</a>
+                  <button className="btn-primary" onClick={() => setContactOpen(true)} style={{fontSize:"16px", padding:"16px 28px", justifyContent:"center", width:"100%"}}>Request a free trial →</button>
                   <button className="btn-secondary" onClick={() => setDemoOpen(true)} style={{justifyContent:'center'}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
@@ -599,6 +600,69 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+
+      {/* ══════════ CONTACT MODAL ══════════ */}
+      {contactOpen && (
+        <div
+          onClick={() => setContactOpen(false)}
+          style={{
+            position:'fixed', inset:0, background:'rgba(0,0,0,0.85)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            zIndex:9999, padding:'24px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background:'#1c1916',
+              border:'1px solid rgba(245,158,11,0.3)',
+              borderRadius:'18px',
+              padding:'44px 40px',
+              width:'100%', maxWidth:'440px',
+              textAlign:'center',
+              position:'relative',
+              boxShadow:'0 32px 80px rgba(0,0,0,0.6)'
+            }}
+          >
+            {/* Close */}
+            <button onClick={() => setContactOpen(false)} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', color:'#78716c', fontSize:'1.3rem', cursor:'pointer', lineHeight:1 }}>✕</button>
+
+            {/* Logo mark */}
+            <div style={{ width:48, height:48, background:'#f59e0b', borderRadius:12, display:'inline-flex', alignItems:'center', justifyContent:'center', color:'#000', fontWeight:900, fontSize:'1.3rem', marginBottom:20 }}>D</div>
+
+            <h2 style={{ fontSize:'1.35rem', fontWeight:900, color:'#fafaf9', marginBottom:10 }}>Request Trial Access</h2>
+            <p style={{ color:'#a8a29e', fontSize:'0.88rem', lineHeight:1.7, marginBottom:28 }}>
+              Trial access is by invitation only. Drop us an email and we'll have your account ready within one business day.
+            </p>
+
+            {/* Email box */}
+            <div style={{ background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.25)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
+              <div style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'#78716c', marginBottom:8 }}>Email us at</div>
+              <a href="mailto:hello@datahubpro.co.uk" style={{ fontSize:'1.1rem', fontWeight:800, color:'#f59e0b', textDecoration:'none' }}>
+                hello@datahubpro.co.uk
+              </a>
+            </div>
+
+            {/* CTA */}
+            <a
+              href="mailto:hello@datahubpro.co.uk?subject=Trial Access Request&body=Hi, I'd like to request trial access to DataHub Pro.%0A%0AName: %0ACompany: %0APhone (optional): "
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 24px', background:'#f59e0b', color:'#000', borderRadius:10, fontWeight:700, fontSize:'0.95rem', textDecoration:'none', marginBottom:24 }}
+            >
+              ✉️ Open in email app →
+            </a>
+
+            {/* Trust signals */}
+            <div style={{ display:'flex', flexDirection:'column', gap:8, textAlign:'left' }}>
+              {['We respond within one business day', 'No obligation, no pressure', 'GDPR compliant · Your data stays yours'].map((t, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:'0.8rem', color:'#78716c' }}>
+                  <span style={{ color:'#22c55e', fontWeight:700 }}>✓</span> {t}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════ DEMO MODAL ══════════ */}
       {demoOpen && (
