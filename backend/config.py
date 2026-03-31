@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
     AWS_BUCKET_NAME: Optional[str] = None
-    AWS_REGION: str = "eu-west-2"
+    AWS_REGION: str = "auto"
+    AWS_ENDPOINT_URL: Optional[str] = None  # R2: https://<account_id>.r2.cloudflarestorage.com
 
     # Email (SendGrid)
     SENDGRID_API_KEY: Optional[str] = None

@@ -11,7 +11,42 @@ from datetime import datetime
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
-MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB supported via R2
+
+
+# ── R2 / S3 helpers ──────────────────────────────────────────────────────────
+
+def _get_s3_client():
+    import boto3
+    return boto3.client(
+        "s3",
+        region_name=settings.AWS_REGION,
+        endpoint_url=settings.AWS_ENDPOINT_URL,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    )
+
+def save_file_r2(file_bytes: bytes, filename: str) -> str:
+    unique_name = str(uuid.uuid4()) + "_" + filename
+    s3 = _get_s3_client()
+    s3.put_object(
+        Bucket=settings.AWS_BUCKET_NAME,
+        Key=unique_name,
+        Body=file_bytes,
+    )
+    return unique_name
+
+def get_file_r2(s3_key: str) -> bytes:
+    s3 = _get_s3_client()
+    response = s3.get_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key)
+    return response["Body"].read()
+
+def delete_file_r2(s3_key: str):
+    s3 = _get_s3_client()
+    s3.delete_object(Bucket=settings.AWS_BUCKET_NAME, Key=s3_key)
+
+
+# ── Local storage helper ──────────────────────────────────────────────────────
 
 def save_file_local(file_bytes: bytes, filename: str) -> str:
     os.makedirs(settings.LOCAL_UPLOAD_DIR, exist_ok=True)
@@ -20,6 +55,9 @@ def save_file_local(file_bytes: bytes, filename: str) -> str:
     with open(path, "wb") as f:
         f.write(file_bytes)
     return unique_name
+
+
+# ── Quota check ───────────────────────────────────────────────────────────────
 
 def check_upload_quota(org: Organisation, db: Session) -> bool:
     from sqlalchemy import func
@@ -30,6 +68,9 @@ def check_upload_quota(org: Organisation, db: Session) -> bool:
         DataFile.created_at >= month_start
     ).count()
     return count < org.max_uploads_per_month
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/upload")
 async def upload_file(
@@ -50,11 +91,20 @@ async def upload_file(
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File too large. Maximum size is 50MB.")
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 500MB.")
 
-    storage_key = save_file_local(content, file.filename)
-    file_content_db = content
+    # Save to R2 or local disk
+    use_r2 = settings.STORAGE_TYPE == "s3" and settings.AWS_BUCKET_NAME
+    if use_r2:
+        storage_key = save_file_r2(content, file.filename)
+        storage_type = "s3"
+        file_content_db = None  # Don't store large blobs in DB when using R2
+    else:
+        storage_key = save_file_local(content, file.filename)
+        storage_type = "local"
+        file_content_db = content
 
+    # Parse metadata
     row_count = None
     col_count = None
     columns = []
@@ -89,7 +139,7 @@ async def upload_file(
         column_count=col_count,
         columns_json=json.dumps(columns),
         s3_key=storage_key,
-        storage_type="local",
+        storage_type=storage_type,
         file_content=file_content_db,
         organisation_id=org.id,
         uploaded_by=current_user.id
@@ -107,6 +157,7 @@ async def upload_file(
         "column_names": columns,
         "uploaded_at": db_file.created_at.isoformat()
     }
+
 
 @router.get("/")
 def list_files(
@@ -132,6 +183,7 @@ def list_files(
         for f in files
     ]
 
+
 @router.get("/{file_id}/download")
 def get_file_data(
     file_id: str,
@@ -145,15 +197,23 @@ def get_file_data(
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
 
-    path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
-
     import base64
-    with open(path, "rb") as fp:
-        data = base64.b64encode(fp.read()).decode()
+
+    if f.storage_type == "s3":
+        try:
+            data_bytes = get_file_r2(f.s3_key)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"File not found in R2: {str(e)}")
+        data = base64.b64encode(data_bytes).decode()
+    else:
+        path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        with open(path, "rb") as fp:
+            data = base64.b64encode(fp.read()).decode()
 
     return {"filename": f.original_filename, "data": data, "encoding": "base64"}
+
 
 @router.delete("/{file_id}")
 def delete_file(
@@ -168,9 +228,15 @@ def delete_file(
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
 
-    path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if os.path.exists(path):
-        os.remove(path)
+    if f.storage_type == "s3":
+        try:
+            delete_file_r2(f.s3_key)
+        except Exception:
+            pass  # Best-effort: still remove DB record
+    else:
+        path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
+        if os.path.exists(path):
+            os.remove(path)
 
     db.delete(f)
     db.commit()
