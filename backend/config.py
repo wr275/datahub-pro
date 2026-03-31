@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # OpenAI — used by POST /api/ai/prompt
     OPENAI_API_KEY: Optional[str] = None
 
+    # Microsoft / SharePoint OAuth
+    MICROSOFT_CLIENT_ID: Optional[str] = None
+    MICROSOFT_CLIENT_SECRET: Optional[str] = None
+    MICROSOFT_REDIRECT_URI: str = "http://localhost:8000/api/sharepoint/callback"
+
     # App
     FRONTEND_URL: str = "http://localhost:3000"
     TRIAL_DAYS: int = 14

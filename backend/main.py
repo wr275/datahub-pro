@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
 
-from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields
+from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields, sharepoint
 from database import engine, Base
 from config import settings
 
@@ -70,6 +70,30 @@ async def lifespan(app: FastAPI):
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """))
+            # SharePoint OAuth tables
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sharepoint_tokens (
+                    id VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR UNIQUE NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    access_token TEXT NOT NULL,
+                    refresh_token TEXT NOT NULL,
+                    expires_at VARCHAR(50) NOT NULL,
+                    tenant_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS oauth_states (
+                    state VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    tenant_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    expires_at VARCHAR(50) NOT NULL
+                )
+            """))
+            # Migrations for existing deployments — add tenant_id if missing
+            conn.execute(text("ALTER TABLE sharepoint_tokens ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE oauth_states ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
             conn.commit()
     except Exception:
         pass
@@ -114,6 +138,7 @@ app.include_router(connectors.router, prefix="/api/connectors", tags=["Connector
 app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"])
 app.include_router(budget.router, prefix="/api/budget", tags=["Budget"])
 app.include_router(calculated_fields.router, prefix="/api/calculated-fields", tags=["Calculated Fields"])
+app.include_router(sharepoint.router,        prefix="/api/sharepoint",        tags=["SharePoint"])
 
 @app.get("/health")
 def health_check():

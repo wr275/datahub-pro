@@ -92,6 +92,7 @@ const NAV = [
     items: [
       { label: 'Scheduled Reports', path: '/scheduled-reports', icon: '⏰', tip: 'Automated report delivery on a daily, weekly, or monthly schedule' },
       { label: 'Integrations',      path: '/integrations',      icon: '🔌', tip: 'Connect DataHub to Slack, Zapier, Google Sheets and more' },
+      { label: 'SharePoint / OneDrive', path: '/sharepoint',    icon: '📁', tip: 'Browse and import files directly from SharePoint or OneDrive' },
       { label: 'Workspace & Roles', path: '/workspace-roles',   icon: '👥', tip: 'Manage team members and control data access permissions' },
       { label: 'Audit Log',         path: '/audit-log',         icon: '📜', tip: 'Full timestamped activity trail of every workspace action' },
       { label: 'AI Settings',       path: '/ai-settings',       icon: '⚙️', tip: 'Configure AI preferences, model selection, and prompt templates' },
