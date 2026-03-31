@@ -69,6 +69,7 @@ const SECTIONS = [
   { label: 'OPERATIONS', color: '#d97706', icon: '⚙️', tools: [
     { path: '/scheduled-reports', icon: '⏰', label: 'Scheduled Reports', desc: 'Auto delivery', tooltip: 'Set up automated report delivery to your inbox on a daily, weekly, or monthly schedule.' },
     { path: '/integrations', icon: '🔌', label: 'Integrations', desc: 'Connect tools', tooltip: 'Connect DataHub to your existing tools including Slack, Zapier, and Google Sheets.' },
+    { path: '/sharepoint', icon: '🏢', label: 'SharePoint', desc: 'OneDrive import', tooltip: 'Browse and import files directly from SharePoint or OneDrive using Microsoft enterprise SSO.' },
     { path: '/workspace-roles', icon: '👥', label: 'Workspace & Roles', desc: 'Permissions', tooltip: 'Manage team members, set permissions, and control who can access which data.' },
     { path: '/audit-log', icon: '📜', label: 'Audit Log', desc: 'Activity trail', tooltip: 'Track every action taken in your workspace with a full timestamped activity trail.' },
     { path: '/ai-settings', icon: '⚙️', label: 'AI Settings', desc: 'Configure AI', tooltip: 'Configure your AI preferences, model selection, and prompt templates for your workspace.' },

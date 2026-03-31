@@ -1,6 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 const INTEGRATIONS = [
+  { id: 'sharepoint', name: 'SharePoint / OneDrive', icon: '🏢', category: 'Microsoft', desc: 'Browse and import files directly from SharePoint or OneDrive using enterprise SSO', connected: false, color: '#0078d4', isOAuth: true, path: '/sharepoint' },
   { id: 'google-sheets', name: 'Google Sheets', icon: '📊', category: 'Data Sources', desc: 'Import data directly from Google Sheets', connected: false, color: '#34a853' },
   { id: 'excel', name: 'Microsoft Excel', icon: '📗', category: 'Data Sources', desc: 'Connect to Excel files via OneDrive', connected: false, color: '#217346' },
   { id: 'salesforce', name: 'Salesforce', icon: '☁️', category: 'CRM', desc: 'Sync CRM data for sales analytics', connected: false, color: '#00a1e0' },
@@ -16,15 +20,36 @@ const INTEGRATIONS = [
 ]
 
 export default function Integrations() {
+  const navigate = useNavigate()
   const [integrations, setIntegrations] = useState(INTEGRATIONS)
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [configuring, setConfiguring] = useState(null)
   const [apiKey, setApiKey] = useState('')
+  const [spStatus, setSpStatus] = useState(null)
 
-  function toggle(id) {
-    const integration = integrations.find(i => i.id === id)
-    if (!integration.connected) { setConfiguring(id) } else {
-      setIntegrations(integrations.map(i => i.id === id ? { ...i, connected: false } : i))
+  // Check SharePoint connection status on mount
+  useEffect(() => {
+    fetch(`${API_BASE}/api/sharepoint/status`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        const connected = data.connected === true
+        setSpStatus(data)
+        setIntegrations(prev => prev.map(i =>
+          i.id === 'sharepoint' ? { ...i, connected } : i
+        ))
+      })
+      .catch(() => {})
+  }, [])
+
+  function toggle(integration) {
+    if (integration.isOAuth) {
+      navigate(integration.path)
+      return
+    }
+    if (!integration.connected) {
+      setConfiguring(integration.id)
+    } else {
+      setIntegrations(integrations.map(i => i.id === integration.id ? { ...i, connected: false } : i))
     }
   }
 
@@ -67,20 +92,35 @@ export default function Integrations() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
         {filtered.map(integration => (
-          <div key={integration.id} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: integration.connected ? `2px solid ${integration.color}20` : '2px solid transparent' }}>
+          <div key={integration.id} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: integration.connected ? `2px solid ${integration.color}40` : '2px solid transparent', position: 'relative' }}>
+            {/* Enterprise SSO badge for SharePoint */}
+            {integration.id === 'sharepoint' && (
+              <div style={{ position: 'absolute', top: 12, right: 12, background: 'linear-gradient(135deg, #0078d4, #005a9e)', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+                ENTERPRISE SSO
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: integration.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>{integration.icon}</div>
                 <div>
-                  <div style={{ fontWeight: 700, color: '#0c1446', fontSize: '0.95rem' }}>{integration.name}</div>
+                  <div style={{ fontWeight: 700, color: '#0c1446', fontSize: '0.95rem', paddingRight: integration.id === 'sharepoint' ? 90 : 0 }}>{integration.name}</div>
                   <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>{integration.category}</div>
                 </div>
               </div>
               {integration.connected && <span style={{ padding: '3px 8px', background: '#dcfce7', color: '#166534', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700 }}>Connected</span>}
             </div>
-            <div style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 14 }}>{integration.desc}</div>
-            <button onClick={() => toggle(integration.id)} style={{ width: '100%', padding: '8px', background: integration.connected ? '#fee2e2' : integration.color, color: integration.connected ? '#ef4444' : '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
-              {integration.connected ? 'Disconnect' : 'Connect'}
+            <div style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: integration.id === 'sharepoint' && spStatus?.connected && spStatus?.user_display_name ? 10 : 14 }}>{integration.desc}</div>
+            {/* SharePoint connected user info */}
+            {integration.id === 'sharepoint' && spStatus?.connected && spStatus?.user_display_name && (
+              <div style={{ marginBottom: 10, padding: '8px 10px', background: '#eff6ff', borderRadius: 8, fontSize: '0.8rem', color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>✓</span> Signed in as <strong>{spStatus.user_display_name}</strong>
+              </div>
+            )}
+            <button onClick={() => toggle(integration)} style={{ width: '100%', padding: '8px', background: integration.connected ? '#fee2e2' : integration.color, color: integration.connected ? '#ef4444' : '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}>
+              {integration.isOAuth
+                ? (integration.connected ? 'Manage Connection →' : 'Connect with Microsoft →')
+                : (integration.connected ? 'Disconnect' : 'Connect')
+              }
             </button>
           </div>
         ))}
