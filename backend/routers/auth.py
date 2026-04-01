@@ -57,13 +57,18 @@ def log_action(db, user_id, org_id, action, detail, ip=None):
     db.commit()
 
 def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+# NOTE: `request: Request` MUST be the first positional parameter on every
+# rate-limited handler so slowapi can locate it via args[0].
 
 @router.post("/register", status_code=201)
 @limiter.limit("3/minute")
-def register(req: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+def register(request: Request, req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -108,7 +113,7 @@ def register(req: RegisterRequest, request: Request, db: Session = Depends(get_d
 
 @router.post("/login")
 @limiter.limit("5/minute")
-def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -195,8 +200,8 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
 @router.post("/change-password")
 @limiter.limit("5/minute")
 def change_password(
-    body: dict,
     request: Request,
+    body: dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -214,7 +219,7 @@ def change_password(
 
 @router.post("/accept-invite")
 @limiter.limit("10/minute")
-def accept_invite(req: AcceptInviteRequest, request: Request, db: Session = Depends(get_db)):
+def accept_invite(request: Request, req: AcceptInviteRequest, db: Session = Depends(get_db)):
     """
     Activates an invited user account.
     The raw token from the invite email is hashed and looked up in invite_tokens.

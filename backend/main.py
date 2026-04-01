@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from limiter import limiter
 import uvicorn
 
@@ -14,7 +15,6 @@ from config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Migration: add columns / tables if they don't exist yet
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
@@ -61,7 +61,6 @@ async def lifespan(app: FastAPI):
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """))
-            # SharePoint OAuth tables
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS sharepoint_tokens (
                     id VARCHAR PRIMARY KEY,
@@ -82,7 +81,7 @@ async def lifespan(app: FastAPI):
                     expires_at VARCHAR(50) NOT NULL
                 )
             """))
-            # F06 — Refresh token persistence (enables logout / rotation)
+            # F06 — Refresh token persistence
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS refresh_tokens (
                     id VARCHAR PRIMARY KEY,
@@ -96,7 +95,7 @@ async def lifespan(app: FastAPI):
             conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_refresh_tokens_token_hash ON refresh_tokens(token_hash)"
             ))
-            # F08 — Invite token table (secure invite-by-email flow)
+            # F08 — Invite token table
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS invite_tokens (
                     id VARCHAR PRIMARY KEY,
@@ -110,7 +109,6 @@ async def lifespan(app: FastAPI):
             conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_invite_tokens_token_hash ON invite_tokens(token_hash)"
             ))
-            # Migrations for existing deployments — add tenant_id if missing
             conn.execute(text("ALTER TABLE sharepoint_tokens ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
             conn.execute(text("ALTER TABLE oauth_states ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
             conn.commit()
@@ -125,15 +123,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# F05 — Rate limiting
+# F05 — Rate limiting (middleware handles all decorated routes)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
-# Build allowed origins from env — supports comma-separated list
-# e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
+# CORS
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
-# Always include production domain and localhost
 _always_allowed = [
     "https://datahubpro.co.uk",
     "https://www.datahubpro.co.uk",
@@ -152,17 +149,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router,             prefix="/api/auth",             tags=["Authentication"])
-app.include_router(users.router,            prefix="/api/users",            tags=["Users"])
-app.include_router(files.router,            prefix="/api/files",            tags=["Files"])
-app.include_router(analytics.router,        prefix="/api/analytics",        tags=["Analytics"])
-app.include_router(billing.router,          prefix="/api/billing",          tags=["Billing"])
-app.include_router(connectors.router,       prefix="/api/connectors",       tags=["Connectors"])
-app.include_router(pipelines.router,        prefix="/api/pipelines",        tags=["Pipelines"])
-app.include_router(budget.router,           prefix="/api/budget",           tags=["Budget"])
+app.include_router(auth.router,              prefix="/api/auth",             tags=["Authentication"])
+app.include_router(users.router,             prefix="/api/users",            tags=["Users"])
+app.include_router(files.router,             prefix="/api/files",            tags=["Files"])
+app.include_router(analytics.router,         prefix="/api/analytics",        tags=["Analytics"])
+app.include_router(billing.router,           prefix="/api/billing",          tags=["Billing"])
+app.include_router(connectors.router,        prefix="/api/connectors",       tags=["Connectors"])
+app.include_router(pipelines.router,         prefix="/api/pipelines",        tags=["Pipelines"])
+app.include_router(budget.router,            prefix="/api/budget",           tags=["Budget"])
 app.include_router(calculated_fields.router, prefix="/api/calculated-fields", tags=["Calculated Fields"])
-app.include_router(sharepoint.router,       prefix="/api/sharepoint",       tags=["SharePoint"])
-app.include_router(ai.router,               prefix="/api",                  tags=["AI"])
+app.include_router(sharepoint.router,        prefix="/api/sharepoint",       tags=["SharePoint"])
+app.include_router(ai.router,                prefix="/api",                  tags=["AI"])
 
 @app.get("/health")
 def health_check():
