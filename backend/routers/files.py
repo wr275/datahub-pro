@@ -137,7 +137,7 @@ async def upload_file(
     else:
         storage_key = save_file_local(content, file.filename)
         storage_type = "local"
-        file_content_db = content
+        file_content_db = None  # F23: always read from disk; never store in BYTEA
 
     # Parse metadata
     row_count = None
@@ -196,12 +196,14 @@ async def upload_file(
 
 @router.get("/")
 def list_files(
+    skip: int = 0,
+    limit: int = 100,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     files = db.query(DataFile).filter(
         DataFile.organisation_id == current_user.organisation_id
-    ).order_by(DataFile.created_at.desc()).all()
+    ).order_by(DataFile.created_at.desc()).offset(skip).limit(limit).all()
 
     return [
         {

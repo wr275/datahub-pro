@@ -151,11 +151,16 @@ def remove_team_member(
 
 
 @router.get("/audit-log")
-def get_audit_log(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_audit_log(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     if current_user.role not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    logs = db.query(AuditLog).filter(AuditLog.organisation_id == current_user.organisation_id).order_by(AuditLog.created_at.desc()).limit(500).all()
+    logs = db.query(AuditLog).filter(AuditLog.organisation_id == current_user.organisation_id).order_by(AuditLog.created_at.desc()).offset(skip).limit(min(limit, 500)).all()
     return [
         {
             "id": l.id,
