@@ -236,7 +236,7 @@ function LayoutInner({ children }) {
         </header>
 
         {/* Main content */}
-        <main style={{ flex: 1, overflowY: 'auto', ...((isGold || isDark) ? { filter: 'invert(1) hue-rotate(180deg)' } : {}) }}>
+        <main style={{ flex: 1, overflowY: 'auto' }}>
           {children}
         </main>
       </div>
