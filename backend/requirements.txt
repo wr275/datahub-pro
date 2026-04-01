@@ -19,3 +19,7 @@ limits==3.13.0
 sendgrid==6.11.0
 
 alembic==1.13.1
+
+# N09: Testing
+pytest==8.2.0
+pytest-asyncio==0.23.7

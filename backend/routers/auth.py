@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy.orm import Session
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 from database import get_db, User, Organisation, AuditLog, InviteToken
 from auth_utils import (
@@ -13,6 +14,7 @@ from limiter import limiter
 from datetime import datetime, timedelta
 import uuid
 import hashlib
+from lockout import record_failed_attempt, record_successful_login, is_locked, lockout_seconds_remaining
 import secrets
 
 # ── Cookie helpers (F11 — HttpOnly cookie auth) ───────────────────────────────
@@ -33,6 +35,28 @@ def _set_auth_cookie(response, access_token: str) -> None:
 def _clear_auth_cookie(response) -> None:
     response.delete_cookie(key=_COOKIE_NAME, path="/", samesite=_COOKIE_SAMESITE)
 
+
+import re
+
+def _validate_password_complexity(password: str) -> None:
+    """N10: Enforce password complexity (min 8 chars, upper, lower, digit, special)."""
+    errors = []
+    if len(password) < 8:
+        errors.append("at least 8 characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("an uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("a lowercase letter")
+    if not re.search(r"[0-9]", password):
+        errors.append("a number")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        errors.append("a special character")
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Password must contain: {', '.join(errors)}."
+        )
+
 router = APIRouter()
 
 # ── Request / response models ─────────────────────────────────────────────────
@@ -48,7 +72,7 @@ class LoginRequest(BaseModel):
     password: str
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: Optional[str] = None  # N15: optional; cookie is also accepted
 
 class AcceptInviteRequest(BaseModel):
     token: str
@@ -183,7 +207,7 @@ def refresh_tokens(req: RefreshRequest, db: Session = Depends(get_db)):
     store_refresh_token(db, user_id, new_refresh)
 
     org = user.organisation
-    return TokenResponse(
+    resp_body = TokenResponse(
         access_token=new_access,
         refresh_token=new_refresh,
         user={
@@ -195,11 +219,14 @@ def refresh_tokens(req: RefreshRequest, db: Session = Depends(get_db)):
             "subscription": org.subscription_status if org else None
         }
     )
+    response = Response(content=resp_body.model_dump_json(), media_type="application/json")
+    _set_auth_cookie(response, new_access)  # N05: refresh also rotates the cookie
+    return response
 
 
 @router.post("/logout")
-def logout(req: RefreshRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Revoke the supplied refresh token so it can no longer be rotated."""
+def logout(req: RefreshRequest = RefreshRequest(), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Revoke the supplied refresh token (or all tokens if none provided) and clear cookie."""
     revoke_user_refresh_tokens(db, current_user.id, token=req.refresh_token)
     response = Response(content='{"message":"Logged out successfully"}', media_type="application/json")
     _clear_auth_cookie(response)
@@ -235,8 +262,7 @@ def change_password(
     if not verify_password(body.get("current_password", ""), current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     new_pw = body.get("new_password", "")
-    if len(new_pw) < 8:
-        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    _validate_password_complexity(new_pw)
     current_user.hashed_password = hash_password(new_pw)
     # Revoke all refresh tokens so all other sessions are logged out
     revoke_user_refresh_tokens(db, current_user.id)
@@ -251,8 +277,7 @@ def accept_invite(request: Request, req: AcceptInviteRequest, db: Session = Depe
     Activates an invited user account.
     The raw token from the invite email is hashed and looked up in invite_tokens.
     """
-    if len(req.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    _validate_password_complexity(req.password)
 
     token_hash = hashlib.sha256(req.token.encode()).hexdigest()
     invite = db.query(InviteToken).filter(
@@ -285,7 +310,7 @@ def accept_invite(request: Request, req: AcceptInviteRequest, db: Session = Depe
     store_refresh_token(db, user.id, refresh_token)
 
     org = user.organisation
-    return TokenResponse(
+    resp_body = TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user={
@@ -296,3 +321,6 @@ def accept_invite(request: Request, req: AcceptInviteRequest, db: Session = Depe
             "organisation": org.name if org else None,
         }
     )
+    response = Response(content=resp_body.model_dump_json(), media_type="application/json")
+    _set_auth_cookie(response, access_token)  # N05: set cookie on first login after invite
+    return response

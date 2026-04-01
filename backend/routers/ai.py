@@ -3,13 +3,14 @@ import os
 from config import settings
 import json
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from database import get_db, DataFile
+from database import get_db, DataFile, User
 from sqlalchemy.orm import Session
+from auth_utils import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -73,20 +74,36 @@ def build_context(file: DataFile, question: str) -> str:
     return "\n".join(parts)
 
 
+def _get_org_file(file_id: str, current_user: User, db: Session) -> DataFile:
+    """Fetch a file that belongs to the current user's organisation."""
+    file = (
+        db.query(DataFile)
+        .filter(
+            DataFile.id == file_id,
+            DataFile.organisation_id == current_user.organisation_id,
+        )
+        .first()
+    )
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    return file
+
+
 @router.post("/stream")
-async def stream_ai(req: StreamRequest, db: Session = Depends(get_db)):
+async def stream_ai(
+    req: StreamRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
-    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-
+    file = _get_org_file(req.file_id, current_user, db)
     user_message = build_context(file, req.question)
 
     async def event_generator():
         try:
-            async with httpx.AsyncClient(timeout=120) as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 async with client.stream(
                     "POST",
                     ANTHROPIC_URL,
@@ -136,16 +153,17 @@ async def stream_ai(req: StreamRequest, db: Session = Depends(get_db)):
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
-            "Access-Control-Allow-Origin": "*",
         },
     )
 
 
 @router.post("/greet")
-async def greet_file(req: GreetRequest, db: Session = Depends(get_db)):
-    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+async def greet_file(
+    req: GreetRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    file = _get_org_file(req.file_id, current_user, db)
 
     name = req.filename or file.filename or "your file"
     rows = req.rows or file.row_count or 0
@@ -164,15 +182,16 @@ async def greet_file(req: GreetRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/prompt")
-async def prompt_ai(req: PromptRequest, db: Session = Depends(get_db)):
+async def prompt_ai(
+    req: PromptRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Non-streaming fallback endpoint."""
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
-    file = db.query(DataFile).filter(DataFile.id == req.file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-
+    file = _get_org_file(req.file_id, current_user, db)
     user_message = build_context(file, req.question)
 
     async with httpx.AsyncClient(timeout=60) as client:

@@ -46,11 +46,15 @@ def dash_dict(d: Dashboard):
 
 
 def _get_file_data(file_id: str, db: Session):
-    """Return parsed CSV data for a DataFile, or None."""
+    """Return parsed CSV data for a DataFile, or None. N07: uses load_file_bytes() for S3/R2 support."""
     f = db.query(DataFile).filter(DataFile.id == file_id).first()
-    if not f or not f.file_content:
+    if not f:
         return None
-    text = f.file_content.decode("utf-8", errors="replace")
+    try:
+        raw = load_file_bytes(f)
+    except Exception:
+        return None
+    text = raw.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     headers = list(reader.fieldnames or [])
     rows = [dict(r) for r in reader]
