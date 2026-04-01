@@ -62,6 +62,36 @@ class User(Base):
     organisation = relationship("Organisation", back_populates="users")
     files = relationship("DataFile", back_populates="uploaded_by_user")
     audit_logs = relationship("AuditLog", back_populates="user")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    invite_tokens = relationship("InviteToken", back_populates="user", cascade="all, delete-orphan")
+
+class RefreshToken(Base):
+    """Server-side record of issued refresh tokens.
+    Stores a SHA-256 hash (never the raw JWT) so stolen DB data can't be replayed.
+    On logout the row is deleted; on /auth/refresh the old row is deleted and a
+    new one is inserted (token rotation).
+    """
+    __tablename__ = "refresh_tokens"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hex
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    user = relationship("User", back_populates="refresh_tokens")
+
+class InviteToken(Base):
+    """Short-lived invite token for the team-invite email flow.
+    Stores a SHA-256 hash of the raw token that is emailed to the invitee.
+    """
+    __tablename__ = "invite_tokens"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hex
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    user = relationship("User", back_populates="invite_tokens")
 
 class DataFile(Base):
     __tablename__ = "data_files"

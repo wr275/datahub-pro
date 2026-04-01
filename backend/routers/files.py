@@ -13,6 +13,32 @@ router = APIRouter()
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB supported via R2
 
+# ── Magic-byte signatures (F09) ───────────────────────────────────────────────
+# Maps file extension → list of (magic_bytes, offset) tuples.
+# A file passes if ANY signature matches.
+_MAGIC: dict = {
+    ".xlsx": [(b"PK\x03\x04", 0)],           # ZIP / OOXML
+    ".xls":  [(b"\xD0\xCF\x11\xE0", 0)],     # OLE2 Compound Document
+    ".csv":  None,                             # Pure text — no fixed magic; checked separately
+}
+
+def _validate_magic_bytes(ext: str, content: bytes) -> bool:
+    """Return True if the file content matches the expected binary signature."""
+    sigs = _MAGIC.get(ext)
+    if sigs is None:
+        # CSV: must be decodable as text (UTF-8 or latin-1)
+        for enc in ("utf-8", "latin-1"):
+            try:
+                content[:4096].decode(enc)
+                return True
+            except (UnicodeDecodeError, Exception):
+                continue
+        return False
+    for magic, offset in sigs:
+        if content[offset: offset + len(magic)] == magic:
+            return True
+    return False
+
 
 # ── R2 / S3 helpers ──────────────────────────────────────────────────────────
 
@@ -92,6 +118,15 @@ async def upload_file(
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 500MB.")
+
+    # F09 — Validate file content against expected magic bytes / encoding.
+    # Rejects files whose binary content doesn't match the declared extension
+    # (e.g. a renamed executable with a .csv extension).
+    if not _validate_magic_bytes(ext, content):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File content does not match the declared {ext} format. Please upload a genuine {ext} file."
+        )
 
     # Save to R2 or local disk
     use_r2 = settings.STORAGE_TYPE == "s3" and settings.AWS_BUCKET_NAME
