@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_db, User, RefreshToken
@@ -97,25 +97,53 @@ def revoke_user_refresh_tokens(db: Session, user_id: str, token: Optional[str] =
 
 # ── Standard request authentication ──────────────────────────────────────────
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
+def _decode_access_token(token: str) -> str:
+    """Decode and validate an access token; return user_id or raise 401."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")
         token_type: str = payload.get("type")
         if user_id is None or token_type != "access":
             raise credentials_exception
+        return user_id
     except JWTError:
         raise credentials_exception
 
+
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db)
+) -> User:
+    """Authenticate the request.
+
+    Priority:
+    1. HttpOnly cookie ``access_token`` (preferred — XSS-safe)
+    2. Authorization: Bearer <token> header (legacy / API clients)
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    # 1. Try HttpOnly cookie first
+    token = request.cookies.get("access_token")
+
+    # 2. Fall back to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+
+    if not token:
+        raise credentials_exception
+
+    user_id = _decode_access_token(token)
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if user is None:
         raise credentials_exception

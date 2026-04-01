@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from database import get_db, User, Organisation, AuditLog, InviteToken
@@ -104,11 +104,14 @@ def register(request: Request, req: RegisterRequest, db: Session = Depends(get_d
 
     log_action(db, user_id, org_id, "register", "New account created", _client_ip(request))
 
-    return TokenResponse(
+    resp = TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user={"id": user_id, "email": user.email, "full_name": user.full_name, "role": user.role, "organisation": org.name}
     )
+    response = Response(content=resp.model_dump_json(), media_type="application/json", status_code=201)
+    _set_auth_cookie(response, access_token)
+    return response
 
 
 @router.post("/login")
@@ -130,7 +133,7 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
 
     log_action(db, user.id, user.organisation_id, "login", "User logged in", _client_ip(request))
 
-    return TokenResponse(
+    resp = TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user={
@@ -142,6 +145,9 @@ def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
             "subscription": org.subscription_status if org else None
         }
     )
+    response = Response(content=resp.model_dump_json(), media_type="application/json")
+    _set_auth_cookie(response, access_token)
+    return response
 
 
 @router.post("/refresh")
@@ -176,7 +182,9 @@ def refresh_tokens(req: RefreshRequest, db: Session = Depends(get_db)):
 def logout(req: RefreshRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Revoke the supplied refresh token so it can no longer be rotated."""
     revoke_user_refresh_tokens(db, current_user.id, token=req.refresh_token)
-    return {"message": "Logged out successfully"}
+    response = Response(content='{"message":"Logged out successfully"}', media_type="application/json")
+    _clear_auth_cookie(response)
+    return response
 
 
 @router.get("/me")
