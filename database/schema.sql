@@ -1,5 +1,7 @@
 -- DataHub Pro Database Schema
 -- PostgreSQL 14+
+-- Last updated: 2026-04-01
+-- Reflects ORM models in backend/database.py (including F05-F09 security additions)
 
 -- Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -49,6 +51,40 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_organisation ON users(organisation_id);
 
 -- ============================================
+-- REFRESH TOKENS  (added: F06 — server-side token persistence)
+-- Stores SHA-256 hash of issued refresh tokens (never the raw JWT).
+-- Deleted on logout; rotated (old deleted, new inserted) on /auth/refresh.
+-- ============================================
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id          VARCHAR(36) PRIMARY KEY,
+    user_id     VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) NOT NULL,
+    expires_at  TIMESTAMP NOT NULL,
+    revoked_at  TIMESTAMP,
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+
+-- ============================================
+-- INVITE TOKENS  (added: F08 — secure team-invite flow)
+-- Stores SHA-256 hash of the raw invite token emailed to invitees.
+-- Valid for 72 hours; marked used_at on acceptance.
+-- ============================================
+CREATE TABLE IF NOT EXISTS invite_tokens (
+    id          VARCHAR(36) PRIMARY KEY,
+    user_id     VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) NOT NULL,
+    expires_at  TIMESTAMP NOT NULL,
+    used_at     TIMESTAMP,
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_invite_tokens_token_hash ON invite_tokens(token_hash);
+CREATE INDEX idx_invite_tokens_user_id ON invite_tokens(user_id);
+
+-- ============================================
 -- DATA FILES
 -- ============================================
 CREATE TABLE IF NOT EXISTS data_files (
@@ -60,8 +96,9 @@ CREATE TABLE IF NOT EXISTS data_files (
     row_count       INTEGER,
     column_count    INTEGER,
     columns_json    JSONB DEFAULT '[]',
-    storage_type    VARCHAR(50) DEFAULT 'local' CHECK (storage_type IN ('local', 's3', 'azure_blob')),
-    storage_key     VARCHAR(1000),
+    s3_key          VARCHAR(1000),        -- NULL for local-disk uploads (F17)
+    storage_type    VARCHAR(50) DEFAULT 'local' CHECK (storage_type IN ('local', 's3', 'shopify')),
+    file_content    BYTEA,                -- NULL for R2/S3 and local-disk (F23)
     organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
     uploaded_by     UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
     is_archived     BOOLEAN DEFAULT FALSE,
@@ -171,10 +208,79 @@ CREATE INDEX idx_audit_logs_organisation ON audit_logs(organisation_id);
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
--- Partition hint: in production, partition this table by month
+-- Partition hint: in production, consider partitioning by month
 
 -- ============================================
--- INTEGRATIONS
+-- CONNECTORS  (Shopify, etc.)
+-- Sensitive fields such as access_token are Fernet-encrypted (F24).
+-- ============================================
+CREATE TABLE IF NOT EXISTS connectors (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(255) NOT NULL,
+    connector_type  VARCHAR(100) NOT NULL,
+    config_json     JSONB DEFAULT '{}',   -- access_token stored encrypted (F24)
+    status          VARCHAR(50) DEFAULT 'active',
+    last_sync_at    TIMESTAMPTZ,
+    last_file_id    UUID REFERENCES data_files(id) ON DELETE SET NULL,
+    organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_connectors_organisation ON connectors(organisation_id);
+
+-- ============================================
+-- PIPELINES
+-- ============================================
+CREATE TABLE IF NOT EXISTS pipelines (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(255) NOT NULL,
+    steps_json      JSONB DEFAULT '[]',
+    is_active       BOOLEAN DEFAULT TRUE,
+    organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_pipelines_organisation ON pipelines(organisation_id);
+
+-- ============================================
+-- BUDGET ENTRIES
+-- ============================================
+CREATE TABLE IF NOT EXISTS budget_entries (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    budget_name     VARCHAR(255) NOT NULL,
+    category        VARCHAR(255) NOT NULL,
+    department      VARCHAR(255),
+    period          VARCHAR(50) NOT NULL,
+    budgeted        DECIMAL(20,4) DEFAULT 0,
+    actual          DECIMAL(20,4),
+    line_type       VARCHAR(50) DEFAULT 'expense',
+    organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_budget_entries_organisation ON budget_entries(organisation_id);
+
+-- ============================================
+-- CALCULATED FIELD SETS
+-- ============================================
+CREATE TABLE IF NOT EXISTS calculated_field_sets (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(255) NOT NULL,
+    file_id         UUID REFERENCES data_files(id) ON DELETE CASCADE,
+    fields_json     JSONB DEFAULT '[]',
+    organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    created_by      UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_calculated_field_sets_organisation ON calculated_field_sets(organisation_id);
+CREATE INDEX idx_calculated_field_sets_file ON calculated_field_sets(file_id);
+
+-- ============================================
+-- INTEGRATIONS  (legacy — Microsoft/SharePoint OAuth state)
 -- ============================================
 CREATE TABLE IF NOT EXISTS integrations (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -208,13 +314,6 @@ CREATE TRIGGER update_dashboards_updated_at BEFORE UPDATE ON dashboards
 
 CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================
--- SEED DATA (for development)
--- ============================================
--- Default admin user (password: Admin123!)
--- INSERT INTO organisations (id, name, slug, subscription_tier, subscription_status)
--- VALUES ('00000000-0000-0000-0000-000000000001', 'DataHub Demo Org', 'demo-org', 'enterprise', 'active');
 
 -- ============================================
 -- USEFUL VIEWS
