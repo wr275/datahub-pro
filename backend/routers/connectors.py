@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 from database import get_db, Connector, DataFile
-from routers.auth import get_current_user
+from auth_utils import get_current_user
 
 router = APIRouter()
 

@@ -173,7 +173,7 @@ async def upload_file(
         row_count=row_count,
         column_count=col_count,
         columns_json=json.dumps(columns),
-        s3_key=storage_key,
+        s3_key=storage_key if use_r2 else None,
         storage_type=storage_type,
         file_content=file_content_db,
         organisation_id=org.id,

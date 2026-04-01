@@ -1,4 +1,6 @@
 import os
+
+from config import settings
 import json
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +13,7 @@ from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = settings.ANTHROPIC_API_KEY or ""
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 MODEL = "claude-haiku-4-5-20251001"
 
