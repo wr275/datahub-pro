@@ -86,6 +86,44 @@ import Team from './pages/Team'
 import Settings from './pages/Settings'
 import CalculatedFields from './pages/CalculatedFields'
 
+// ── F18: Error boundary to prevent unhandled render crashes ──────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('[ErrorBoundary]', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24, background: '#f8f9fa' }}>
+          <div style={{ fontSize: 48 }}>⚠️</div>
+          <h2 style={{ color: '#0c1446', margin: 0 }}>Something went wrong</h2>
+          <p style={{ color: '#4a5280', maxWidth: 400, textAlign: 'center' }}>
+            An unexpected error occurred. Please refresh the page or contact support if the problem persists.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ padding: '10px 24px', background: '#e91e8c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+          >
+            Refresh page
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading...</div>
@@ -104,6 +142,7 @@ function P({ children }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -194,5 +233,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
