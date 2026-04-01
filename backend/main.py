@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
 
-from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields, sharepoint
+from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields, sharepoint, ai
 from database import engine, Base
 from config import settings
 
@@ -139,6 +139,7 @@ app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"]
 app.include_router(budget.router, prefix="/api/budget", tags=["Budget"])
 app.include_router(calculated_fields.router, prefix="/api/calculated-fields", tags=["Calculated Fields"])
 app.include_router(sharepoint.router,        prefix="/api/sharepoint",        tags=["SharePoint"])
+app.include_router(ai.router,                prefix="/api",                    tags=["AI"])
 
 @app.get("/health")
 def health_check():
