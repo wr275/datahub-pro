@@ -13,6 +13,25 @@ from limiter import limiter
 from datetime import datetime, timedelta
 import uuid
 import hashlib
+import secrets
+
+# ── Cookie helpers (F11 — HttpOnly cookie auth) ───────────────────────────────
+_COOKIE_NAME = "access_token"
+_COOKIE_SAMESITE = "none"      # Required for cross-origin (front-end on different domain)
+
+def _set_auth_cookie(response, access_token: str) -> None:
+    response.set_cookie(
+        key=_COOKIE_NAME,
+        value=access_token,
+        httponly=True,
+        secure=True,           # HTTPS only
+        samesite=_COOKIE_SAMESITE,
+        max_age=60 * 60 * 24,  # 24 hours (matches ACCESS_TOKEN_EXPIRE_MINUTES default)
+        path="/",
+    )
+
+def _clear_auth_cookie(response) -> None:
+    response.delete_cookie(key=_COOKIE_NAME, path="/", samesite=_COOKIE_SAMESITE)
 
 router = APIRouter()
 
