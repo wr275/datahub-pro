@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # Encryption — F24: Fernet key for encrypting stored connector tokens
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    FERNET_KEY: Optional[str] = None
+
     # Microsoft / SharePoint OAuth
     MICROSOFT_CLIENT_ID: Optional[str] = None
     MICROSOFT_CLIENT_SECRET: Optional[str] = None

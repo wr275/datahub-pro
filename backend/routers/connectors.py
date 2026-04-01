@@ -14,6 +14,39 @@ from auth_utils import get_current_user
 router = APIRouter()
 
 
+# ── F24: Fernet encryption for stored credentials ─────────────────────────────
+
+def _get_fernet():
+    """Return a Fernet instance derived from settings. Falls back to None if not configured."""
+    from config import settings
+    from cryptography.fernet import Fernet
+    key = getattr(settings, "FERNET_KEY", None)
+    if not key:
+        return None
+    try:
+        return Fernet(key.encode() if isinstance(key, str) else key)
+    except Exception:
+        return None
+
+
+def _encrypt_token(token: str) -> str:
+    """Encrypt a sensitive string. Returns ciphertext prefixed with 'enc:' or plaintext if key not set."""
+    f = _get_fernet()
+    if f is None or not token:
+        return token
+    return "enc:" + f.encrypt(token.encode()).decode()
+
+
+def _decrypt_token(value: str) -> str:
+    """Decrypt a value previously encrypted with _encrypt_token."""
+    if not value or not value.startswith("enc:"):
+        return value  # legacy plaintext — return as-is
+    f = _get_fernet()
+    if f is None:
+        raise Exception("FERNET_KEY not configured; cannot decrypt stored token")
+    return f.decrypt(value[4:].encode()).decode()
+
+
 class ShopifyConnectRequest(BaseModel):
     name: str
     shop_domain: str
@@ -135,7 +168,7 @@ def list_connectors(db: Session = Depends(get_db), current_user=Depends(get_curr
             "status": c.status,
             "last_sync_at": c.last_sync_at.isoformat() if c.last_sync_at else None,
             "last_file_id": c.last_file_id,
-            "config": json.loads(c.config_json) if c.config_json else {},
+            "config": {k: v for k, v in (json.loads(c.config_json) if c.config_json else {}).items() if k != "access_token"},
         }
         for c in connectors
     ]
@@ -181,7 +214,7 @@ async def connect_shopify(
     db.add(data_file)
 
     # Save connector record
-    config = {"shop_domain": req.shop_domain, "resource": req.resource}
+    config = {"shop_domain": req.shop_domain, "resource": req.resource, "access_token": _encrypt_token(req.access_token)}
     connector = Connector(
         id=str(uuid.uuid4()),
         name=req.name,
@@ -220,7 +253,7 @@ async def sync_shopify(
     config = json.loads(connector.config_json or "{}")
     shop_domain = config.get("shop_domain")
     resource = config.get("resource", "orders")
-    access_token = config.get("access_token", "")
+    access_token = _decrypt_token(config.get("access_token", ""))
 
     if not shop_domain or not access_token:
         raise HTTPException(status_code=400, detail="Connector config missing shop_domain or access_token")
