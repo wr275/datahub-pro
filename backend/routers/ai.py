@@ -12,7 +12,7 @@ from database import get_db, DataFile, User
 from sqlalchemy.orm import Session
 from auth_utils import get_current_user
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(tags=["ai"])
 
 ANTHROPIC_API_KEY = settings.ANTHROPIC_API_KEY or ""
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"

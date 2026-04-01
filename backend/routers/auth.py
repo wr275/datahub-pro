@@ -115,8 +115,7 @@ def register(request: Request, req: RegisterRequest, db: Session = Depends(get_d
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    if len(req.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    _validate_password_complexity(req.password)
 
     org_id = str(uuid.uuid4())
     slug = req.organisation_name.lower().replace(" ", "-")[:50] + "-" + org_id[:8]
