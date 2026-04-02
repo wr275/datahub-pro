@@ -34,20 +34,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 
-# ── N13: Security headers middleware ─────────────────────────────────────────
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response: Response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    # HSTS: only set on HTTPS (Railway always serves HTTPS)
-    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    return response
-
-
 # ── N12: CORS — explicit allowed headers instead of wildcard ─────────────────
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
@@ -77,6 +63,37 @@ app.add_middleware(
     ],
     expose_headers=["Content-Disposition"],
 )
+
+
+# ── N13 + CSP: Security headers middleware ─────────────────────────────────────
+# Build connect-src from approved CORS origins (HTTPS only) + external services.
+# Computed once at startup rather than per-request.
+_csp_connect_extra = " ".join(o for o in allowed_origins if o.startswith("https://"))
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; "
+    f"connect-src 'self' {_csp_connect_extra} https://api.anthropic.com; "
+    "font-src 'self' data:; "
+    "frame-ancestors 'none'; "
+    "object-src 'none'; "
+    "base-uri 'self'"
+)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["Content-Security-Policy"] = _CSP
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # HSTS: only set on HTTPS (Railway always serves HTTPS)
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 # ── N14: Versioned API routes (/api/v1/...) with legacy /api/... aliases ─────

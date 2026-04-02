@@ -23,3 +23,6 @@ alembic==1.13.1
 # N09: Testing
 pytest==8.2.0
 pytest-asyncio==0.23.7
+
+# Redis-backed lockout (optional — falls back to in-memory if REDIS_URL not set)
+redis==5.0.4
