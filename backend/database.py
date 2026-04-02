@@ -7,11 +7,9 @@ import enum
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./datahub_pro.db")
 
-# Railway provides postgres:// but SQLAlchemy 1.4+ requires postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# SQLite needs different engine args than PostgreSQL
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
@@ -66,28 +64,20 @@ class User(Base):
     invite_tokens = relationship("InviteToken", back_populates="user", cascade="all, delete-orphan")
 
 class RefreshToken(Base):
-    """Server-side record of issued refresh tokens.
-    Stores a SHA-256 hash (never the raw JWT) so stolen DB data can't be replayed.
-    On logout the row is deleted; on /auth/refresh the old row is deleted and a
-    new one is inserted (token rotation).
-    """
     __tablename__ = "refresh_tokens"
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    token_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hex
+    token_hash = Column(String(64), nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     user = relationship("User", back_populates="refresh_tokens")
 
 class InviteToken(Base):
-    """Short-lived invite token for the team-invite email flow.
-    Stores a SHA-256 hash of the raw token that is emailed to the invitee.
-    """
     __tablename__ = "invite_tokens"
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    token_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hex
+    token_hash = Column(String(64), nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -105,6 +95,9 @@ class DataFile(Base):
     s3_key = Column(String(1000), nullable=True)
     storage_type = Column(String(50), default="local")
     file_content = Column(LargeBinary, nullable=True)
+    # Google Sheets / URL-synced files
+    source_url = Column(Text, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
@@ -174,7 +167,6 @@ class BudgetEntry(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
 
-
 class CalculatedFieldSet(Base):
     __tablename__ = "calculated_field_sets"
     id = Column(String, primary_key=True)
@@ -184,3 +176,22 @@ class CalculatedFieldSet(Base):
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+class ScheduledReport(Base):
+    """A recurring report email schedule."""
+    __tablename__ = "scheduled_reports"
+    id = Column(String, primary_key=True)
+    name = Column(String(255), nullable=False)
+    report_type = Column(String(100), nullable=False, default="data_summary")
+    frequency = Column(String(20), nullable=False)        # daily | weekly | monthly
+    day_of_week = Column(String(20), nullable=True)       # Monday … Sunday (weekly only)
+    day_of_month = Column(Integer, nullable=True)         # 1-28 (monthly only)
+    send_time = Column(String(10), nullable=False)        # HH:MM (UTC)
+    recipients = Column(Text, nullable=False)             # comma-separated emails
+    file_id = Column(String, ForeignKey("data_files.id"), nullable=True)
+    status = Column(String(20), nullable=False, default="active")   # active | paused
+    last_run_at = Column(DateTime, nullable=True)
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

@@ -20,6 +20,9 @@ sendgrid==6.11.0
 
 alembic==1.13.1
 
+# Scheduled reports
+apscheduler==3.10.4
+
 # N09: Testing
 pytest==8.2.0
 pytest-asyncio==0.23.7

@@ -4,8 +4,7 @@ const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '
 
 const api = axios.create({
   baseURL: API_BASE,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,   // F11: send HttpOnly auth cookie on cross-origin requests
+  headers: { 'Content-Type': 'application/json' }
 })
 
 // Attach token to every request
@@ -15,7 +14,7 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Handle 401 â redirect to login
+// Handle 401 → redirect to login
 api.interceptors.response.use(
   res => res,
   err => {
@@ -77,7 +76,6 @@ export const pipelinesApi = {
   run: (id, data) => api.post('/pipelines/' + id + '/run', data),
 }
 
-
 export const budgetApi = {
   listBudgets: () => api.get('/budget/budgets'),
   getSummary: (name, period) => api.get('/budget/' + encodeURIComponent(name) + '/summary', { params: period ? { period } : {} }),
@@ -104,6 +102,15 @@ export const calculatedFieldsApi = {
   preview: (data) => api.post('/calculated-fields/preview', data),
   export: (data) => api.post('/calculated-fields/export', data, { responseType: 'blob' }),
   delete: (id) => api.delete('/calculated-fields/' + id),
+}
+
+export const scheduledReportsApi = {
+  list: ()          => api.get('/scheduled-reports/'),
+  create: (data)    => api.post('/scheduled-reports/', data),
+  update: (id, data) => api.put('/scheduled-reports/' + id, data),
+  remove: (id)      => api.delete('/scheduled-reports/' + id),
+  toggle: (id)      => api.patch('/scheduled-reports/' + id + '/toggle'),
+  sendNow: (id)     => api.post('/scheduled-reports/' + id + '/send-now'),
 }
 
 export default api
