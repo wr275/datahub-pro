@@ -85,39 +85,44 @@ export default function ExecutiveDashboard() {
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
-  function handleExportPDF() {
-    const style = document.createElement('style')
-    style.id = 'print-override'
-    style.innerHTML = `
-      @media print {
-        body > * { display: none !important; }
-        #exec-dashboard-print { display: block !important; position: static !important; }
-        #exec-dashboard-print { padding: 20px !important; }
-        .no-print { display: none !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      }
-    `
-    document.head.appendChild(style)
-    const el = dashRef.current
-    if (el) el.id = 'exec-dashboard-print'
-    window.print()
-    setTimeout(() => {
-      document.head.removeChild(style)
-      if (el) el.removeAttribute('id')
-    }, 1000)
+  async function handleExportPDF() {
+    if (!dashRef.current || !data) return
+    const btn = document.querySelector('[data-pdf-btn]')
+    if (btn) { btn.disabled = true; btn.textContent = 'Exporting…' }
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const el = dashRef.current
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f9fafb',
+        ignoreElements: el => el.classList?.contains('no-print'),
+      })
+      const imgW = canvas.width / 2
+      const imgH = canvas.height / 2
+      const pdf = new jsPDF({
+        orientation: imgW > imgH ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgW, imgH],
+        hotfixes: ['px_scaling'],
+      })
+      pdf.addImage(canvas.toDataURL('image/png', 0.95), 'PNG', 0, 0, imgW, imgH)
+      const safeName = (data.filename || 'report').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]/gi, '_')
+      pdf.save(`executive-dashboard-${safeName}.pdf`)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('PDF export failed. Please try again.')
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📥 Export PDF' }
+    }
   }
 
   return (
     <div ref={dashRef} style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
-      {/* Print CSS */}
-      <style>{`
-        @media print {
-          aside, header, .no-print { display: none !important; }
-          body { background: #fff !important; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        }
-      `}</style>
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flewWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: '0 0 4px', fontSize: '1.6rem', fontWeight: 800, color: '#0c1446' }}>Executive Dashboard</h1>
@@ -125,7 +130,7 @@ export default function ExecutiveDashboard() {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flewWrap: 'wrap' }} className="no-print">
           {data && (
-            <button onClick={handleExportPDF}
+            <button data-pdf-btn onClick={handleExportPDF}
               style={{ padding: '9px 16px', background: '#0c1446', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => e.currentTarget.style.background = '#1a2a6c'}
               onMouseLeave={e => e.currentTarget.style.background = '#0c1446'}>
