@@ -15,13 +15,19 @@ api.interceptors.request.use(config => {
 })
 
 // Handle 401 → redirect to login
+// IMPORTANT: skip the redirect for /auth/me (initial auth probe — let AuthContext handle it)
+// and skip when already on an auth page to prevent redirect loops.
 api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      const url = err.config?.url || ''
+      const onAuthPage = ['/login', '/register'].includes(window.location.pathname)
+      if (!url.includes('/auth/me') && !onAuthPage) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(err)
   }
@@ -105,12 +111,12 @@ export const calculatedFieldsApi = {
 }
 
 export const scheduledReportsApi = {
-  list: ()          => api.get('/scheduled-reports/'),
-  create: (data)    => api.post('/scheduled-reports/', data),
+  list: ()           => api.get('/scheduled-reports/'),
+  create: (data)     => api.post('/scheduled-reports/', data),
   update: (id, data) => api.put('/scheduled-reports/' + id, data),
-  remove: (id)      => api.delete('/scheduled-reports/' + id),
-  toggle: (id)      => api.patch('/scheduled-reports/' + id + '/toggle'),
-  sendNow: (id)     => api.post('/scheduled-reports/' + id + '/send-now'),
+  remove: (id)       => api.delete('/scheduled-reports/' + id),
+  toggle: (id)       => api.patch('/scheduled-reports/' + id + '/toggle'),
+  sendNow: (id)      => api.post('/scheduled-reports/' + id + '/send-now'),
 }
 
 export default api
