@@ -10,9 +10,7 @@ import json, uuid, io, csv, os
 router = APIRouter()
 
 
-# ── file loader ─────────────────────────────────────────────────
-from routers.utils import load_file_bytes as _load_file_bytes
-
+# ── file loader (mirrors analytics.py) ─────────────────────────
 def _load(file_id: str, org_id: str, db: Session):
     f = db.query(DataFile).filter(
         DataFile.id == file_id,
@@ -20,7 +18,17 @@ def _load(file_id: str, org_id: str, db: Session):
     ).first()
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
-    raw = _load_file_bytes(f)
+    raw = None
+    if f.file_content:
+        raw = bytes(f.file_content)
+    else:
+        from config import settings
+        path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
+        if os.path.exists(path):
+            with open(path, "rb") as fp:
+                raw = fp.read()
+    if not raw:
+        raise HTTPException(status_code=404, detail="File content not available. Please re-upload.")
     ext = os.path.splitext(f.original_filename)[1].lower()
     rows = []
     if ext in [".xlsx", ".xls"]:

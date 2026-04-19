@@ -17,7 +17,7 @@ export default function Login() {
       const res = await authApi.login(form)
       login(res.data)
       toast.success('Welcome back!')
-      navigate('/hub')
+      navigate('/dashboard')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Login failed')
     } finally {

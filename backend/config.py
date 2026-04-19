@@ -1,13 +1,12 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
-import sys
 
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://datahub:password@localhost:5432/datahub_pro"
 
-    # JWT — F21: No default; must be set via env var in production
-    SECRET_KEY: str
+    # JWT
+    SECRET_KEY: str = "change-this-to-a-secure-random-string-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -32,13 +31,8 @@ class Settings(BaseSettings):
     SENDGRID_API_KEY: Optional[str] = None
     FROM_EMAIL: str = "noreply@datahubpro.io"
 
-    # AI — F14: Centralised key management
+    # OpenAI — used by POST /api/ai/prompt
     OPENAI_API_KEY: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
-
-    # Encryption — F24: Fernet key for encrypting stored connector tokens
-    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-    FERNET_KEY: Optional[str] = None
 
     # Microsoft / SharePoint OAuth
     MICROSOFT_CLIENT_ID: Optional[str] = None
@@ -53,17 +47,3 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
-
-# F21 — Abort startup if SECRET_KEY looks like the insecure placeholder.
-_INSECURE_DEFAULTS = {
-    "change-this-to-a-secure-random-string-in-production",
-    "secret",
-    "changeme",
-}
-if settings.SECRET_KEY in _INSECURE_DEFAULTS:
-    print(
-        "FATAL: SECRET_KEY is set to an insecure default value. "
-        "Generate a strong random key and set it as the SECRET_KEY environment variable.",
-        file=sys.stderr,
-    )
-    sys.exit(1)

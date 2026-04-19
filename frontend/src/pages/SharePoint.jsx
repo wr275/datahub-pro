@@ -16,7 +16,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
-const API = import.meta.env.VITE_API_URL || ''
+const API = import.meta.env.VITE_API_URL || 'https://splendid-wholeness-production.up.railway.app'
 
 function fmt_size(bytes) {
   if (!bytes) return '—'

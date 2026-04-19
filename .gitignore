@@ -33,3 +33,5 @@ backend/uploads/
 
 # Logs
 *.log
+_verify.db
+_verify.db-journal

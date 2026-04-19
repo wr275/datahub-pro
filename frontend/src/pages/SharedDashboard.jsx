@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6']
-const APP_URL = (typeof window !== 'undefined' ? window.location.origin : 'https://www.datahubpro.co.uk')
+const APP_URL = 'https://datahub-pro-production.up.railway.app'
 
 function Widget({ widget, rows, headers }) {
   const numericCols = headers.filter(h => rows.some(r => !isNaN(parseFloat(r[h]))))

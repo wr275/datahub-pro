@@ -34,41 +34,6 @@ import uuid
 import json
 from datetime import datetime, timedelta
 
-# ── N02: Fernet encryption for stored SharePoint tokens ───────────────────────
-from cryptography.fernet import Fernet
-
-def _get_fernet():
-    key = getattr(settings, "FERNET_KEY", None)
-    if not key:
-        return None
-    try:
-        return Fernet(key.encode() if isinstance(key, str) else key)
-    except Exception:
-        return None
-
-def _encrypt_sp_token(value: str) -> str:
-    """Encrypt a token string; returns as-is if Fernet not configured."""
-    if not value:
-        return value
-    f = _get_fernet()
-    if f is None:
-        return value
-    return "enc:" + f.encrypt(value.encode()).decode()
-
-def _decrypt_sp_token(value: str) -> str:
-    """Decrypt a token string; returns as-is if not encrypted or Fernet unavailable."""
-    if not value or not value.startswith("enc:"):
-        return value
-    f = _get_fernet()
-    if f is None:
-        return value
-    try:
-        return f.decrypt(value[4:].encode()).decode()
-    except Exception:
-        return value
-
-
-
 router = APIRouter()
 
 GRAPH_BASE  = "https://graph.microsoft.com/v1.0"
@@ -114,8 +79,8 @@ def _save_org_token(
         {
             "id":  str(uuid.uuid4()),
             "oid": org_id,
-            "at":  _encrypt_sp_token(access_token),
-            "rt":  _encrypt_sp_token(refresh_token),
+            "at":  access_token,
+            "rt":  refresh_token,
             "ea":  expires_at,
             "tid": tenant_id,
         },
@@ -132,8 +97,6 @@ async def _get_valid_access_token(db: Session, org_id: str) -> str:
             detail="SharePoint not connected. Connect via Integrations → SharePoint.",
         )
     access_token, refresh_token, expires_at_str, tenant_id = row
-    access_token = _decrypt_sp_token(access_token)
-    refresh_token = _decrypt_sp_token(refresh_token)
     expires_at = datetime.fromisoformat(expires_at_str)
 
     if datetime.utcnow() > expires_at - timedelta(minutes=5):

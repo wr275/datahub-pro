@@ -76,8 +76,8 @@ def create_checkout_session(
         payment_method_types=["card"],
         line_items=[{"price": plan["price_id"], "quantity": 1}],
         mode="subscription",
-        success_url=settings.FRONTEND_URL.split(',')[0].strip() + "/billing/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url=settings.FRONTEND_URL.split(',')[0].strip() + "/billing",
+        success_url=settings.FRONTEND_URL + "/billing/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url=settings.FRONTEND_URL + "/billing",
         metadata={"org_id": org.id, "plan_id": plan_id},
         subscription_data={"trial_period_days": settings.TRIAL_DAYS}
     )
@@ -109,7 +109,7 @@ def billing_portal(
 
     session = stripe.billing_portal.Session.create(
         customer=org.stripe_customer_id,
-        return_url=settings.FRONTEND_URL.split(',')[0].strip() + "/billing"
+        return_url=settings.FRONTEND_URL + "/billing"
     )
     return {"portal_url": session.url}
 

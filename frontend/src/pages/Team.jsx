@@ -17,8 +17,19 @@ export default function Team() {
     e.preventDefault()
     if (!inviteEmail) return
     try {
-      await usersApi.invite({ email: inviteEmail, role: inviteRole })
-      toast.success('Invitation sent to ' + inviteEmail)
+      const res = await usersApi.invite({ email: inviteEmail, role: inviteRole })
+      const data = res?.data || {}
+      toast.success(data.message || ('Invitation sent to ' + inviteEmail))
+      if (data.email_sent === false && data.accept_url) {
+        // Email couldn't be delivered — show the accept URL so the inviter
+        // can share it manually.
+        toast((t) => (
+          <span style={{ fontSize: '0.85rem' }}>
+            Email delivery not configured. Share this link:<br/>
+            <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>{data.accept_url}</code>
+          </span>
+        ), { duration: 12000 })
+      }
       setInviteEmail('')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Invite failed')

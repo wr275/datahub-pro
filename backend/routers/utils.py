@@ -1,46 +1,48 @@
-"""Shared utilities for file loading across routers."""
-
-from __future__ import annotations
-
+"""
+Shared router helpers. Mirrors the file-loading logic used in
+analytics.py / calculated_fields.py so every router reads uploaded files
+through a single code path.
+"""
 import os
-import io
-from fastapi import HTTPException
+from typing import Optional
+
 from database import DataFile
 from config import settings
 
 
-def load_file_bytes(f: DataFile) -> bytes:
-    """Load raw file bytes from BYTEA column, local disk, or R2/S3.
-
-    Priority:
-    1. Inline BYTEA in DB (legacy local-upload path)
-    2. R2 / S3 object store
-    3. Local disk (settings.LOCAL_UPLOAD_DIR)
+def load_file_bytes(f: DataFile) -> Optional[bytes]:
     """
-    # 1. Inline DB blob (may be present for legacy rows)
-    if f.file_content:
-        return bytes(f.file_content)
+    Return raw bytes for a DataFile, regardless of where it's stored:
+      1) in-DB (file_content BYTEA)
+      2) local disk (LOCAL_UPLOAD_DIR)
+      3) R2 / S3 (s3_key)
+    Returns None if no bytes can be located.
+    """
+    if f is None:
+        return None
 
-    # 2. Object storage (R2 / S3)
-    if f.storage_type == "s3" and f.s3_key:
-        import boto3
-        s3 = boto3.client(
-            "s3",
-            region_name=settings.AWS_REGION,
-            endpoint_url=settings.AWS_ENDPOINT_URL,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        )
-        response = s3.get_object(Bucket=settings.AWS_BUCKET_NAME, Key=f.s3_key)
-        return response["Body"].read()
+    # 1) In-database storage (default for new uploads)
+    if getattr(f, "file_content", None):
+        try:
+            return bytes(f.file_content)
+        except Exception:
+            pass
 
-    # 3. Local disk
-    path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
-    if os.path.exists(path):
-        with open(path, "rb") as fp:
-            return fp.read()
+    # 2) Local disk
+    try:
+        path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
+        if os.path.exists(path):
+            with open(path, "rb") as fp:
+                return fp.read()
+    except Exception:
+        pass
 
-    raise HTTPException(
-        status_code=404,
-        detail="File content not available. Please re-upload.",
-    )
+    # 3) R2 / S3
+    if getattr(f, "s3_key", None) and getattr(f, "storage_type", "local") in ("r2", "s3"):
+        try:
+            from routers.files import get_file_r2
+            return get_file_r2(f.s3_key)
+        except Exception:
+            pass
+
+    return None

@@ -1,49 +1,91 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db, User, AuditLog, InviteToken
+from pydantic import BaseModel, EmailStr
+from datetime import datetime, timedelta
+from jose import jwt
+import uuid
+import logging
+
+from database import get_db, User, AuditLog
 from auth_utils import get_current_user
 from config import settings
-from datetime import datetime, timedelta
-import uuid
-import secrets
-import hashlib
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+INVITE_TOKEN_TTL_DAYS = 7
 
-def _send_invite_email(to_email: str, full_name: str, invited_by: str, org_name: str, token: str) -> bool:
-    """Send invite email via SendGrid. Returns True on success, False if not configured."""
+
+# ─── Schemas ──────────────────────────────────────────────────────────────────
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+    full_name: str = ""
+    role: str = "member"
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _make_invite_token(user_id: str) -> str:
+    expire = datetime.utcnow() + timedelta(days=INVITE_TOKEN_TTL_DAYS)
+    payload = {"sub": user_id, "exp": expire, "type": "invite"}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _send_invite_email(to_email: str, inviter_name: str, org_name: str,
+                        accept_url: str) -> bool:
+    """Send the invite email via SendGrid. Returns True on success, False
+    if SendGrid isn't configured or the request fails. The invite row is
+    still created either way — the link can be copied from server logs if
+    email delivery isn't available."""
     if not settings.SENDGRID_API_KEY:
+        logger.warning("SENDGRID_API_KEY not set — invite email not sent to %s. Link: %s",
+                       to_email, accept_url)
         return False
+
+    html = f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#0c1446,#1a2a6c);padding:28px 32px;">
+      <div style="color:#fff;font-weight:700;font-size:1rem;opacity:0.9;margin-bottom:12px;">DataHub Pro</div>
+      <div style="color:#fff;font-size:1.4rem;font-weight:800;">You've been invited to {org_name}</div>
+    </div>
+    <div style="padding:28px 32px;color:#374151;font-size:0.95rem;line-height:1.55;">
+      <p><strong>{inviter_name}</strong> has invited you to join <strong>{org_name}</strong> on DataHub Pro.</p>
+      <p>Click the button below to set your password and activate your account. This invite will expire in {INVITE_TOKEN_TTL_DAYS} days.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="{accept_url}" style="display:inline-block;background:#e91e8c;color:#fff;font-weight:700;font-size:0.95rem;padding:13px 32px;border-radius:8px;text-decoration:none;">Accept invite →</a>
+      </div>
+      <p style="color:#6b7280;font-size:0.8rem;">Or copy this link into your browser:<br>
+      <span style="color:#6b7280;word-break:break-all;">{accept_url}</span></p>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:0.78rem;text-align:center;">
+      If you weren't expecting this invite, you can safely ignore it.
+    </div>
+  </div>
+</body></html>"""
 
     try:
-        import sendgrid
+        import sendgrid as sg_lib
         from sendgrid.helpers.mail import Mail
-
-        # Accept-invite URL — frontend must have a route at /accept-invite?token=...
-        accept_url = f"{settings.FRONTEND_URL.split(',')[0].strip()}/accept-invite?token={token}"
-
-        message = Mail(
+        msg = Mail(
             from_email=settings.FROM_EMAIL,
             to_emails=to_email,
-            subject=f"You've been invited to join {org_name} on DataHub Pro",
-            html_content=f"""
-            <p>Hi {full_name or to_email},</p>
-            <p><strong>{invited_by}</strong> has invited you to join <strong>{org_name}</strong> on DataHub Pro.</p>
-            <p>Click the link below to set your password and activate your account (expires in 72 hours):</p>
-            <p><a href="{accept_url}">{accept_url}</a></p>
-            <p>If you weren't expecting this invitation, you can safely ignore this email.</p>
-            <p>— The DataHub Pro Team</p>
-            """,
+            subject=f"{inviter_name} invited you to {org_name} on DataHub Pro",
+            html_content=html,
         )
-        sg = sendgrid.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
-        response = sg.send(message)
-        return response.status_code in (200, 201, 202)
-    except Exception:
+        client = sg_lib.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
+        resp = client.send(msg)
+        ok = resp.status_code in (200, 201, 202)
+        if not ok:
+            logger.error("SendGrid returned %d for invite to %s", resp.status_code, to_email)
+        return ok
+    except Exception as exc:
+        logger.error("Invite email send failed for %s: %s", to_email, exc)
         return False
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+
+# ─── Routes ───────────────────────────────────────────────────────────────────
 
 @router.get("/team")
 def get_team(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -55,119 +97,100 @@ def get_team(current_user: User = Depends(get_current_user), db: Session = Depen
             "full_name": m.full_name,
             "role": m.role,
             "is_active": m.is_active,
-            "created_at": m.created_at.isoformat(),
-            "last_login": m.last_login.isoformat() if m.last_login else None
+            "status": "active" if m.is_active else "pending",
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+            "last_login": m.last_login.isoformat() if m.last_login else None,
         }
         for m in members
     ]
 
 
 @router.post("/invite")
-def invite_user(body: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ["owner", "admin"]:
-        raise HTTPException(status_code=403, detail="Only owners and admins can invite users")
-
-    org = current_user.organisation
-    team_count = db.query(User).filter(User.organisation_id == org.id).count()
-    if team_count >= org.max_users:
-        raise HTTPException(status_code=429, detail="Team member limit reached. Please upgrade your plan.")
-
-    email = body.get("email", "").strip().lower()
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required")
-    if db.query(User).filter(User.email == email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Create the inactive placeholder user
-    new_user = User(
-        id=str(uuid.uuid4()),
-        email=email,
-        hashed_password="!pending_invite_no_login_possible",  # bcrypt will never match this
-        full_name=body.get("full_name", ""),
-        role=body.get("role", "member"),
-        organisation_id=org.id,
-        is_active=False,
-        is_verified=False,
-    )
-    db.add(new_user)
-    db.flush()  # get new_user.id without full commit
-
-    # Generate a cryptographically secure invite token
-    raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    invite = InviteToken(
-        id=str(uuid.uuid4()),
-        user_id=new_user.id,
-        token_hash=token_hash,
-        expires_at=datetime.utcnow() + timedelta(hours=72),
-    )
-    db.add(invite)
-    db.commit()
-
-    # Attempt email delivery
-    email_sent = _send_invite_email(
-        to_email=email,
-        full_name=body.get("full_name", ""),
-        invited_by=current_user.full_name or current_user.email,
-        org_name=org.name,
-        token=raw_token,
-    )
-
-    response: dict = {"message": f"Invitation created for {email}"}
-    if email_sent:
-        response["email_sent"] = True
-    else:
-        # Dev / unconfigured SendGrid — return the token so the admin can share it manually
-        response["email_sent"] = False
-        response["invite_token"] = raw_token  # Only returned when email cannot be sent
-        response["accept_url"] = (
-            f"{settings.FRONTEND_URL.split(',')[0].strip()}/accept-invite?token={raw_token}"
-        )
-
-    return response
-
-
-@router.delete("/team/{user_id}")
-def remove_team_member(
-    user_id: str,
+def invite_user(
+    body: InviteRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if current_user.role not in ["owner", "admin"]:
-        raise HTTPException(status_code=403, detail="Only owners and admins can remove users")
-    if user_id == current_user.id:
-        raise HTTPException(status_code=400, detail="You cannot remove yourself")
+        raise HTTPException(status_code=403, detail="Only owners and admins can invite users")
 
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.organisation_id == current_user.organisation_id,
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    org = current_user.organisation
+    if not org:
+        raise HTTPException(status_code=400, detail="Inviter has no organisation")
 
-    user.is_active = False
+    team_count = db.query(User).filter(User.organisation_id == org.id).count()
+    if team_count >= org.max_users:
+        raise HTTPException(status_code=429, detail="Team member limit reached. Please upgrade your plan.")
+
+    email = body.email
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    role = body.role if body.role in ("owner", "admin", "member") else "member"
+
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=email,
+        hashed_password="pending_invite",  # placeholder — replaced on accept
+        full_name=body.full_name,
+        role=role,
+        organisation_id=org.id,
+        is_active=False,
+    )
+    db.add(new_user)
     db.commit()
-    return {"message": "User deactivated"}
+    db.refresh(new_user)
+
+    token = _make_invite_token(new_user.id)
+    frontend = (settings.FRONTEND_URL or "").split(",")[0].strip().rstrip("/")
+    accept_url = f"{frontend}/accept-invite?token={token}"
+
+    sent = _send_invite_email(
+        to_email=email,
+        inviter_name=current_user.full_name or current_user.email,
+        org_name=org.name,
+        accept_url=accept_url,
+    )
+
+    # Audit
+    db.add(AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        organisation_id=org.id,
+        action="invite_user",
+        detail=f"Invited {email} as {role}; email_sent={sent}",
+    ))
+    db.commit()
+
+    return {
+        "message": (f"Invitation sent to {email}" if sent
+                    else f"Invite created for {email}. Email delivery is not configured — "
+                         f"share this link manually."),
+        "email_sent": sent,
+        "accept_url": accept_url if not sent else None,  # expose only when email failed
+        "user_id": new_user.id,
+    }
 
 
 @router.get("/audit-log")
-def get_audit_log(
-    skip: int = 0,
-    limit: int = 100,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def get_audit_log(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role not in ["owner", "admin"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    logs = db.query(AuditLog).filter(AuditLog.organisation_id == current_user.organisation_id).order_by(AuditLog.created_at.desc()).offset(skip).limit(min(limit, 500)).all()
+    logs = (
+        db.query(AuditLog)
+        .filter(AuditLog.organisation_id == current_user.organisation_id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(500)
+        .all()
+    )
     return [
         {
             "id": l.id,
             "action": l.action,
             "detail": l.detail,
             "user_id": l.user_id,
-            "created_at": l.created_at.isoformat()
+            "created_at": l.created_at.isoformat() if l.created_at else None,
         }
         for l in logs
     ]

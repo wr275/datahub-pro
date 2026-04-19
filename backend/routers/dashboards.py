@@ -46,15 +46,11 @@ def dash_dict(d: Dashboard):
 
 
 def _get_file_data(file_id: str, db: Session):
-    """Return parsed CSV data for a DataFile, or None. N07: uses load_file_bytes() for S3/R2 support."""
+    """Return parsed CSV data for a DataFile, or None."""
     f = db.query(DataFile).filter(DataFile.id == file_id).first()
-    if not f:
+    if not f or not f.file_content:
         return None
-    try:
-        raw = load_file_bytes(f)
-    except Exception:
-        return None
-    text = raw.decode("utf-8", errors="replace")
+    text = f.file_content.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     headers = list(reader.fieldnames or [])
     rows = [dict(r) for r in reader]
@@ -89,15 +85,11 @@ def create_dashboard(
         description=body.description,
         config_json=body.config_json,
         file_id=body.file_id,
+        is_public=False,
+        share_token=str(uuid.uuid4()),
         organisation_id=current_user.organisation_id,
         created_by=current_user.id,
     )
-    # Set new columns via setattr in case migration hasn't run yet
-    try:
-        d.is_public = False
-        d.share_token = str(uuid.uuid4())
-    except Exception:
-        pass
     db.add(d)
     db.commit()
     db.refresh(d)
