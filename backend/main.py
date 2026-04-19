@@ -152,6 +152,22 @@ async def lifespan(app: FastAPI):
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_usage_events_kind ON usage_events (kind)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_usage_events_created ON usage_events (created_at)"))
 
+            # Password reset tokens — keeps raw tokens out of the DB via
+            # sha256(token); row is invalidated when used_at is set or when
+            # expires_at passes.
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    id VARCHAR PRIMARY KEY,
+                    user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    token_hash VARCHAR(64) NOT NULL UNIQUE,
+                    expires_at TIMESTAMP NOT NULL,
+                    used_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pwd_reset_user ON password_reset_tokens (user_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pwd_reset_hash ON password_reset_tokens (token_hash)"))
+
             # Scheduled reports table — relies on SQLAlchemy create_all above,
             # but keep an IF NOT EXISTS guard for older deployments.
             conn.execute(text("""

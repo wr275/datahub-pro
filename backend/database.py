@@ -117,6 +117,19 @@ class AuditLog(Base):
     created_at = Column(DateTime, server_default=func.now())
     user = relationship("User", back_populates="audit_logs")
 
+
+class PasswordResetToken(Base):
+    """One-time password reset tokens. We store sha256(token) instead of the
+    raw token so a DB snapshot can't be used to take over accounts. The raw
+    token only lives in the email we send."""
+    __tablename__ = "password_reset_tokens"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
 class Connector(Base):
     __tablename__ = "connectors"
     id = Column(String, primary_key=True)

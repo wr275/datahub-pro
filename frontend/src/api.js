@@ -34,6 +34,8 @@ export const authApi = {
   changePassword: (data) => api.post('/auth/change-password', data),
   invitePreview: (token) => api.get('/auth/invite-preview', { params: { token } }),
   acceptInvite: (data) => api.post('/auth/accept-invite', data),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, new_password) => api.post('/auth/reset-password', { token, new_password }),
 }
 
 export const filesApi = {
