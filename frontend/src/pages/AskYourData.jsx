@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { filesApi, analyticsApi } from '../api'
 
 const QUESTION_PATTERNS = [
@@ -66,6 +67,7 @@ function answerQuestion(question, rows, headers) {
 }
 
 export default function AskYourData() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [files, setFiles] = useState([])
   const [fileId, setFileId] = useState('')
   const [headers, setHeaders] = useState([])
@@ -74,7 +76,33 @@ export default function AskYourData() {
   const [chat, setChat] = useState([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
+  // HubHome can hand off a prompt via ?q=...&autosubmit=1. Track whether
+  // we still owe an auto-submit so we fire it exactly once, after the
+  // dataset rows have actually loaded.
+  const autoSubmitPending = useRef(searchParams.get('autosubmit') === '1')
+  const seededFromUrl = useRef(false)
+
+  useEffect(() => {
+    // Seed the input from ?q=... on first mount so the user sees their
+    // prompt immediately, even before files finish loading.
+    const q = searchParams.get('q')
+    if (q && !seededFromUrl.current) {
+      setQuestion(q)
+      seededFromUrl.current = true
+    }
+    filesApi.list().then(r => {
+      const list = r.data || []
+      setFiles(list)
+      // If the Hub sent us here with a prompt, auto-select the most
+      // recent file so the user doesn't have to pick one before seeing
+      // an answer. If the workspace has no files, we silently do nothing
+      // and the user will see the empty-state prompt.
+      if (q && !fileId && list.length > 0) {
+        loadFile(list[0].id)
+      }
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function loadFile(id) {
     setFileId(id); setChat([])
@@ -98,6 +126,22 @@ export default function AskYourData() {
       setLoading(false)
     }, 400)
   }
+
+  // Once rows are loaded and we still have a pending auto-submit from
+  // the URL, fire the question once and then scrub the params so a
+  // refresh doesn't re-ask the same thing.
+  useEffect(() => {
+    if (!autoSubmitPending.current) return
+    if (!rows.length || !question.trim()) return
+    autoSubmitPending.current = false
+    const next = new URLSearchParams(searchParams)
+    next.delete('q')
+    next.delete('autosubmit')
+    setSearchParams(next, { replace: true })
+    // Defer one tick so the chat scroll / state settles before asking.
+    setTimeout(() => ask(), 50)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.length, question])
 
   const suggestions = ['How many rows?', 'What columns are there?', 'Summarize the data', 'Are there missing values?']
 

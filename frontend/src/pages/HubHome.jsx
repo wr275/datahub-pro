@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { filesApi } from '../api'
+import { filesApi, organisationApi } from '../api'
 import { useAuth } from '../context/AuthContext'
+import toast from 'react-hot-toast'
 
-const SECTIONS = [
+// Non-AI sections only. The AI section is surfaced in its own tab so
+// clients without the add-on see a clean workspace that doesn't advertise
+// features they can't use.
+const WORKSPACE_SECTIONS = [
   { label: 'DATA', color: '#0c1446', icon: '🗄️', tools: [
     { path: '/data-table', icon: '📋', label: 'Data View', desc: 'Browse & explore', tooltip: 'Browse and explore your raw data in a spreadsheet-style table with sorting and filtering.' },
     { path: '/data-summary', icon: '📊', label: 'Data Summary', desc: 'Column stats', tooltip: 'View column-level statistics: mean, median, min, max, and null counts at a glance.' },
@@ -49,15 +53,10 @@ const SECTIONS = [
     { path: '/funnel-chart', icon: '🔻', label: 'Funnel Chart', desc: 'Conversion', tooltip: 'Visualise conversion rates across a multi-step process like a sales pipeline.' },
     { path: '/box-plot', icon: '📦', label: 'Box Plot', desc: 'Distribution', tooltip: 'Display the distribution of data including median, quartiles, and outliers.' },
   ]},
-  { label: 'AI & FORMULAS', color: '#059669', icon: '🤖', tools: [
+  { label: 'FORMULAS', color: '#059669', icon: '⚗️', tools: [
     { path: '/formula-engine', icon: '⚗️', label: 'Formula Engine', desc: '200+ functions', tooltip: 'Access over 200 built-in formulas to compute, transform, and enrich your data.' },
     { path: '/excel-functions', icon: '📗', label: 'Excel Functions', desc: 'Reference guide', tooltip: 'Browse a full reference guide to Excel-compatible functions with usage examples.' },
-    { path: '/formula-builder', icon: '🔧', label: 'Formula Builder AI', desc: 'AI-generated', tooltip: 'Describe what you want to calculate and AI will write the formula for you.' },
-    { path: '/ask-your-data', icon: '💬', label: 'Ask Your Data', desc: 'Plain English', tooltip: 'Type a question in plain English and get instant answers from your dataset.' },
-    { path: '/auto-report', icon: '📄', label: 'Auto Report', desc: 'AI narrative', tooltip: 'Generate a written narrative report of key findings, trends, and anomalies from your data in one click using AI.' },
-    { path: '/ai-narrative', icon: '✍️', label: 'AI Narrative', desc: 'Story telling', tooltip: 'Turn your data into a compelling written story with automatic insights and commentary.' },
     { path: '/conditional-format', icon: '🎨', label: 'Cond. Format', desc: 'Rules engine', tooltip: 'Apply colour-coded rules to highlight cells based on values, thresholds, or conditions.' },
-    { path: '/ai-insights', icon: '🧠', label: 'AI Insights', desc: 'Deep analysis', tooltip: 'Run a deep AI analysis of your dataset to surface hidden patterns and actionable insights.' },
   ]},
   { label: 'FINANCE', color: '#b45309', icon: '💰', tools: [
     { path: '/budget-vs-actuals', icon: '💰', label: 'Budget vs Actuals', desc: 'Variance tracking', tooltip: 'Compare your budgeted figures against actual results to track financial performance.' },
@@ -71,10 +70,27 @@ const SECTIONS = [
     { path: '/integrations', icon: '🔌', label: 'Integrations', desc: 'Connect tools', tooltip: 'Connect DataHub to your existing tools including Slack, Zapier, and Google Sheets.' },
     { path: '/workspace-roles', icon: '👥', label: 'Workspace & Roles', desc: 'Permissions', tooltip: 'Manage team members, set permissions, and control who can access which data.' },
     { path: '/audit-log', icon: '📜', label: 'Audit Log', desc: 'Activity trail', tooltip: 'Track every action taken in your workspace with a full timestamped activity trail.' },
-    { path: '/ai-settings', icon: '⚙️', label: 'AI Settings', desc: 'Configure AI', tooltip: 'Configure your AI preferences, model selection, and prompt templates for your workspace.' },
     { path: '/executive-dashboard', icon: '📊', label: 'Exec Dashboard', desc: 'C-suite view', tooltip: 'View a high-level executive summary of your business performance in one clean dashboard.' },
     { path: '/dashboard-builder', icon: '🎨', label: 'Dashboard Builder', desc: 'Custom layout', tooltip: 'Build fully custom analytics dashboards with drag-and-drop charts and widgets.' },
   ]},
+]
+
+// AI tools surfaced on the AI tab only. Keeping these in a separate constant
+// makes it obvious what the entitlement unlocks.
+const AI_TOOLS = [
+  { path: '/ask-your-data', icon: '💬', label: 'Ask Your Data', desc: 'Plain English Q&A', tooltip: 'Type a question in plain English and get instant answers from your dataset.' },
+  { path: '/ai-insights', icon: '🧠', label: 'AI Insights', desc: 'Deep pattern mining', tooltip: 'Run a deep AI analysis of your dataset to surface hidden patterns and actionable insights.' },
+  { path: '/ai-narrative', icon: '✍️', label: 'AI Narrative', desc: 'Story from data', tooltip: 'Turn your data into a compelling written story with automatic insights and commentary.' },
+  { path: '/auto-report', icon: '📄', label: 'Auto Report', desc: 'One-click report', tooltip: 'Generate a written narrative report of key findings, trends, and anomalies from your data in one click using AI.' },
+  { path: '/formula-builder', icon: '🔧', label: 'Formula Builder AI', desc: 'Describe → formula', tooltip: 'Describe what you want to calculate and AI will write the formula for you.' },
+  { path: '/ai-settings', icon: '⚙️', label: 'AI Settings', desc: 'Model & prompts', tooltip: 'Configure your AI preferences, model selection, and prompt templates for your workspace.' },
+]
+
+const AI_SUGGESTIONS = [
+  'Summarise my latest upload',
+  'Find anomalies in my sales data',
+  'What are my top 5 customers by revenue?',
+  'Draft a one-page executive summary',
 ]
 
 const QUICK_ACTIONS = [
@@ -88,15 +104,21 @@ const QUICK_ACTIONS = [
 
 export default function HubHome() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [stats, setStats] = useState({ files: 0, rows: 0 })
   const [recentFiles, setRecentFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
+  const [enablingAi, setEnablingAi] = useState(false)
+  const [requestingAccess, setRequestingAccess] = useState(false)
+  const [tab, setTab] = useState('workspace') // 'workspace' | 'ai'
+  const [prompt, setPrompt] = useState('')
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
+  const aiEnabled = !!(user?.organisation?.ai_enabled ?? user?.ai_enabled)
+  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin'
 
   useEffect(() => {
     filesApi.list().then(r => {
@@ -108,11 +130,53 @@ export default function HubHome() {
 
   const toggleSection = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }))
 
+  const handleEnableAi = async () => {
+    setEnablingAi(true)
+    try {
+      await organisationApi.setAiEnabled(true)
+      await refreshUser()
+      toast.success('AI features are now enabled for your workspace')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Could not enable AI')
+    } finally {
+      setEnablingAi(false)
+    }
+  }
+
+  const handleRequestAccess = async () => {
+    setRequestingAccess(true)
+    try {
+      const res = await organisationApi.requestAiAccess()
+      const ownerEmail = res.data?.owner_email
+      if (res.data?.email_sent) {
+        toast.success(ownerEmail ? `Request sent to ${ownerEmail}` : 'Request sent to your workspace owner')
+      } else if (res.data?.already_enabled) {
+        toast.success('AI is already enabled — refresh to see the tools')
+        await refreshUser()
+      } else {
+        toast.success(ownerEmail ? `We've logged your request for ${ownerEmail}` : 'We\'ve logged your request — your owner can enable AI from Settings')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Could not send the request')
+    } finally {
+      setRequestingAccess(false)
+    }
+  }
+
+  const submitAiPrompt = () => {
+    const q = prompt.trim()
+    if (!q) {
+      navigate('/ask-your-data')
+      return
+    }
+    navigate(`/ask-your-data?q=${encodeURIComponent(q)}&autosubmit=1`)
+  }
+
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1280, margin: '0 auto' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, gap: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 20, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.02em' }}>
             {greeting}, {firstName} 👋
@@ -138,24 +202,112 @@ export default function HubHome() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ marginBottom: 28 }}>
+      {/* Chrome-style tabs */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e8eaf4', marginBottom: 24 }}>
+        <TabButton
+          active={tab === 'workspace'}
+          onClick={() => setTab('workspace')}
+          label="Workspace"
+          icon="📊"
+          count={`${WORKSPACE_SECTIONS.reduce((a, s) => a + s.tools.length, 0)} tools`}
+        />
+        <TabButton
+          active={tab === 'ai'}
+          onClick={() => setTab('ai')}
+          label="AI"
+          icon="🤖"
+          count={aiEnabled ? `${AI_TOOLS.length} tools` : 'Add-on'}
+          locked={!aiEnabled}
+          highlight
+        />
+      </div>
+
+      {tab === 'workspace' ? (
+        <WorkspaceTab
+          navigate={navigate}
+          recentFiles={recentFiles}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          expanded={expanded}
+          toggleSection={toggleSection}
+        />
+      ) : (
+        <AiTab
+          aiEnabled={aiEnabled}
+          isOwnerOrAdmin={isOwnerOrAdmin}
+          enablingAi={enablingAi}
+          requestingAccess={requestingAccess}
+          handleEnableAi={handleEnableAi}
+          handleRequestAccess={handleRequestAccess}
+          prompt={prompt}
+          setPrompt={setPrompt}
+          submitAiPrompt={submitAiPrompt}
+          firstName={firstName}
+          navigate={navigate}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Sub-components ──────────────────────────────────────────────
+
+function TabButton({ active, onClick, label, icon, count, locked, highlight }) {
+  return (
+    <button onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: '10px 20px',
+        background: active ? '#fff' : 'transparent',
+        border: 'none',
+        borderBottom: active ? '3px solid #e91e8c' : '3px solid transparent',
+        borderRadius: '8px 8px 0 0',
+        cursor: 'pointer',
+        fontSize: '0.92rem',
+        fontWeight: active ? 800 : 600,
+        color: active ? '#0c1446' : '#6b7280',
+        transition: 'all 0.15s',
+        marginBottom: -1,
+      }}>
+      <span style={{ fontSize: '1rem' }}>{icon}</span>
+      <span>{label}</span>
+      {count && (
+        <span style={{
+          padding: '2px 9px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
+          background: highlight && !active ? '#ede9fe' : '#f3f4f6',
+          color: highlight && !active ? '#6d28d9' : '#6b7280',
+          marginLeft: 2,
+        }}>
+          {locked ? '🔒 ' : ''}{count}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function WorkspaceTab({ navigate, recentFiles, searchQuery, setSearchQuery, expanded, toggleSection }) {
+  return (
+    <>
+      {/* Quick Actions (workspace-relevant only) */}
+      <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Quick Actions</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {QUICK_ACTIONS.map(a => (
-            <button key={a.path} onClick={() => navigate(a.path)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#fff', border: `1px solid #e8eaf4`, borderRadius: 24, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0c1446', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = a.color; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = a.color; e.currentTarget.style.boxShadow = `0 4px 16px rgba(0,0,0,0.15)` }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0c1446'; e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)' }}>
-              <span>{a.icon}</span> {a.label}
-            </button>
-          ))}
+          {QUICK_ACTIONS
+            .filter(a => !['/ai-insights', '/ask-your-data', '/auto-report', '/ai-narrative', '/formula-builder', '/ai-settings'].includes(a.path))
+            .map(a => (
+              <button key={a.path} onClick={() => navigate(a.path)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#fff', border: `1px solid #e8eaf4`, borderRadius: 24, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0c1446', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = a.color; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = a.color; e.currentTarget.style.boxShadow = `0 4px 16px rgba(0,0,0,0.15)` }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0c1446'; e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)' }}>
+                <span>{a.icon}</span> {a.label}
+              </button>
+            ))}
         </div>
       </div>
 
       {/* Recent Files */}
       {recentFiles.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 24px', marginBottom: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 24px', marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446' }}>📂 Recent Files</div>
             <button onClick={() => navigate('/files')} style={{ fontSize: '0.8rem', color: '#e91e8c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>View all →</button>
@@ -174,10 +326,10 @@ export default function HubHome() {
         </div>
       )}
 
-      {/* All Tool Sections */}
+      {/* Search */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>50+ Tools</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>All tools</div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <span style={{ position: 'absolute', left: 10, color: '#9ca3af', fontSize: '0.85rem' }}>🔍</span>
             <input
@@ -193,8 +345,10 @@ export default function HubHome() {
           </div>
         </div>
       </div>
+
+      {/* Sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {SECTIONS.map(({ label, color, icon, tools }) => {
+        {WORKSPACE_SECTIONS.map(({ label, color, icon, tools }) => {
           const filteredTools = searchQuery.trim()
             ? tools.filter(t => t.label.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()) || (t.tooltip && t.tooltip.toLowerCase().includes(searchQuery.toLowerCase())))
             : tools
@@ -246,6 +400,181 @@ export default function HubHome() {
             </div>
           )
         })}
+      </div>
+    </>
+  )
+}
+
+function AiTab({
+  aiEnabled, isOwnerOrAdmin, enablingAi, requestingAccess,
+  handleEnableAi, handleRequestAccess, prompt, setPrompt,
+  submitAiPrompt, firstName, navigate,
+}) {
+  if (!aiEnabled) {
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg,#faf5ff 0%,#f5f3ff 50%,#fdf4ff 100%)',
+        border: '1px solid #e9d5ff',
+        borderRadius: 20, padding: '48px 40px', textAlign: 'center',
+      }}>
+        <div style={{
+          width: 84, height: 84, margin: '0 auto 20px',
+          background: 'linear-gradient(135deg,#7c3aed,#c026d3)',
+          borderRadius: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '2.4rem', boxShadow: '0 8px 24px rgba(124,58,237,0.3)',
+        }}>🤖</div>
+        <h2 style={{ margin: '0 0 12px', fontSize: '1.55rem', fontWeight: 900, color: '#0c1446' }}>
+          Unlock your AI workspace
+        </h2>
+        <p style={{ margin: '0 auto 8px', color: '#4a5280', fontSize: '0.98rem', lineHeight: 1.6, maxWidth: 540 }}>
+          Ask questions in plain English, generate narrative reports, spot anomalies,
+          and build formulas from descriptions — all powered by Claude.
+        </p>
+        <p style={{ margin: '0 auto 28px', color: '#6b7280', fontSize: '0.85rem', maxWidth: 540 }}>
+          Your workspace analytics (charts, pivots, forecasts) work the same with or without this.
+        </p>
+
+        {/* Preview of what's included — tool name chips */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 620, margin: '0 auto 32px' }}>
+          {AI_TOOLS.map(t => (
+            <span key={t.path} style={{
+              padding: '6px 14px', background: 'rgba(255,255,255,0.7)',
+              border: '1px solid #e9d5ff', borderRadius: 20,
+              fontSize: '0.78rem', fontWeight: 600, color: '#6d28d9',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+              <span>{t.icon}</span> {t.label}
+            </span>
+          ))}
+        </div>
+
+        {isOwnerOrAdmin ? (
+          <>
+            <button onClick={handleEnableAi} disabled={enablingAi}
+              className="btn-primary"
+              style={{ padding: '14px 36px', fontSize: '0.98rem', fontWeight: 800, minWidth: 260, borderRadius: 10 }}>
+              {enablingAi ? 'Enabling…' : 'Enable AI for this workspace'}
+            </button>
+            <div style={{ marginTop: 14, fontSize: '0.78rem', color: '#6b7280' }}>
+              Takes effect immediately. You can turn it off anytime from Settings.
+            </div>
+          </>
+        ) : (
+          <>
+            <button onClick={handleRequestAccess} disabled={requestingAccess}
+              className="btn-primary"
+              style={{ padding: '14px 36px', fontSize: '0.98rem', fontWeight: 800, minWidth: 260, borderRadius: 10 }}>
+              {requestingAccess ? 'Sending request…' : 'Request AI access'}
+            </button>
+            <div style={{ marginTop: 14, fontSize: '0.78rem', color: '#6b7280' }}>
+              We'll email your workspace owner. They can enable it with one click.
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // Unlocked — ChatGPT/Claude-style landing
+  return (
+    <div>
+      {/* Hero chat */}
+      <div style={{
+        background: '#fff', borderRadius: 20,
+        border: '1px solid #e9d5ff',
+        padding: '48px 32px 36px',
+        boxShadow: '0 4px 24px rgba(124,58,237,0.08)',
+        marginBottom: 24, textAlign: 'center',
+      }}>
+        <div style={{
+          width: 64, height: 64, margin: '0 auto 16px',
+          background: 'linear-gradient(135deg,#7c3aed,#c026d3)',
+          borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.9rem', boxShadow: '0 6px 18px rgba(124,58,237,0.3)',
+        }}>🤖</div>
+        <h2 style={{ margin: '0 0 8px', fontSize: '1.6rem', fontWeight: 900, color: '#0c1446' }}>
+          How can I help, {firstName}?
+        </h2>
+        <p style={{ margin: '0 0 24px', color: '#6b7280', fontSize: '0.92rem' }}>
+          Ask anything about your data. Powered by Claude.
+        </p>
+
+        {/* Prompt input */}
+        <div style={{
+          maxWidth: 720, margin: '0 auto',
+          display: 'flex', gap: 8, alignItems: 'stretch',
+          background: '#f9fafb', borderRadius: 14, padding: 6,
+          border: '1px solid #e5e7eb',
+        }}>
+          <input
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submitAiPrompt()}
+            placeholder="Ask your data… e.g. summarise my latest upload"
+            style={{
+              flex: 1, padding: '14px 16px', background: 'transparent',
+              border: 'none', outline: 'none', fontSize: '0.95rem', color: '#0c1446',
+            }}
+          />
+          <button onClick={submitAiPrompt}
+            className="btn-primary"
+            style={{ padding: '12px 24px', fontSize: '0.9rem', fontWeight: 700, borderRadius: 10 }}>
+            Ask →
+          </button>
+        </div>
+
+        {/* Suggested prompts */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 18, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
+          {AI_SUGGESTIONS.map(s => (
+            <button key={s}
+              onClick={() => navigate(`/ask-your-data?q=${encodeURIComponent(s)}&autosubmit=1`)}
+              style={{
+                padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb',
+                borderRadius: 20, fontSize: '0.8rem', cursor: 'pointer', color: '#374151',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#ede9fe'; e.currentTarget.style.borderColor = '#c4b5fd'; e.currentTarget.style.color = '#6d28d9' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#374151' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* AI tools grid */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+          AI Tools
+        </div>
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: 12,
+      }}>
+        {AI_TOOLS.map(({ path, icon, label, desc, tooltip }) => (
+          <button key={path} onClick={() => navigate(path)}
+            title={tooltip}
+            style={{
+              background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12,
+              padding: '18px 18px', textAlign: 'left', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'all 0.15s',
+              display: 'flex', flexDirection: 'column', gap: 10, minHeight: 120,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#c4b5fd'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.15)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'translateY(0)' }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 11,
+              background: 'linear-gradient(135deg,#ede9fe,#fae8ff)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.3rem',
+            }}>{icon}</div>
+            <div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0c1446', marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{desc}</div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   )

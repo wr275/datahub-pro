@@ -61,3 +61,9 @@ input, select, textarea { font-family: inherit; }
 }
 .form-input:focus { border-color: var(--magenta); }
 .form-error { font-size: 0.8rem; color: var(--red); }
+
+/* Sidebar nav item — hover highlight so locked AI items don't feel dead.
+   NavLink adds .active to the currently-matched route; inline styles win
+   over this background, so the rule only lights up non-active items. */
+.nav-item:hover { background: rgba(255,255,255,0.06) !important; }
+.nav-item.active:hover { background: inherit !important; }

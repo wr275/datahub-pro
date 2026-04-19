@@ -130,6 +130,7 @@ export const calculatedFieldsApi = {
 export const organisationApi = {
   get: () => api.get('/organisation/'),
   setAiEnabled: (enabled) => api.patch('/organisation/ai-enabled', { enabled }),
+  requestAiAccess: () => api.post('/organisation/request-ai-access'),
 }
 
 export default api

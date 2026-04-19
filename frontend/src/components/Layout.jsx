@@ -162,22 +162,25 @@ function LayoutInner({ children }) {
                 <div style={{ padding: '8px 0 4px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem' }}>{icon}</div>
               )}
               {!collapsed[section] && items.map(item => (
-                <NavLink key={item.path} to={item.path} title={locked ? `${item.tip} — AI add-on is off` : item.tip}
+                <NavLink key={item.path} to={item.path}
+                  title={locked ? `${item.tip} — click to enable the AI add-on` : item.tip}
+                  className="nav-item"
                   style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: sidebarOpen ? '7px 16px' : '10px 0',
                     justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                    color: isActive ? '#fff' : (locked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.55)'),
+                    color: isActive ? '#fff' : (locked ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.72)'),
                     background: isActive ? navActiveBg : 'transparent',
                     borderLeft: isActive ? `3px solid ${navActiveBar}` : '3px solid transparent',
                     fontSize: '0.82rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.12s',
                     whiteSpace: 'nowrap', overflow: 'hidden', textDecoration: 'none',
+                    cursor: 'pointer',
                   })}>
-                  <span style={{ fontSize: '0.95rem', flexShrink: 0, opacity: locked ? 0.5 : 1 }}>{item.icon}</span>
+                  <span style={{ fontSize: '0.95rem', flexShrink: 0, opacity: locked ? 0.65 : 1 }}>{item.icon}</span>
                   {sidebarOpen && (
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       {item.label}
-                      {locked && <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>🔒</span>}
+                      {locked && <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>🔒</span>}
                     </span>
                   )}
                 </NavLink>
