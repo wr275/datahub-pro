@@ -1,65 +1,175 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from limiter import limiter
 import uvicorn
-import logging
 
-from routers import auth, files, analytics, billing, users, connectors, pipelines, budget, calculated_fields, sharepoint, ai, dashboards
-from routers import scheduled_reports
-from database import engine, Base
+from routers import (
+    auth, files, analytics, billing, users, connectors, pipelines, budget,
+    calculated_fields, sharepoint, ai, dashboards, sheets, scheduled_reports,
+    organisation,
+)
+from database import engine, Base, SessionLocal
 from config import settings
-
-logger = logging.getLogger(__name__)
-
+import scheduler as app_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure ORM-mapped tables exist (idempotent)
     Base.metadata.create_all(bind=engine)
-
-    # Add columns that may be missing on existing deployments
+    # Migration: add columns if they don't exist
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS source_url TEXT"))
-            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP"))
-            conn.commit()
-    except Exception as exc:
-        logger.warning("Column migration skipped: %s", exc)
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS file_content BYTEA"))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS connectors (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    connector_type VARCHAR(50) NOT NULL,
+                    config_json TEXT,
+                    status VARCHAR(50) DEFAULT 'active',
+                    last_sync_at TIMESTAMP,
+                    last_file_id VARCHAR,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS pipelines (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    steps_json TEXT NOT NULL DEFAULT '[]',
+                    run_count INTEGER DEFAULT 0,
+                    last_run_at TIMESTAMP,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS budget_entries (
+                    id VARCHAR PRIMARY KEY,
+                    budget_name VARCHAR(255) NOT NULL,
+                    category VARCHAR(255) NOT NULL,
+                    department VARCHAR(255),
+                    period VARCHAR(50) NOT NULL,
+                    budgeted FLOAT DEFAULT 0,
+                    actual FLOAT,
+                    line_type VARCHAR(50) DEFAULT 'expense',
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS calculated_field_sets (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    file_id VARCHAR NOT NULL REFERENCES data_files(id) ON DELETE CASCADE,
+                    fields_json TEXT NOT NULL DEFAULT '[]',
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            # SharePoint OAuth tables
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sharepoint_tokens (
+                    id VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR UNIQUE NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    access_token TEXT NOT NULL,
+                    refresh_token TEXT NOT NULL,
+                    expires_at VARCHAR(50) NOT NULL,
+                    tenant_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS oauth_states (
+                    state VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    tenant_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    expires_at VARCHAR(50) NOT NULL
+                )
+            """))
+            # Migrations for existing deployments — add tenant_id if missing
+            conn.execute(text("ALTER TABLE sharepoint_tokens ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE oauth_states ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)"))
 
-    # Start APScheduler and register saved jobs
-    from scheduler import scheduler, load_jobs_from_db
-    scheduler.start()
-    n = load_jobs_from_db()
-    logger.info("APScheduler started — %d scheduled report job(s) registered", n)
+            # Dashboard public-share columns
+            conn.execute(text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE NOT NULL"))
+            conn.execute(text("ALTER TABLE dashboards ADD COLUMN IF NOT EXISTS share_token VARCHAR(64)"))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_dashboards_share_token ON dashboards (share_token)"))
+
+            # DataFile source-tracking columns (Google Sheets etc.)
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS source_url VARCHAR(2000)"))
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP"))
+
+            # AI add-on entitlement on organisations — off by default
+            conn.execute(text("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ai_enabled BOOLEAN DEFAULT FALSE NOT NULL"))
+            conn.execute(text("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ai_enabled_at TIMESTAMP"))
+
+            # Scheduled reports table — relies on SQLAlchemy create_all above,
+            # but keep an IF NOT EXISTS guard for older deployments.
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS scheduled_reports (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    report_type VARCHAR(50) DEFAULT 'data_summary',
+                    frequency VARCHAR(20) NOT NULL,
+                    day_of_week VARCHAR(20),
+                    day_of_month INTEGER,
+                    send_time VARCHAR(10) DEFAULT '08:00',
+                    recipients TEXT NOT NULL,
+                    file_id VARCHAR REFERENCES data_files(id) ON DELETE SET NULL,
+                    status VARCHAR(20) DEFAULT 'active',
+                    last_run_at TIMESTAMP,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id),
+                    created_by VARCHAR NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+
+            conn.commit()
+    except Exception:
+        pass
+
+    # Start background scheduler and rehydrate active scheduled reports
+    try:
+        app_scheduler.start()
+        _db = SessionLocal()
+        try:
+            app_scheduler.rehydrate_all(_db)
+        finally:
+            _db.close()
+    except Exception:
+        pass
 
     yield
 
-    scheduler.shutdown(wait=False)
-    logger.info("APScheduler shut down")
-
+    # Clean shutdown
+    try:
+        app_scheduler.shutdown()
+    except Exception:
+        pass
 
 app = FastAPI(
     title="DataHub Pro API",
     description="Enterprise analytics platform for SMEs",
-    version="2.0.0",
-    lifespan=lifespan,
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# Rate limiting (F05)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
-
-
-# ── N12: CORS ─────────────────────────────────────────────────────────────────
+# Build allowed origins from env â supports comma-separated list
+# e.g. FRONTEND_URL=https://frontend.up.railway.app,https://myapp.com
 _origins_raw = settings.FRONTEND_URL
 allowed_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
+# Always include production domain and localhost
 _always_allowed = [
     "https://datahubpro.co.uk",
     "https://www.datahubpro.co.uk",
@@ -74,71 +184,30 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Authorization", "Content-Type", "Accept",
-        "Origin", "X-Requested-With", "Cache-Control",
-    ],
-    expose_headers=["Content-Disposition"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(files.router, prefix="/api/files", tags=["Files"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+app.include_router(connectors.router, prefix="/api/connectors", tags=["Connectors"])
+app.include_router(pipelines.router, prefix="/api/pipelines", tags=["Pipelines"])
+app.include_router(budget.router, prefix="/api/budget", tags=["Budget"])
+app.include_router(calculated_fields.router, prefix="/api/calculated-fields", tags=["Calculated Fields"])
+app.include_router(sharepoint.router,        prefix="/api/sharepoint",        tags=["SharePoint"])
+app.include_router(ai.router,                prefix="/api",                    tags=["AI"])
+app.include_router(dashboards.router,        prefix="/api/dashboards",         tags=["Dashboards"])
+app.include_router(dashboards.share_router,  prefix="/api/share",              tags=["Public Share"])
+app.include_router(sheets.router,            prefix="/api/sheets",             tags=["Google Sheets"])
+app.include_router(scheduled_reports.router, prefix="/api/scheduled-reports",  tags=["Scheduled Reports"])
+app.include_router(organisation.router,      prefix="/api/organisation",       tags=["Organisation"])
 
-# ── N13 + CSP: Security headers ───────────────────────────────────────────────
-_csp_connect_extra = " ".join(o for o in allowed_origins if o.startswith("https://"))
-_CSP = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data: https:; "
-    f"connect-src 'self' {_csp_connect_extra} https://api.anthropic.com; "
-    "font-src 'self' data:; "
-    "frame-ancestors 'none'; "
-    "object-src 'none'; "
-    "base-uri 'self'"
-)
-
-
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response: Response = await call_next(request)
-    response.headers["Content-Security-Policy"] = _CSP
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    return response
-
-
-# ── N14: Dual API prefix (/api/v1 + /api legacy) ──────────────────────────────
-API_V1 = "/api/v1"
-API_LEGACY = "/api"
-
-def _include(router, path: str, **kwargs):
-    app.include_router(router, prefix=f"{API_V1}{path}", **kwargs)
-    app.include_router(router, prefix=f"{API_LEGACY}{path}", **kwargs)
-
-
-_include(auth.router,                  "/auth",               tags=["Authentication"])
-_include(users.router,                 "/users",              tags=["Users"])
-_include(files.router,                 "/files",              tags=["Files"])
-_include(analytics.router,             "/analytics",          tags=["Analytics"])
-_include(billing.router,               "/billing",            tags=["Billing"])
-_include(connectors.router,            "/connectors",         tags=["Connectors"])
-_include(pipelines.router,             "/pipelines",          tags=["Pipelines"])
-_include(budget.router,                "/budget",             tags=["Budget"])
-_include(calculated_fields.router,     "/calculated-fields",  tags=["Calculated Fields"])
-_include(sharepoint.router,            "/sharepoint",         tags=["SharePoint"])
-_include(ai.router,                    "/ai",                 tags=["AI"])
-_include(dashboards.router,            "/dashboards",         tags=["Dashboards"])
-_include(scheduled_reports.router,     "/scheduled-reports",  tags=["Scheduled Reports"])
-
-
-@app.get("/health", tags=["Health"])
-def health():
-    return {"status": "ok", "version": "2.0.0"}
-
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "DataHub Pro API"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

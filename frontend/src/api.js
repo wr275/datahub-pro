@@ -14,20 +14,14 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Handle 401 → redirect to login
-// IMPORTANT: skip the redirect for /auth/me (initial auth probe — let AuthContext handle it)
-// and skip when already on an auth page to prevent redirect loops.
+// Handle 401 â redirect to login
 api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401) {
-      const url = err.config?.url || ''
-      const onAuthPage = ['/login', '/register'].includes(window.location.pathname)
-      if (!url.includes('/auth/me') && !onAuthPage) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-      }
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
     }
     return Promise.reject(err)
   }
@@ -38,6 +32,8 @@ export const authApi = {
   login: (data) => api.post('/auth/login', data),
   me: () => api.get('/auth/me'),
   changePassword: (data) => api.post('/auth/change-password', data),
+  invitePreview: (token) => api.get('/auth/invite-preview', { params: { token } }),
+  acceptInvite: (data) => api.post('/auth/accept-invite', data),
 }
 
 export const filesApi = {
@@ -82,6 +78,7 @@ export const pipelinesApi = {
   run: (id, data) => api.post('/pipelines/' + id + '/run', data),
 }
 
+
 export const budgetApi = {
   listBudgets: () => api.get('/budget/budgets'),
   getSummary: (name, period) => api.get('/budget/' + encodeURIComponent(name) + '/summary', { params: period ? { period } : {} }),
@@ -98,8 +95,27 @@ export const dashboardsApi = {
 }
 
 export const sheetsApi = {
-  connect: (url, name) => api.post('/sheets/connect', { url, name }),
+  connect: (url, name) => api.post('/sheets/connect', { url, display_name: name || '' }),
   sync: (fileId) => api.post('/sheets/' + fileId + '/sync'),
+}
+
+// Public share — no auth required. Uses raw axios so the JWT interceptor
+// doesn't redirect on a 401 for an unauthenticated viewer.
+const publicClient = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' }
+})
+export const shareApi = {
+  get: (token) => publicClient.get('/share/' + encodeURIComponent(token)),
+}
+
+export const scheduledReportsApi = {
+  list: () => api.get('/scheduled-reports/'),
+  create: (data) => api.post('/scheduled-reports/', data),
+  update: (id, data) => api.put('/scheduled-reports/' + id, data),
+  remove: (id) => api.delete('/scheduled-reports/' + id),
+  toggle: (id) => api.patch('/scheduled-reports/' + id + '/toggle'),
+  sendNow: (id) => api.post('/scheduled-reports/' + id + '/send-now'),
 }
 
 export const calculatedFieldsApi = {
@@ -110,13 +126,10 @@ export const calculatedFieldsApi = {
   delete: (id) => api.delete('/calculated-fields/' + id),
 }
 
-export const scheduledReportsApi = {
-  list: ()           => api.get('/scheduled-reports/'),
-  create: (data)     => api.post('/scheduled-reports/', data),
-  update: (id, data) => api.put('/scheduled-reports/' + id, data),
-  remove: (id)       => api.delete('/scheduled-reports/' + id),
-  toggle: (id)       => api.patch('/scheduled-reports/' + id + '/toggle'),
-  sendNow: (id)      => api.post('/scheduled-reports/' + id + '/send-now'),
+// Organisation-level settings & add-on entitlements
+export const organisationApi = {
+  get: () => api.get('/organisation/'),
+  setAiEnabled: (enabled) => api.patch('/organisation/ai-enabled', { enabled }),
 }
 
 export default api

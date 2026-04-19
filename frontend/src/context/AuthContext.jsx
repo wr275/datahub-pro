@@ -8,31 +8,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // N04: Always call /auth/me — works whether auth is via HttpOnly cookie
-    // or Bearer token in localStorage. This is the single source of truth.
-    authApi.me()
-      .then(res => {
-        setUser(res.data)
-        // Keep localStorage in sync for components that read it directly
-        if (res.data) {
-          localStorage.setItem('user', JSON.stringify(res.data))
-        }
-      })
-      .catch(() => {
-        // Not authenticated — clear any stale local data
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('user')
-        setUser(null)
-      })
-      .finally(() => setLoading(false))
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      authApi.me()
+        .then(res => setUser(res.data))
+        .catch(() => { localStorage.removeItem('access_token'); localStorage.removeItem('user') })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   const login = (tokenData) => {
-    // Store access_token so the axios interceptor can attach it as Bearer
-    // (cookie will also be set by the server on cross-origin requests)
-    if (tokenData.access_token) {
-      localStorage.setItem('access_token', tokenData.access_token)
-    }
+    localStorage.setItem('access_token', tokenData.access_token)
     localStorage.setItem('user', JSON.stringify(tokenData.user))
     setUser(tokenData.user)
   }
@@ -43,8 +31,20 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  // Pull the latest /auth/me — used after toggles (e.g. enabling the AI
+  // add-on) so gated UI unlocks without a full page reload.
+  const refreshUser = async () => {
+    try {
+      const res = await authApi.me()
+      setUser(res.data)
+      return res.data
+    } catch (_err) {
+      return null
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

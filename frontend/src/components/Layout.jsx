@@ -75,16 +75,22 @@ const NAV = [
     ]
   },
   {
-    section: 'AI & FORMULAS', icon: '🤖',
+    section: 'FORMULAS', icon: '⚗️',
     items: [
-      { label: 'Formula Engine',   path: '/formula-engine',   icon: '⚗️', tip: 'Access 200+ built-in formulas to compute and enrich data' },
-      { label: 'Excel Functions',  path: '/excel-functions',  icon: '📗', tip: 'Full reference guide to Excel-compatible functions' },
-      { label: 'Formula Builder AI',path: '/formula-builder', icon: '🔧', tip: 'Describe what to calculate and AI writes the formula' },
-      { label: 'Ask Your Data',    path: '/ask-your-data',    icon: '💬', tip: 'Type a question in plain English — get instant answers' },
-      { label: 'Auto Report',      path: '/auto-report',      icon: '📄', tip: 'Generate a written narrative report from your data in one click' },
-      { label: 'AI Narrative',     path: '/ai-narrative',     icon: '✍️', tip: 'Turn your data into a compelling written story' },
+      { label: 'Formula Engine',    path: '/formula-engine',    icon: '⚗️', tip: 'Access 200+ built-in formulas to compute and enrich data' },
+      { label: 'Excel Functions',   path: '/excel-functions',   icon: '📗', tip: 'Full reference guide to Excel-compatible functions' },
       { label: 'Conditional Format',path: '/conditional-format',icon: '🎨', tip: 'Colour-coded rules to highlight cells based on values' },
-      { label: 'AI Insights',      path: '/ai-insights',      icon: '🧠', tip: 'Deep AI analysis to surface hidden patterns and insights' },
+    ]
+  },
+  {
+    section: 'AI', icon: '🤖', aiGated: true,
+    items: [
+      { label: 'Ask Your Data',     path: '/ask-your-data',   icon: '💬', tip: 'Type a question in plain English — get instant answers' },
+      { label: 'AI Insights',       path: '/ai-insights',     icon: '🧠', tip: 'Deep AI analysis to surface hidden patterns and insights' },
+      { label: 'AI Narrative',      path: '/ai-narrative',    icon: '✍️', tip: 'Turn your data into a compelling written story' },
+      { label: 'Auto Report',       path: '/auto-report',     icon: '📄', tip: 'Generate a written narrative report from your data in one click' },
+      { label: 'Formula Builder AI',path: '/formula-builder', icon: '🔧', tip: 'Describe what to calculate and AI writes the formula' },
+      { label: 'AI Settings',       path: '/ai-settings',     icon: '⚙️', tip: 'Configure AI preferences, model selection, and prompt templates' },
     ]
   },
   {
@@ -94,7 +100,6 @@ const NAV = [
       { label: 'Integrations',      path: '/integrations',      icon: '🔌', tip: 'Connect DataHub to Slack, Zapier, SharePoint, Google Sheets and more' },
       { label: 'Workspace & Roles', path: '/workspace-roles',   icon: '👥', tip: 'Manage team members and control data access permissions' },
       { label: 'Audit Log',         path: '/audit-log',         icon: '📜', tip: 'Full timestamped activity trail of every workspace action' },
-      { label: 'AI Settings',       path: '/ai-settings',       icon: '⚙️', tip: 'Configure AI preferences, model selection, and prompt templates' },
     ]
   },
 ]
@@ -109,6 +114,7 @@ function LayoutInner({ children }) {
 
   const handleLogout = () => { logout(); navigate('/login') }
   const toggleSection = (s) => setCollapsed(p => ({ ...p, [s]: !p[s] }))
+  const aiEnabled = !!(user?.organisation?.ai_enabled ?? user?.ai_enabled)
 
   const isGold = theme === 'gold'
   const isDark = theme === 'dark'
@@ -139,34 +145,45 @@ function LayoutInner({ children }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 0' }}>
-          {NAV.map(({ section, icon, items }) => (
+          {NAV.map(({ section, icon, items, aiGated }) => {
+            const locked = aiGated && !aiEnabled
+            return (
             <div key={section}>
               {sidebarOpen ? (
                 <button onClick={() => toggleSection(section)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  <span>{section}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    {section}
+                    {locked && <span title="AI add-on is off — click any AI tool to enable" style={{ fontSize: '0.7rem' }}>🔒</span>}
+                    {aiGated && !locked && <span title="AI add-on enabled" style={{ color: '#22c55e', fontSize: '0.55rem' }}>●</span>}
+                  </span>
                   <span style={{ fontSize: '0.6rem' }}>{collapsed[section] ? '▶' : '▼'}</span>
                 </button>
               ) : (
                 <div style={{ padding: '8px 0 4px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.6rem' }}>{icon}</div>
               )}
               {!collapsed[section] && items.map(item => (
-                <NavLink key={item.path} to={item.path} title={item.tip}
+                <NavLink key={item.path} to={item.path} title={locked ? `${item.tip} — AI add-on is off` : item.tip}
                   style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: sidebarOpen ? '7px 16px' : '10px 0',
                     justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                    color: isActive ? '#fff' : (locked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.55)'),
                     background: isActive ? navActiveBg : 'transparent',
                     borderLeft: isActive ? `3px solid ${navActiveBar}` : '3px solid transparent',
                     fontSize: '0.82rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.12s',
                     whiteSpace: 'nowrap', overflow: 'hidden', textDecoration: 'none',
                   })}>
-                  <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>{item.icon}</span>
-                  {sidebarOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
+                  <span style={{ fontSize: '0.95rem', flexShrink: 0, opacity: locked ? 0.5 : 1 }}>{item.icon}</span>
+                  {sidebarOpen && (
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {item.label}
+                      {locked && <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>🔒</span>}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
-          ))}
+          )})}
         </nav>
 
         {/* User footer */}
@@ -236,7 +253,7 @@ function LayoutInner({ children }) {
         </header>
 
         {/* Main content */}
-        <main style={{ flex: 1, overflowY: 'auto' }}>
+        <main style={{ flex: 1, overflowY: 'auto', ...((isGold || isDark) ? { filter: 'invert(1) hue-rotate(180deg)' } : {}) }}>
           {children}
         </main>
       </div>

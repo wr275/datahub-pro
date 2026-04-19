@@ -1,130 +1,93 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Layout from './components/Layout'
+import AIGate from './components/AIGate'
 import LandingPage from './pages/LandingPage'
-
-// N08: Lazy-load all non-critical pages to reduce initial bundle size
-const HubHome = React.lazy(() => import('./pages/HubHome'))
-const ExecutiveDashboard = React.lazy(() => import('./pages/ExecutiveDashboard'))
-const DashboardBuilder = React.lazy(() => import('./pages/DashboardBuilder'))
-const DataBlending = React.lazy(() => import('./pages/DataBlending'))
-const DataTable = React.lazy(() => import('./pages/DataTable'))
-const KPIDashboard = React.lazy(() => import('./pages/KPIDashboard'))
-const DataSummary = React.lazy(() => import('./pages/DataSummary'))
-const DataQualityReport = React.lazy(() => import('./pages/DataQualityReport'))
-const DataCleaner = React.lazy(() => import('./pages/DataCleaner'))
-const AdvancedFilter = React.lazy(() => import('./pages/AdvancedFilter'))
-const ValueFrequency = React.lazy(() => import('./pages/ValueFrequency'))
-const ConnectData = React.lazy(() => import('./pages/ConnectData'))
-const DataPipelines = React.lazy(() => import('./pages/DataPipelines'))
-const BudgetActuals = React.lazy(() => import('./pages/BudgetActuals'))
-const PivotTable = React.lazy(() => import('./pages/PivotTable'))
-const WhatIf = React.lazy(() => import('./pages/WhatIf'))
-const AnomalyDetection = React.lazy(() => import('./pages/AnomalyDetection'))
-const PeriodComparison = React.lazy(() => import('./pages/PeriodComparison'))
-const VarianceAnalysis = React.lazy(() => import('./pages/VarianceAnalysis'))
-const RegressionAnalysis = React.lazy(() => import('./pages/RegressionAnalysis'))
-const CorrelationMatrix = React.lazy(() => import('./pages/CorrelationMatrix'))
-const CohortAnalysis = React.lazy(() => import('./pages/CohortAnalysis'))
-const ChurnRiskAnalysis = React.lazy(() => import('./pages/ChurnRiskAnalysis'))
-const TrendAnalysis = React.lazy(() => import('./pages/TrendAnalysis'))
-const RFMAnalysis = React.lazy(() => import('./pages/RFMAnalysis'))
-const ParetoAnalysis = React.lazy(() => import('./pages/ParetoAnalysis'))
-const CustomerSegmentation = React.lazy(() => import('./pages/CustomerSegmentation'))
-const Forecasting = React.lazy(() => import('./pages/Forecasting'))
-const GoalTracker = React.lazy(() => import('./pages/GoalTracker'))
-const BreakEvenCalculator = React.lazy(() => import('./pages/BreakEvenCalculator'))
-const RollingAverage = React.lazy(() => import('./pages/RollingAverage'))
-const BarChartPage = React.lazy(() => import('./pages/BarChartPage'))
-const LineChartPage = React.lazy(() => import('./pages/LineChartPage'))
-const PieChartPage = React.lazy(() => import('./pages/PieChartPage'))
-const HeatmapPage = React.lazy(() => import('./pages/HeatmapPage'))
-const WaterfallChart = React.lazy(() => import('./pages/WaterfallChart'))
-const ScatterPlot = React.lazy(() => import('./pages/ScatterPlot'))
-const ComboChart = React.lazy(() => import('./pages/ComboChart'))
-const FunnelChart = React.lazy(() => import('./pages/FunnelChart'))
-const BoxPlot = React.lazy(() => import('./pages/BoxPlot'))
-const NPVAnalysis = React.lazy(() => import('./pages/NPVAnalysis'))
-const FormulaEngine = React.lazy(() => import('./pages/FormulaEngine'))
-const ExcelFunctions = React.lazy(() => import('./pages/ExcelFunctions'))
-const FormulaBuilder = React.lazy(() => import('./pages/FormulaBuilder'))
-const AskYourData = React.lazy(() => import('./pages/AskYourData'))
-const AutoReport = React.lazy(() => import('./pages/AutoReport'))
-const AINarrative = React.lazy(() => import('./pages/AINarrative'))
-const ConditionalFormat = React.lazy(() => import('./pages/ConditionalFormat'))
-const AIInsights = React.lazy(() => import('./pages/AIInsights'))
-const ScheduledReports = React.lazy(() => import('./pages/ScheduledReports'))
-const Integrations = React.lazy(() => import('./pages/Integrations'))
-const SharePoint = React.lazy(() => import('./pages/SharePoint'))
-const WorkspaceRoles = React.lazy(() => import('./pages/WorkspaceRoles'))
-const AuditLog = React.lazy(() => import('./pages/AuditLog'))
-const AISettings = React.lazy(() => import('./pages/AISettings'))
-const Analytics = React.lazy(() => import('./pages/Analytics'))
-const Files = React.lazy(() => import('./pages/Files'))
-const Trends = React.lazy(() => import('./pages/Trends'))
-const Billing = React.lazy(() => import('./pages/Billing'))
-const Team = React.lazy(() => import('./pages/Team'))
-const Settings = React.lazy(() => import('./pages/Settings'))
-const CalculatedFields = React.lazy(() => import('./pages/CalculatedFields'))
+import SharedDashboard from './pages/SharedDashboard'
+import AcceptInvite from './pages/AcceptInvite'
 
 // HOME
+import HubHome from './pages/HubHome'
+import ExecutiveDashboard from './pages/ExecutiveDashboard'
+import DashboardBuilder from './pages/DashboardBuilder'
 
 // DATA
+import DataBlending from './pages/DataBlending'
+import DataTable from './pages/DataTable'
+import KPIDashboard from './pages/KPIDashboard'
+import DataSummary from './pages/DataSummary'
+import DataQualityReport from './pages/DataQualityReport'
+import DataCleaner from './pages/DataCleaner'
+import AdvancedFilter from './pages/AdvancedFilter'
+import ValueFrequency from './pages/ValueFrequency'
+import ConnectData from './pages/ConnectData'
+import DataPipelines from './pages/DataPipelines'
+import BudgetActuals from './pages/BudgetActuals'
 
 // ANALYSIS
+import PivotTable from './pages/PivotTable'
+import WhatIf from './pages/WhatIf'
+import AnomalyDetection from './pages/AnomalyDetection'
+import PeriodComparison from './pages/PeriodComparison'
+import VarianceAnalysis from './pages/VarianceAnalysis'
+import RegressionAnalysis from './pages/RegressionAnalysis'
+import CorrelationMatrix from './pages/CorrelationMatrix'
+import CohortAnalysis from './pages/CohortAnalysis'
+import ChurnRiskAnalysis from './pages/ChurnRiskAnalysis'
+import TrendAnalysis from './pages/TrendAnalysis'
+import RFMAnalysis from './pages/RFMAnalysis'
+import ParetoAnalysis from './pages/ParetoAnalysis'
+import CustomerSegmentation from './pages/CustomerSegmentation'
 
 // FORECASTING
+import Forecasting from './pages/Forecasting'
+import GoalTracker from './pages/GoalTracker'
+import BreakEvenCalculator from './pages/BreakEvenCalculator'
+import RollingAverage from './pages/RollingAverage'
 
 // VISUALISATION
+import BarChartPage from './pages/BarChartPage'
+import LineChartPage from './pages/LineChartPage'
+import PieChartPage from './pages/PieChartPage'
+import HeatmapPage from './pages/HeatmapPage'
+import WaterfallChart from './pages/WaterfallChart'
+import ScatterPlot from './pages/ScatterPlot'
+import ComboChart from './pages/ComboChart'
+import FunnelChart from './pages/FunnelChart'
+import BoxPlot from './pages/BoxPlot'
 
 // FINANCE
+import NPVAnalysis from './pages/NPVAnalysis'
 
 // AI & FORMULAS
+import FormulaEngine from './pages/FormulaEngine'
+import ExcelFunctions from './pages/ExcelFunctions'
+import FormulaBuilder from './pages/FormulaBuilder'
+import AskYourData from './pages/AskYourData'
+import AutoReport from './pages/AutoReport'
+import AINarrative from './pages/AINarrative'
+import ConditionalFormat from './pages/ConditionalFormat'
+import AIInsights from './pages/AIInsights'
 
 // OPERATIONS
+import ScheduledReports from './pages/ScheduledReports'
+import Integrations from './pages/Integrations'
+import SharePoint from './pages/SharePoint'
+import WorkspaceRoles from './pages/WorkspaceRoles'
+import AuditLog from './pages/AuditLog'
+import AISettings from './pages/AISettings'
 
 // LEGACY
-
-// ── F18: Error boundary to prevent unhandled render crashes ──────────────────
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error, info) {
-    console.error('[ErrorBoundary]', error, info)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24, background: '#f8f9fa' }}>
-          <div style={{ fontSize: 48 }}>⚠️</div>
-          <h2 style={{ color: '#0c1446', margin: 0 }}>Something went wrong</h2>
-          <p style={{ color: '#4a5280', maxWidth: 400, textAlign: 'center' }}>
-            An unexpected error occurred. Please refresh the page or contact support if the problem persists.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{ padding: '10px 24px', background: '#e91e8c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-          >
-            Refresh page
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
+import Analytics from './pages/Analytics'
+import Files from './pages/Files'
+import Trends from './pages/Trends'
+import Billing from './pages/Billing'
+import Team from './pages/Team'
+import Settings from './pages/Settings'
+import CalculatedFields from './pages/CalculatedFields'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -142,15 +105,25 @@ function P({ children }) {
   return <PrivateRoute><Layout>{children}</Layout></PrivateRoute>
 }
 
+// Authenticated route that also requires the organisation to have the AI
+// add-on enabled. Shows the upgrade screen when it's off.
+function AI({ children }) {
+  return <PrivateRoute><Layout><AIGate>{children}</AIGate></Layout></PrivateRoute>
+}
+
 export default function App() {
   return (
-    <ErrorBoundary>
     <AuthProvider>
-      <Suspense fallback={<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#4a5280',fontSize:16}}>Loading…</div>}>
-        <Routes>
+      <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+        {/* Public share — no auth required */}
+        <Route path="/share/:token" element={<SharedDashboard />} />
+
+        {/* Invite acceptance — no auth required */}
+        <Route path="/accept-invite" element={<AcceptInvite />} />
 
         {/* HOME */}
         <Route path="/hub" element={<P><HubHome /></P>} />
@@ -206,15 +179,18 @@ export default function App() {
         {/* FINANCE */}
         <Route path="/npv" element={<P><NPVAnalysis /></P>} />
 
-        {/* AI & FORMULAS */}
+        {/* FORMULAS (non-AI) */}
         <Route path="/formula-engine" element={<P><FormulaEngine /></P>} />
         <Route path="/excel-functions" element={<P><ExcelFunctions /></P>} />
-        <Route path="/formula-builder" element={<P><FormulaBuilder /></P>} />
-        <Route path="/ask-your-data" element={<P><AskYourData /></P>} />
-        <Route path="/auto-report" element={<P><AutoReport /></P>} />
-        <Route path="/ai-narrative" element={<P><AINarrative /></P>} />
         <Route path="/conditional-format" element={<P><ConditionalFormat /></P>} />
-        <Route path="/ai-insights" element={<P><AIInsights /></P>} />
+
+        {/* AI (gated by organisation.ai_enabled) */}
+        <Route path="/formula-builder" element={<AI><FormulaBuilder /></AI>} />
+        <Route path="/ask-your-data" element={<AI><AskYourData /></AI>} />
+        <Route path="/auto-report" element={<AI><AutoReport /></AI>} />
+        <Route path="/ai-narrative" element={<AI><AINarrative /></AI>} />
+        <Route path="/ai-insights" element={<AI><AIInsights /></AI>} />
+        <Route path="/ai-settings" element={<AI><AISettings /></AI>} />
 
         {/* OPERATIONS */}
         <Route path="/scheduled-reports" element={<P><ScheduledReports /></P>} />
@@ -222,7 +198,6 @@ export default function App() {
         <Route path="/sharepoint"   element={<P><SharePoint /></P>} />
         <Route path="/workspace-roles" element={<P><WorkspaceRoles /></P>} />
         <Route path="/audit-log" element={<P><AuditLog /></P>} />
-        <Route path="/ai-settings" element={<P><AISettings /></P>} />
 
         {/* LEGACY ROUTES */}
         <Route path="/dashboard" element={<P><HubHome /></P>} />
@@ -234,9 +209,7 @@ export default function App() {
         <Route path="/settings" element={<P><Settings /></P>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+      </Routes>
     </AuthProvider>
-    </ErrorBoundary>
   )
 }
