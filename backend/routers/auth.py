@@ -111,6 +111,10 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         "email": current_user.email,
         "full_name": current_user.full_name,
         "role": current_user.role,
+        # Platform-level super-admin. Frontend uses this to unlock the
+        # /admin dashboard and the Admin sidebar section. Completely
+        # separate from `role`.
+        "is_superuser": bool(getattr(current_user, "is_superuser", False)),
         "organisation": {
             "id": org.id,
             "name": org.name,

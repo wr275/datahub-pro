@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
+import { adminApi } from '../api'
 
 const NAV = [
   {
@@ -104,6 +105,21 @@ const NAV = [
   },
 ]
 
+// Platform-admin nav — only rendered for is_superuser users. Kept separate
+// from NAV because it has its own URL prefix (/admin/*) and badges that
+// depend on server state (pending AI requests, etc.).
+const ADMIN_NAV = {
+  section: 'PLATFORM ADMIN', icon: '🛡️',
+  items: [
+    { label: 'Overview',       path: '/admin',               icon: '📊', tip: 'KPI overview: signups, MRR, AI usage, and active orgs' },
+    { label: 'Organisations',  path: '/admin/organisations', icon: '🏢', tip: 'Every workspace — plans, AI status, quotas, suspensions' },
+    { label: 'Users',          path: '/admin/users',         icon: '👤', tip: 'Every user across all workspaces — suspend, grant superuser' },
+    { label: 'AI Requests',    path: '/admin/ai-requests',   icon: '🤖', tip: 'Approve or deny workspace requests for AI access', badgeKey: 'aiPending' },
+    { label: 'Billing',        path: '/admin/billing',       icon: '💳', tip: 'MRR by plan, churn, trialing & active subscriptions' },
+    { label: 'Usage',          path: '/admin/usage',         icon: '📈', tip: 'Token consumption & cost metering across all workspaces' },
+  ]
+}
+
 // ─── Inner layout — reads theme context ──────────────────────
 function LayoutInner({ children }) {
   const { user, logout } = useAuth()
@@ -115,6 +131,30 @@ function LayoutInner({ children }) {
   const handleLogout = () => { logout(); navigate('/login') }
   const toggleSection = (s) => setCollapsed(p => ({ ...p, [s]: !p[s] }))
   const aiEnabled = !!(user?.organisation?.ai_enabled ?? user?.ai_enabled)
+  const isSuperuser = !!user?.is_superuser
+
+  // Live badges for admin nav. Currently just pending AI requests; refreshes
+  // every 60s so Waqas sees the count move without reloading. Scoped to
+  // superusers only — the 404 from non-admins would otherwise spam the
+  // interceptor's auth redirect.
+  const [adminBadges, setAdminBadges] = useState({ aiPending: 0 })
+  useEffect(() => {
+    if (!isSuperuser) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await adminApi.listAiRequests({ status: 'pending' })
+        if (cancelled) return
+        const count = res.data?.counts?.pending ?? (res.data?.requests || []).length
+        setAdminBadges(b => ({ ...b, aiPending: count }))
+      } catch {
+        // Silent — sidebar badge is a nicety, not critical.
+      }
+    }
+    load()
+    const t = setInterval(load, 60000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [isSuperuser])
 
   const isGold = theme === 'gold'
   const isDark = theme === 'dark'
@@ -187,6 +227,57 @@ function LayoutInner({ children }) {
               ))}
             </div>
           )})}
+
+          {/* Platform-admin section. Only renders for is_superuser. Uses a
+              distinct purple accent so it's visually obvious this is the
+              backstage dashboard, not a tenant-facing tool. */}
+          {isSuperuser && (
+            <div key="__admin__" style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+              {sidebarOpen ? (
+                <button
+                  onClick={() => toggleSection(ADMIN_NAV.section)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span>🛡️</span>{ADMIN_NAV.section}
+                    {adminBadges.aiPending > 0 && (
+                      <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '0 6px', fontSize: '0.6rem', fontWeight: 800 }}>{adminBadges.aiPending}</span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: '0.6rem' }}>{collapsed[ADMIN_NAV.section] ? '▶' : '▼'}</span>
+                </button>
+              ) : (
+                <div style={{ padding: '8px 0 4px', textAlign: 'center', color: '#a78bfa', fontSize: '0.6rem' }}>🛡️</div>
+              )}
+              {!collapsed[ADMIN_NAV.section] && ADMIN_NAV.items.map(item => {
+                const badge = item.badgeKey ? adminBadges[item.badgeKey] : 0
+                return (
+                  <NavLink key={item.path} to={item.path} end={item.path === '/admin'}
+                    title={item.tip}
+                    className="nav-item"
+                    style={({ isActive }) => ({
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: sidebarOpen ? '7px 16px' : '10px 0',
+                      justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                      color: isActive ? '#fff' : 'rgba(255,255,255,0.72)',
+                      background: isActive ? 'rgba(167,139,250,0.18)' : 'transparent',
+                      borderLeft: isActive ? '3px solid #a78bfa' : '3px solid transparent',
+                      fontSize: '0.82rem', fontWeight: isActive ? 600 : 400, transition: 'all 0.12s',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textDecoration: 'none',
+                    })}>
+                    <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>{item.icon}</span>
+                    {sidebarOpen && (
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>{item.label}</span>
+                        {badge > 0 && (
+                          <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '0 6px', fontSize: '0.65rem', fontWeight: 700, marginLeft: 6 }}>{badge}</span>
+                        )}
+                      </span>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </div>
+          )}
         </nav>
 
         {/* User footer */}

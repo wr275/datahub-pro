@@ -1,6 +1,7 @@
 import os
 import json
 import httpx
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -9,6 +10,25 @@ from typing import Optional
 from database import get_db, DataFile, User
 from sqlalchemy.orm import Session
 from auth_utils import get_current_user
+from routers.admin import log_usage
+
+logger = logging.getLogger(__name__)
+
+# Claude Haiku 4.5 list pricing (USD per million tokens):
+#   input  $1.00 → 100 cents / 1,000,000 tokens
+#   output $5.00 → 500 cents / 1,000,000 tokens
+# Using integer math on cents × tokens keeps everything precise.
+HAIKU_INPUT_CENTS_PER_MTOK = 100
+HAIKU_OUTPUT_CENTS_PER_MTOK = 500
+
+
+def _estimate_cost_cents(input_tokens: int, output_tokens: int) -> int:
+    total_microcents = (
+        input_tokens * HAIKU_INPUT_CENTS_PER_MTOK
+        + output_tokens * HAIKU_OUTPUT_CENTS_PER_MTOK
+    )
+    # Round up so we never under-bill (1,000,000 tokens ≈ 1 cent floor).
+    return (total_microcents + 999_999) // 1_000_000
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -113,6 +133,14 @@ async def stream_ai(
     file = _get_owned_file(req.file_id, current_user, db)
     user_message = build_context(file, req.question)
 
+    # Closure-local counters. Anthropic's SSE sends input_tokens in
+    # `message_start` and the final output_tokens in `message_delta`
+    # right before `message_stop`. We accumulate then log once the
+    # stream completes (success or error).
+    usage_state = {"input": 0, "output": 0}
+    org_id = current_user.organisation_id
+    user_id = current_user.id
+
     async def event_generator():
         try:
             async with httpx.AsyncClient(timeout=120) as client:
@@ -139,7 +167,14 @@ async def stream_ai(
                         try:
                             parsed = json.loads(data)
                             event_type = parsed.get("type", "")
-                            if event_type == "content_block_delta":
+                            if event_type == "message_start":
+                                u = parsed.get("message", {}).get("usage", {}) or {}
+                                usage_state["input"] = int(u.get("input_tokens", 0) or 0)
+                            elif event_type == "message_delta":
+                                u = parsed.get("usage", {}) or {}
+                                if u.get("output_tokens") is not None:
+                                    usage_state["output"] = int(u.get("output_tokens", 0) or 0)
+                            elif event_type == "content_block_delta":
                                 delta = parsed.get("delta", {})
                                 if delta.get("type") == "text_delta":
                                     text = delta.get("text", "")
@@ -158,6 +193,31 @@ async def stream_ai(
         except Exception as e:
             yield f"data: Error: {str(e)}\n\n"
             yield "data: [DONE]\n\n"
+        finally:
+            # Best-effort usage log; errors here must never break the
+            # SSE response that already went to the client.
+            try:
+                in_tok = usage_state["input"]
+                out_tok = usage_state["output"]
+                total = in_tok + out_tok
+                if total > 0 and org_id:
+                    log_usage(
+                        db,
+                        organisation_id=org_id,
+                        user_id=user_id,
+                        kind="ai_tokens",
+                        quantity=total,
+                        cost_cents=_estimate_cost_cents(in_tok, out_tok),
+                        meta={
+                            "model": MODEL,
+                            "endpoint": "/ai/stream",
+                            "input_tokens": in_tok,
+                            "output_tokens": out_tok,
+                            "file_id": req.file_id,
+                        },
+                    )
+            except Exception as exc:
+                logger.warning("usage logging failed in /ai/stream: %s", exc)
 
     return StreamingResponse(
         event_generator(),
@@ -225,5 +285,32 @@ async def prompt_ai(
         result = response.json()
         content = result.get("content", [{}])
         text = content[0].get("text", "") if content else ""
+
+    # Usage logging: the non-streaming response includes `usage` at the top
+    # level. Mirror the /stream accounting so both endpoints feed the same
+    # ledger. Failures here must never surface to the caller.
+    try:
+        usage = result.get("usage", {}) or {}
+        in_tok = int(usage.get("input_tokens", 0) or 0)
+        out_tok = int(usage.get("output_tokens", 0) or 0)
+        total = in_tok + out_tok
+        if total > 0 and current_user.organisation_id:
+            log_usage(
+                db,
+                organisation_id=current_user.organisation_id,
+                user_id=current_user.id,
+                kind="ai_tokens",
+                quantity=total,
+                cost_cents=_estimate_cost_cents(in_tok, out_tok),
+                meta={
+                    "model": MODEL,
+                    "endpoint": "/ai/prompt",
+                    "input_tokens": in_tok,
+                    "output_tokens": out_tok,
+                    "file_id": req.file_id,
+                },
+            )
+    except Exception as exc:
+        logger.warning("usage logging failed in /ai/prompt: %s", exc)
 
     return {"response": text}

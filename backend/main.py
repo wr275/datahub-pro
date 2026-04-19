@@ -7,7 +7,7 @@ import uvicorn
 from routers import (
     auth, files, analytics, billing, users, connectors, pipelines, budget,
     calculated_fields, sharepoint, ai, dashboards, sheets, scheduled_reports,
-    organisation,
+    organisation, admin,
 )
 from database import engine, Base, SessionLocal
 from config import settings
@@ -113,6 +113,45 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ai_enabled BOOLEAN DEFAULT FALSE NOT NULL"))
             conn.execute(text("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ai_enabled_at TIMESTAMP"))
 
+            # Platform super-admin flag — completely separate from org `role`.
+            # Only hand-granted via scripts/grant_superuser.py; off by default
+            # so legacy rows land in the correct state automatically.
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE NOT NULL"))
+
+            # AI access request queue (surface for /admin/ai-requests)
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS ai_access_requests (
+                    id VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    requested_by_user_id VARCHAR NOT NULL REFERENCES users(id),
+                    status VARCHAR(20) DEFAULT 'pending' NOT NULL,
+                    reviewed_by_user_id VARCHAR REFERENCES users(id),
+                    reviewed_at TIMESTAMP,
+                    review_note TEXT,
+                    requester_note TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_requests_org ON ai_access_requests (organisation_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_requests_status ON ai_access_requests (status)"))
+
+            # Unified usage/metering ledger (feeds /admin/usage)
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS usage_events (
+                    id VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+                    kind VARCHAR(50) NOT NULL,
+                    quantity INTEGER DEFAULT 0 NOT NULL,
+                    cost_cents INTEGER DEFAULT 0 NOT NULL,
+                    meta_json TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_usage_events_org ON usage_events (organisation_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_usage_events_kind ON usage_events (kind)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_usage_events_created ON usage_events (created_at)"))
+
             # Scheduled reports table — relies on SQLAlchemy create_all above,
             # but keep an IF NOT EXISTS guard for older deployments.
             conn.execute(text("""
@@ -204,6 +243,7 @@ app.include_router(dashboards.share_router,  prefix="/api/share",              t
 app.include_router(sheets.router,            prefix="/api/sheets",             tags=["Google Sheets"])
 app.include_router(scheduled_reports.router, prefix="/api/scheduled-reports",  tags=["Scheduled Reports"])
 app.include_router(organisation.router,      prefix="/api/organisation",       tags=["Organisation"])
+app.include_router(admin.router,             prefix="/api/admin",              tags=["Admin"])
 
 @app.get("/health")
 def health_check():

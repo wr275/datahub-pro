@@ -59,6 +59,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     role = Column(String(50), default="member")
+    # Platform-level super-admin. Completely separate from org `role`.
+    # A superuser can reach the /admin dashboard and approve AI requests
+    # for any org. Granted manually via scripts/grant_superuser.py.
+    is_superuser = Column(Boolean, default=False, nullable=False)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, nullable=True)
@@ -182,3 +186,56 @@ class ScheduledReport(Base):
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# ─── Admin / Platform-level tables ─────────────────────────────────
+#
+# These are for the super-admin dashboard (/admin/*). Nothing here is
+# org-scoped in the usual sense: a superuser sees across every workspace.
+
+class AiAccessRequest(Base):
+    """A workspace has asked for the AI add-on to be switched on.
+
+    The request lifecycle is pending → approved | denied. Approval flips
+    Organisation.ai_enabled=True and emails the requester. Only the
+    platform superuser (not org owners) can approve. Deduped per org at
+    the router level — one pending row per organisation at a time.
+    """
+    __tablename__ = "ai_access_requests"
+    id = Column(String, primary_key=True)
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False, index=True)
+    requested_by_user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    status = Column(String(20), default="pending", nullable=False, index=True)  # pending | approved | denied
+    # Populated when status transitions out of pending.
+    reviewed_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    # Optional free-text from the approver — shown in the notification email.
+    review_note = Column(Text, nullable=True)
+    # Optional free-text from the requester (e.g. "we want this for the
+    # Q2 reporting workstream"). Reserved for future UI; nullable today.
+    requester_note = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class UsageEvent(Base):
+    """Unified usage/metering ledger.
+
+    Every billable or rate-limited event gets one row. `kind` decides
+    what the row represents and what `quantity` / `cost_cents` mean:
+      - ai_tokens   → quantity is (prompt+completion) tokens, cost_cents
+                      is the Anthropic $ estimate at the then-current price
+      - file_upload → quantity = 1, cost_cents = 0 (uploads are flat-billed)
+      - api_call    → generic bucket for future rate-limited endpoints
+    Extending to new kinds is additive; old rows stay interpretable.
+    """
+    __tablename__ = "usage_events"
+    id = Column(String, primary_key=True)
+    organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    kind = Column(String(50), nullable=False, index=True)
+    quantity = Column(Integer, default=0, nullable=False)
+    # Stored in cents (USD) to avoid float rounding. Nullable for free events.
+    cost_cents = Column(Integer, default=0, nullable=False)
+    # JSON-encoded extras: model name, endpoint path, file id, etc.
+    meta_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)

@@ -133,4 +133,25 @@ export const organisationApi = {
   requestAiAccess: () => api.post('/organisation/request-ai-access'),
 }
 
+// Platform super-admin dashboard. Every endpoint here is gated on
+// `is_superuser` server-side and returns 404 if the caller isn't one,
+// so the UI should only render these after checking `user.is_superuser`.
+export const adminApi = {
+  overview: () => api.get('/admin/overview'),
+
+  listOrganisations: (params = {}) => api.get('/admin/organisations', { params }),
+  getOrganisation: (id) => api.get('/admin/organisations/' + id),
+  patchOrganisation: (id, data) => api.patch('/admin/organisations/' + id, data),
+
+  listUsers: (params = {}) => api.get('/admin/users', { params }),
+  patchUser: (id, data) => api.patch('/admin/users/' + id, data),
+
+  listAiRequests: (params = {}) => api.get('/admin/ai-requests', { params }),
+  approveAiRequest: (id, note = '') => api.post('/admin/ai-requests/' + id + '/approve', { note }),
+  denyAiRequest: (id, note = '') => api.post('/admin/ai-requests/' + id + '/deny', { note }),
+
+  billing: () => api.get('/admin/billing'),
+  usage: (window = '30d') => api.get('/admin/usage', { params: { window } }),
+}
+
 export default api

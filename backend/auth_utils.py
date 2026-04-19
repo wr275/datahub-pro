@@ -59,3 +59,17 @@ def require_role(allowed_roles: list):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return current_user
     return role_checker
+
+
+def require_superuser(current_user: User = Depends(get_current_user)) -> User:
+    """Gate: only platform super-admins can reach this endpoint.
+
+    Completely separate from `role` (which is org-scoped: owner/admin/
+    member). A superuser has the bit set on their user record and can
+    see and act on every workspace. Intentionally returns a flat 404
+    rather than 403 so the existence of /api/admin/* isn't discoverable
+    to ordinary users.
+    """
+    if not bool(getattr(current_user, "is_superuser", False)):
+        raise HTTPException(status_code=404, detail="Not found")
+    return current_user

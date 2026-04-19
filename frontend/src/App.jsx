@@ -89,6 +89,14 @@ import Team from './pages/Team'
 import Settings from './pages/Settings'
 import CalculatedFields from './pages/CalculatedFields'
 
+// PLATFORM ADMIN — gated by user.is_superuser (server returns 404 if not)
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminOrganisations from './pages/admin/AdminOrganisations'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminAiRequests from './pages/admin/AdminAiRequests'
+import AdminBilling from './pages/admin/AdminBilling'
+import AdminUsage from './pages/admin/AdminUsage'
+
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>Loading...</div>
@@ -198,6 +206,14 @@ export default function App() {
         <Route path="/sharepoint"   element={<P><SharePoint /></P>} />
         <Route path="/workspace-roles" element={<P><WorkspaceRoles /></P>} />
         <Route path="/audit-log" element={<P><AuditLog /></P>} />
+
+        {/* PLATFORM ADMIN (gated by user.is_superuser inside AdminLayout) */}
+        <Route path="/admin"                element={<P><AdminOverview /></P>} />
+        <Route path="/admin/organisations"  element={<P><AdminOrganisations /></P>} />
+        <Route path="/admin/users"          element={<P><AdminUsers /></P>} />
+        <Route path="/admin/ai-requests"    element={<P><AdminAiRequests /></P>} />
+        <Route path="/admin/billing"        element={<P><AdminBilling /></P>} />
+        <Route path="/admin/usage"          element={<P><AdminUsage /></P>} />
 
         {/* LEGACY ROUTES */}
         <Route path="/dashboard" element={<P><HubHome /></P>} />
