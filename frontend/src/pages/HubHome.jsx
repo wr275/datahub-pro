@@ -40,7 +40,6 @@ const WORKSPACE_SECTIONS = [
     { path: '/goal-tracker', icon: '🏁', label: 'Goal Tracker', desc: 'Track targets', tooltip: 'Set targets for any KPI and track progress automatically as new data comes in.' },
     { path: '/break-even', icon: '⚖️', label: 'Break-Even', desc: 'BEP analysis', tooltip: 'Calculate the exact sales volume needed to cover costs and reach profitability.' },
     { path: '/rolling-average', icon: '〰️', label: 'Rolling Average', desc: 'Smooth trends', tooltip: 'Smooth noisy data by computing a moving average over any window size.' },
-    { path: '/npv', icon: '💰', label: 'NPV Calculator', desc: 'Investment ROI', tooltip: 'Calculate the net present value of an investment to evaluate long-term returns.' },
   ]},
   { label: 'VISUALISE', color: '#e91e8c', icon: '📊', tools: [
     { path: '/bar-chart', icon: '📊', label: 'Bar Chart', desc: 'Compare values', tooltip: 'Create side-by-side bar charts to compare values across categories.' },
@@ -59,15 +58,13 @@ const WORKSPACE_SECTIONS = [
     { path: '/conditional-format', icon: '🎨', label: 'Cond. Format', desc: 'Rules engine', tooltip: 'Apply colour-coded rules to highlight cells based on values, thresholds, or conditions.' },
   ]},
   { label: 'FINANCE', color: '#b45309', icon: '💰', tools: [
-    { path: '/budget-vs-actuals', icon: '💰', label: 'Budget vs Actuals', desc: 'Variance tracking', tooltip: 'Compare your budgeted figures against actual results to track financial performance.' },
-    { path: '/profit-loss', icon: '📋', label: 'P&L Statement', desc: 'Income statement', tooltip: 'Generate a full profit and loss statement from your transaction data automatically.' },
-    { path: '/cash-flow', icon: '💵', label: 'Cash Flow', desc: 'Inflow vs outflow', tooltip: 'Track cash coming in and going out over time to monitor your liquidity position.' },
-    { path: '/balance-sheet', icon: '⚖️', label: 'Balance Sheet', desc: 'Assets & liabilities', tooltip: 'View a snapshot of your assets, liabilities, and equity at any point in time.' },
-    { path: '/financial-ratios', icon: '📐', label: 'Financial Ratios', desc: 'Key indicators', tooltip: 'Calculate key financial ratios like gross margin, ROI, and current ratio from your data.' },
+    { path: '/budget-actuals', icon: '💰', label: 'Budget vs Actuals', desc: 'Variance tracking', tooltip: 'Compare your budgeted figures against actual results to track financial performance.' },
+    { path: '/npv', icon: '💸', label: 'NPV Calculator', desc: 'Investment ROI', tooltip: 'Calculate the net present value of an investment to evaluate long-term returns.' },
   ]},
   { label: 'OPERATIONS', color: '#d97706', icon: '⚙️', tools: [
     { path: '/scheduled-reports', icon: '⏰', label: 'Scheduled Reports', desc: 'Auto delivery', tooltip: 'Set up automated report delivery to your inbox on a daily, weekly, or monthly schedule.' },
     { path: '/integrations', icon: '🔌', label: 'Integrations', desc: 'Connect tools', tooltip: 'Connect DataHub to your existing tools including Slack, Zapier, and Google Sheets.' },
+    { path: '/sharepoint', icon: '📁', label: 'SharePoint', desc: 'Microsoft 365', tooltip: 'Sync files and data from SharePoint and OneDrive directly into your workspace.' },
     { path: '/workspace-roles', icon: '👥', label: 'Workspace & Roles', desc: 'Permissions', tooltip: 'Manage team members, set permissions, and control who can access which data.' },
     { path: '/audit-log', icon: '📜', label: 'Audit Log', desc: 'Activity trail', tooltip: 'Track every action taken in your workspace with a full timestamped activity trail.' },
     { path: '/executive-dashboard', icon: '📊', label: 'Exec Dashboard', desc: 'C-suite view', tooltip: 'View a high-level executive summary of your business performance in one clean dashboard.' },
@@ -93,13 +90,16 @@ const AI_SUGGESTIONS = [
   'Draft a one-page executive summary',
 ]
 
+// Quick Actions sit on the Workspace tab only — AI entries are filtered out
+// downstream (see QUICK_ACTIONS.filter below) because AI has its own tab.
+// Everything here should be broadly useful regardless of add-on status.
 const QUICK_ACTIONS = [
   { label: 'Upload Data', path: '/files', icon: '📂', color: '#e91e8c' },
-  { label: 'AI Insights', path: '/ai-insights', icon: '🧠', color: '#7c3aed' },
   { label: 'Executive View', path: '/executive-dashboard', icon: '📊', color: '#0097b2' },
-  { label: 'Ask Your Data', path: '/ask-your-data', icon: '💬', color: '#059669' },
-  { label: 'Auto Report', path: '/auto-report', icon: '📄', color: '#d97706' },
-  { label: 'RFM Analysis', path: '/rfm', icon: '🎯', color: '#0c1446' },
+  { label: 'KPI Dashboard', path: '/kpi-dashboard', icon: '🔢', color: '#7c3aed' },
+  { label: 'Data View', path: '/data-table', icon: '📋', color: '#0c1446' },
+  { label: 'Pivot Table', path: '/pivot-table', icon: '🔄', color: '#059669' },
+  { label: 'Forecasting', path: '/forecasting', icon: '🔮', color: '#d97706' },
 ]
 
 export default function HubHome() {

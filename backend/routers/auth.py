@@ -87,7 +87,7 @@ def register(req: RegisterRequest, request: Request, db: Session = Depends(get_d
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user={"id": user_id, "email": user.email, "full_name": user.full_name, "role": user.role, "organisation": org.name, "ai_enabled": bool(getattr(org, "ai_enabled", False))}
+        user={"id": user_id, "email": user.email, "full_name": user.full_name, "role": user.role, "is_superuser": bool(getattr(user, "is_superuser", False)), "organisation": org.name, "ai_enabled": bool(getattr(org, "ai_enabled", False))}
     )
 
 @router.post("/login")
@@ -110,7 +110,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user={"id": user.id, "email": user.email, "full_name": user.full_name, "role": user.role, "organisation": org.name if org else None, "subscription": org.subscription_status if org else None, "ai_enabled": bool(getattr(org, "ai_enabled", False)) if org else False}
+        user={"id": user.id, "email": user.email, "full_name": user.full_name, "role": user.role, "is_superuser": bool(getattr(user, "is_superuser", False)), "organisation": org.name if org else None, "subscription": org.subscription_status if org else None, "ai_enabled": bool(getattr(org, "ai_enabled", False)) if org else False}
     )
 
 @router.get("/me")
@@ -213,6 +213,7 @@ def accept_invite(req: AcceptInviteRequest, request: Request, db: Session = Depe
         user={
             "id": user.id, "email": user.email, "full_name": user.full_name,
             "role": user.role,
+            "is_superuser": bool(getattr(user, "is_superuser", False)),
             "organisation": org.name if org else None,
             "subscription": org.subscription_status if org else None,
             "ai_enabled": bool(getattr(org, "ai_enabled", False)) if org else False,
