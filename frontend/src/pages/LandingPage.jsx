@@ -365,7 +365,7 @@ export default function LandingPage() {
                   </div>
                   <div style={{marginTop:'12px', display:'flex', gap:'16px', fontFamily:'JetBrains Mono,monospace', fontSize:'10px', color:'var(--muted)'}}>
                     <span style={{display:'flex',alignItems:'center',gap:'5px'}}><span style={{width:'12px',height:'4px',background:'var(--amber)',borderRadius:'2px',display:'inline-block'}}></span>Actual</span>
-                    <span style={{display:'flex',alignItems:'center',gap:'5px'}}><span style={{width:'12px',height:'4px',background:'rgba(139,92,246,0.3)',borderRadius:'2px',display:'inline-block'}}></span>Projected</span>
+                    <span style={{display:'flex',alignItems:'center',gap:'5px'}}><span style={{width:'12px',height:'4px',background:'rgba(168,85,247,0.35)',borderRadius:'2px',display:'inline-block'}}></span>Projected</span>
                   </div>
                 </div>
               </div>
@@ -616,7 +616,7 @@ export default function LandingPage() {
             onClick={e => e.stopPropagation()}
             style={{
               background:'#1c1916',
-              border:'1px solid rgba(139,92,246,0.3)',
+              border:'1px solid rgba(168,85,247,0.35)',
               borderRadius:'18px',
               padding:'44px 40px',
               width:'100%', maxWidth:'440px',
@@ -629,7 +629,7 @@ export default function LandingPage() {
             <button onClick={() => setContactOpen(false)} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', color:'#78716c', fontSize:'1.3rem', cursor:'pointer', lineHeight:1 }}>✕</button>
 
             {/* Logo mark */}
-            <div style={{ width:48, height:48, background:'#8b5cf6', borderRadius:12, display:'inline-flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:'1.3rem', marginBottom:20 }}>D</div>
+            <div style={{ width:48, height:48, background:'#a855f7', borderRadius:12, display:'inline-flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:900, fontSize:'1.3rem', marginBottom:20 }}>D</div>
 
             <h2 style={{ fontSize:'1.35rem', fontWeight:900, color:'#fafaf9', marginBottom:10 }}>Request Trial Access</h2>
             <p style={{ color:'#a8a29e', fontSize:'0.88rem', lineHeight:1.7, marginBottom:28 }}>
@@ -637,9 +637,9 @@ export default function LandingPage() {
             </p>
 
             {/* Email box */}
-            <div style={{ background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.25)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
+            <div style={{ background:'rgba(168,85,247,0.1)', border:'1px solid rgba(168,85,247,0.3)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
               <div style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'#78716c', marginBottom:8 }}>Email us at</div>
-              <a href="mailto:hello@datahubpro.co.uk" style={{ fontSize:'1.1rem', fontWeight:800, color:'#8b5cf6', textDecoration:'none' }}>
+              <a href="mailto:hello@datahubpro.co.uk" style={{ fontSize:'1.1rem', fontWeight:800, color:'#a855f7', textDecoration:'none' }}>
                 hello@datahubpro.co.uk
               </a>
             </div>
@@ -647,7 +647,7 @@ export default function LandingPage() {
             {/* CTA */}
             <a
               href="mailto:hello@datahubpro.co.uk?subject=Trial Access Request&body=Hi, I'd like to request trial access to DataHub Pro.%0A%0AName: %0ACompany: %0APhone (optional): "
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 24px', background:'#8b5cf6', color:'#fff', borderRadius:10, fontWeight:700, fontSize:'0.95rem', textDecoration:'none', marginBottom:24 }}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 24px', background:'#a855f7', color:'#fff', borderRadius:10, fontWeight:700, fontSize:'0.95rem', textDecoration:'none', marginBottom:24 }}
             >
               ✉️ Open in email app →
             </a>
@@ -677,7 +677,7 @@ export default function LandingPage() {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background:'#1c1916', border:'1px solid rgba(139,92,246,0.3)',
+              background:'#1c1916', border:'1px solid rgba(168,85,247,0.35)',
               borderRadius:'16px', overflow:'hidden',
               width:'100%', maxWidth:'1100px', position:'relative',
               display:'flex', flexDirection:'column'
@@ -692,13 +692,13 @@ export default function LandingPage() {
               <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                 <div style={{
                   width:'28px', height:'28px', borderRadius:'7px',
-                  background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',
+                  background:'linear-gradient(135deg,#a855f7,#9333ea)',
                   display:'flex', alignItems:'center', justifyContent:'center',
                   fontWeight:'800', fontSize:'14px', color:'#fff'
                 }}>D</div>
                 <span style={{fontWeight:'700', fontSize:'14px', color:'#f5f0eb'}}>DataHub Pro</span>
                 <span style={{
-                  background:'rgba(139,92,246,0.15)', color:'#8b5cf6',
+                  background:'rgba(168,85,247,0.18)', color:'#a855f7',
                   borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:'600'
                 }}>Live Product Demo</span>
               </div>

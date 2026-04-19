@@ -8,15 +8,15 @@ html { scroll-behavior: smooth; }
   --bg:        #0c0a09;
   --bg2:       #141210;
   --bg3:       #1c1916;
-  /* Brand violet — modern tech/SaaS accent against the warm stone-dark bg.
-     Cool-violet + warm-stone is deliberate color tension that reads
-     premium and B2B (Linear / Vercel aesthetic). Variable name kept as
-     --amber to preserve every downstream usage and git blame. */
-  --amber:     #8b5cf6;
-  --amber-d:   #7c3aed;
-  --amber-l:   #a78bfa;
-  --amber-dim: rgba(139,92,246,0.12);
-  --amber-bdr: rgba(139,92,246,0.25);
+  /* Brand violet — lifted one step brighter (Tailwind purple-500 base)
+     so the accent pops harder against the warm stone-dark bg. Variable
+     name kept as --amber to preserve every downstream usage and git
+     blame. */
+  --amber:     #a855f7;
+  --amber-d:   #9333ea;
+  --amber-l:   #d8b4fe;
+  --amber-dim: rgba(168,85,247,0.14);
+  --amber-bdr: rgba(168,85,247,0.3);
   --text:      #fafaf9;
   --muted:     #78716c;
   --muted2:    #a8a29e;
@@ -244,12 +244,12 @@ html { scroll-behavior: smooth; }
 .mini-chart { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 .mc-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); margin-bottom: 10px; }
 .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 70px; }
-.bar-item { flex: 1; border-radius: 3px 3px 0 0; background: rgba(139,92,246,0.2); transition: background .2s; }
+.bar-item { flex: 1; border-radius: 3px 3px 0 0; background: rgba(168,85,247,0.22); transition: background .2s; }
 .bar-item.active { background: var(--amber); }
 .bar-item:hover { background: var(--amber-l); }
 .rfm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rfm-seg { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg3); }
-.rfm-seg.champion { border-color: rgba(139,92,246,0.3); }
+.rfm-seg.champion { border-color: rgba(168,85,247,0.32); }
 .rfm-seg.loyal    { border-color: rgba(20,184,166,0.2); }
 .rfm-seg.at-risk  { border-color: rgba(248,113,113,0.2); }
 .rfm-name { font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
@@ -261,7 +261,7 @@ html { scroll-behavior: smooth; }
 .fc-month { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); width: 36px; flex-shrink: 0; }
 .fc-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
 .fc-fill { height: 100%; border-radius: 3px; background: var(--amber); }
-.fc-fill.proj { background: rgba(139,92,246,0.3); }
+.fc-fill.proj { background: rgba(168,85,247,0.32); }
 .fc-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; width: 52px; text-align: right; }
 .fc-val.proj { color: var(--amber); }
 .fc-legend { margin-top: 12px; display: flex; gap: 16px; }
