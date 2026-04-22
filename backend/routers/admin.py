@@ -22,7 +22,7 @@ email — that's part of the contract the frontend relies on.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_, and_
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 from datetime import datetime, timedelta
 import uuid
@@ -525,6 +525,79 @@ def patch_user(
     db.commit()
     db.refresh(target)
     return _user_summary(target)
+
+
+# ─── Provision a brand-new organisation + owner in one shot ─────────
+# Bypasses the gated public /auth/register so the platform owner can spin up
+# fresh workspaces for testing, demos, or approved clients without relying on
+# SendGrid invite email delivery. Idempotent guard: 409 if the email is taken.
+
+class ProvisionAccountRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8,
+                          description="Will be bcrypt-hashed server-side")
+    full_name: str = ""
+    organisation_name: str = Field(min_length=1, max_length=100)
+    make_superuser: bool = False
+
+
+@router.post("/provision-account", status_code=201)
+def provision_account(
+    body: ProvisionAccountRequest,
+    admin: User = Depends(require_superuser),
+    db: Session = Depends(get_db),
+):
+    from auth_utils import hash_password
+
+    email = body.email.lower().strip()
+    if db.query(User).filter(func.lower(User.email) == email).first():
+        raise HTTPException(status_code=409,
+                            detail=f"Email {email} is already registered")
+
+    org_id = str(uuid.uuid4())
+    slug = (body.organisation_name.lower().replace(" ", "-")[:50]
+            + "-" + org_id[:8])
+    org = Organisation(
+        id=org_id,
+        name=body.organisation_name,
+        slug=slug,
+        trial_ends_at=datetime.utcnow() + timedelta(days=settings.TRIAL_DAYS),
+    )
+    db.add(org)
+
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id,
+        email=email,
+        hashed_password=hash_password(body.password),
+        full_name=body.full_name or email.split("@")[0],
+        role="owner",
+        organisation_id=org_id,
+        is_active=True,
+        is_verified=True,
+        is_superuser=bool(body.make_superuser),
+    )
+    db.add(user)
+
+    _audit(db, actor=admin, org_id=org_id,
+           action="admin_provision_account",
+           detail=f"Provisioned {email} as owner of '{body.organisation_name}'"
+                  f" (superuser={bool(body.make_superuser)})")
+    db.commit()
+    db.refresh(user)
+    db.refresh(org)
+
+    logger.info("Admin %s provisioned new account %s in org %s",
+                admin.email, email, org.name)
+    return {
+        "user": _user_summary(user),
+        "organisation": _org_summary(org, db),
+        "login_url": f"{(settings.FRONTEND_URL or '').split(',')[0].strip().rstrip('/')}/login",
+        "credentials_note": (
+            "Share these credentials out-of-band with the account owner — "
+            "they should change the password on first login."
+        ),
+    }
 
 
 # ─── AI access requests ─────────────────────────────────────────────

@@ -154,6 +154,9 @@ export const adminApi = {
 
   listUsers: (params = {}) => api.get('/admin/users', { params }),
   patchUser: (id, data) => api.patch('/admin/users/' + id, data),
+  // Spin up a brand-new org + owner user (bypasses the gated public register
+  // flow). Use only from the AdminUsers "Create test account" modal.
+  provisionAccount: (data) => api.post('/admin/provision-account', data),
 
   listAiRequests: (params = {}) => api.get('/admin/ai-requests', { params }),
   approveAiRequest: (id, note = '') => api.post('/admin/ai-requests/' + id + '/approve', { note }),

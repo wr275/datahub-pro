@@ -194,6 +194,31 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
+    # Bootstrap: ensure platform owner always has superuser access. Idempotent
+    # and defensive — if a migration, DB wipe, or rogue admin ever clears the
+    # flag, this re-grants it on next boot so Waqas can never be locked out of
+    # /admin. Add extra emails via BOOTSTRAP_SUPERUSER_EMAILS (comma-separated).
+    try:
+        from sqlalchemy import text
+        bootstrap_emails = {"waqas114@gmail.com"}
+        extra = (getattr(settings, "BOOTSTRAP_SUPERUSER_EMAILS", "") or "").strip()
+        if extra:
+            bootstrap_emails.update(
+                e.strip().lower() for e in extra.split(",") if e.strip()
+            )
+        with engine.connect() as conn:
+            for email in bootstrap_emails:
+                conn.execute(
+                    text("UPDATE users SET is_superuser = TRUE "
+                         "WHERE LOWER(email) = :email AND is_superuser = FALSE"),
+                    {"email": email.lower()},
+                )
+            conn.commit()
+    except Exception:
+        # Don't block app boot on a bootstrap failure — the script fallback
+        # (scripts/grant_superuser.py) remains the manual escape hatch.
+        pass
+
     # Start background scheduler and rehydrate active scheduled reports
     try:
         app_scheduler.start()

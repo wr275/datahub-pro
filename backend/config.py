@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     TRIAL_DAYS: int = 14
 
+    # Comma-separated list of extra emails to auto-grant platform superuser on
+    # app boot. waqas114@gmail.com is always included as a hard-coded owner.
+    BOOTSTRAP_SUPERUSER_EMAILS: str = ""
+
     class Config:
         env_file = ".env"
 
