@@ -172,6 +172,44 @@ def invite_user(
     }
 
 
+# ─── Client-side event logging ────────────────────────────────────────────────
+# Small whitelist-guarded endpoint that lets the frontend append audit events
+# for user interactions we can't observe server-side (e.g. which page a user
+# first lands on after onboarding). Keeping it whitelisted prevents arbitrary
+# payloads from flooding the audit log and makes the funnel analysis
+# downstream sane — querying AuditLog for action='first_dashboard_viewed'
+# gives a clean register → wow-moment conversion rate.
+ALLOWED_CLIENT_EVENTS = {
+    "first_dashboard_viewed",  # fired by ExecutiveDashboard when ?first_run=true
+}
+
+
+class ClientEventRequest(BaseModel):
+    event: str
+    detail: str = ""
+
+
+@router.post("/events")
+def log_client_event(
+    body: ClientEventRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if body.event not in ALLOWED_CLIENT_EVENTS:
+        raise HTTPException(status_code=400, detail=f"Unknown event: {body.event}")
+
+    detail = (body.detail or "")[:500]  # bound to keep AuditLog rows small
+    db.add(AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        organisation_id=current_user.organisation_id,
+        action=body.event,
+        detail=detail,
+    ))
+    db.commit()
+    return {"logged": True}
+
+
 @router.get("/audit-log")
 def get_audit_log(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role not in ["owner", "admin"]:

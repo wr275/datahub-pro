@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { filesApi, analyticsApi } from '../api'
+import { filesApi, analyticsApi, usersApi } from '../api'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6']
@@ -12,6 +12,11 @@ export default function ExecutiveDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const dashRef = useRef(null)
+  // first_run=true is set by HubHome after a sample seed or first upload.
+  // Drives the onboarding banner + a one-shot audit event so we can measure
+  // the register → first_dashboard_viewed conversion rate.
+  const isFirstRun = searchParams.get('first_run') === 'true'
+  const [showFirstRunBanner, setShowFirstRunBanner] = useState(isFirstRun)
 
   useEffect(() => {
     filesApi.list().then(r => {
@@ -22,6 +27,16 @@ export default function ExecutiveDashboard() {
       if (target) load(target.id)
     }).catch(() => {})
   }, [])
+
+  // Fire the audit event exactly once per first-run arrival. We deliberately
+  // don't gate on `data` loading — the user arriving on this URL IS the
+  // conversion event, even if analytics fail to render. Fire-and-forget:
+  // backend failures must not block the visual flow.
+  useEffect(() => {
+    if (isFirstRun) {
+      usersApi.logEvent('first_dashboard_viewed', `fileId=${searchParams.get('fileId') || ''}`).catch(() => {})
+    }
+  }, [isFirstRun])
 
   function load(id) {
     setFileId(id); setData(null)
@@ -135,6 +150,37 @@ export default function ExecutiveDashboard() {
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>Loading dashboard...</div>}
+
+      {showFirstRunBanner && data && (
+        <div style={{
+          background: 'linear-gradient(135deg,#fff5f9 0%,#fef6fb 100%)',
+          border: '1px solid #f9d6e8',
+          borderRadius: 12,
+          padding: '14px 18px',
+          marginBottom: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+        }} className="no-print">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: '1.4rem' }}>🎉</div>
+            <div>
+              <div style={{ fontWeight: 800, color: '#0c1446', fontSize: '0.95rem' }}>
+                Your first dashboard is live
+              </div>
+              <div style={{ color: '#6b7280', fontSize: '0.82rem', marginTop: 2 }}>
+                We detected your time column and numeric metrics automatically. Pick a different dataset from the dropdown to explore more — or upload your own file.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowFirstRunBanner(false)}
+            aria-label="Dismiss"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#9ca3af', fontSize: '1.2rem', fontWeight: 700,
+              padding: '4px 8px', lineHeight: 1,
+            }}>×</button>
+        </div>
+      )}
 
       {data && (
         <div>

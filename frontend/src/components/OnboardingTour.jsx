@@ -2,12 +2,40 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
 const TOUR_KEY = 'datahub_tour_done'
+// Five-step tour keyed to the zero-files onboarding flow on HubHome. The
+// tour is purely localStorage-gated — no server state — so it only fires
+// once per browser. Targets reference `data-tour` attributes on HubHome and
+// the sidebar; if a target isn't in the DOM the step degrades gracefully to
+// a centered modal instead of crashing the overlay.
 const STEPS = [
-  { title: 'Welcome to DataHub Pro! 👋', body: "Let's take a quick tour — 4 steps to get you started.", target: null },
-  { title: 'Step 1 — Upload your data', body: "Click '+ Upload Data' to import a CSV or Excel file. Every tool flows from your data.", target: 'upload-btn', pos: 'below' },
-  { title: 'Step 2 — Explore DATA tools', body: 'Clean, filter, summarise and chart any dataset. Great starting points: Data Table, KPI Dashboard.', target: 'nav-data', pos: 'right' },
-  { title: 'Step 3 — Build dashboards', body: 'Drag widgets onto a canvas, then share with a public link or copy the embed code.', target: 'nav-dashboard', pos: 'right' },
-  { title: "You're all set! 🚀", body: 'All 50+ tools live in the sidebar. Use the Search bar to find anything fast.', target: null }
+  {
+    title: 'Welcome to DataHub Pro 👋',
+    body: "Quick 60-second tour to get you to your first dashboard. You can skip anytime.",
+    target: null,
+  },
+  {
+    title: 'Start with sample data',
+    body: "Pick any of the sample datasets to see a live dashboard in seconds. We'll auto-detect the columns and build the KPIs for you — no setup needed.",
+    target: 'sample-picker',
+    pos: 'below',
+  },
+  {
+    title: 'Or upload your own file',
+    body: "Ready to use real data? Drop a CSV or Excel file and your first dashboard loads automatically.",
+    target: 'upload-btn',
+    pos: 'below',
+  },
+  {
+    title: '50+ tools in the sidebar',
+    body: 'Pivots, forecasting, anomaly detection, budget-vs-actuals and more. Hover any tool to see what it does.',
+    target: 'nav-data',
+    pos: 'right',
+  },
+  {
+    title: "You're all set 🚀",
+    body: 'Use the search bar at the top of the workspace to find any tool in seconds.',
+    target: null,
+  },
 ]
 
 export default function OnboardingTour() {

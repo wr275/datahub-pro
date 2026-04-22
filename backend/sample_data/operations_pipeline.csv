@@ -1,0 +1,121 @@
+Month,Department,Project_Status,Budget,Actual_Cost,Duration_Days,Team_Size,Completion_Rate
+2023-01,Engineering,On Hold,50440,39938,82,5,0.66
+2023-01,Customer Success,In Progress,161608,150331,109,14,0.53
+2023-01,Finance,Completed,45957,50942,92,9,1.0
+2023-01,Product,On Hold,93332,71311,61,6,0.68
+2023-01,Operations,On Hold,115075,91222,101,8,0.74
+2023-02,Engineering,On Hold,114024,88486,49,6,0.96
+2023-02,Customer Success,On Hold,139201,109887,41,13,0.79
+2023-02,Finance,On Hold,33258,36195,45,5,0.87
+2023-02,Product,In Progress,165282,138684,41,6,0.62
+2023-02,Operations,In Progress,176233,132389,32,5,0.74
+2023-03,Engineering,Completed,48816,50488,17,5,1.0
+2023-03,Customer Success,In Progress,82372,82636,16,5,0.59
+2023-03,Finance,In Progress,130352,127251,109,4,0.7
+2023-03,Product,Completed,154542,155357,71,11,1.0
+2023-03,Operations,In Progress,31367,33334,98,11,0.61
+2023-04,Engineering,Completed,28165,21860,75,9,1.0
+2023-04,Customer Success,Completed,48301,46408,70,4,1.0
+2023-04,Finance,At Risk,104439,105647,22,5,0.6
+2023-04,Product,Completed,163748,172954,62,12,1.0
+2023-04,Operations,Completed,138938,134406,69,4,1.0
+2023-05,Engineering,Completed,49992,55826,97,11,1.0
+2023-05,Customer Success,Completed,76367,71397,43,9,1.0
+2023-05,Finance,In Progress,138882,127973,107,4,0.62
+2023-05,Product,In Progress,86817,79085,33,13,0.94
+2023-05,Operations,In Progress,42377,33481,26,14,0.84
+2023-06,Engineering,At Risk,165849,128664,85,11,0.62
+2023-06,Customer Success,In Progress,112693,126853,110,9,0.91
+2023-06,Finance,Completed,95400,96180,59,4,1.0
+2023-06,Product,Completed,75768,61867,75,6,1.0
+2023-06,Operations,At Risk,111780,124468,61,4,0.85
+2023-07,Engineering,Completed,132489,147515,112,12,1.0
+2023-07,Customer Success,Completed,165945,126332,98,14,1.0
+2023-07,Finance,In Progress,67294,58377,111,7,0.94
+2023-07,Product,In Progress,67554,75933,86,13,0.66
+2023-07,Operations,In Progress,28036,22133,81,6,0.65
+2023-08,Engineering,Completed,61263,55695,106,8,1.0
+2023-08,Customer Success,Completed,168791,169867,20,5,1.0
+2023-08,Finance,In Progress,33044,34359,48,10,0.8
+2023-08,Product,Completed,135879,126109,41,11,1.0
+2023-08,Operations,In Progress,132699,105851,100,13,0.76
+2023-09,Engineering,Completed,100850,77607,64,12,1.0
+2023-09,Customer Success,In Progress,73588,64728,41,5,0.86
+2023-09,Finance,In Progress,51453,38760,109,9,0.54
+2023-09,Product,In Progress,80322,77519,120,13,0.88
+2023-09,Operations,In Progress,31089,29148,72,4,0.91
+2023-10,Engineering,Completed,170313,157352,95,9,1.0
+2023-10,Customer Success,In Progress,126176,95763,55,5,0.87
+2023-10,Finance,Completed,114857,90495,27,6,1.0
+2023-10,Product,Completed,124975,121888,64,7,1.0
+2023-10,Operations,Completed,78083,69745,35,4,1.0
+2023-11,Engineering,Completed,49891,48801,38,8,1.0
+2023-11,Customer Success,In Progress,58716,50002,32,7,0.55
+2023-11,Finance,Completed,39753,32842,112,13,1.0
+2023-11,Product,Completed,167779,180655,71,13,1.0
+2023-11,Operations,On Hold,167978,172427,93,8,0.91
+2023-12,Engineering,Completed,59572,55943,74,10,1.0
+2023-12,Customer Success,Completed,92004,92400,59,11,1.0
+2023-12,Finance,In Progress,141043,133190,21,8,0.89
+2023-12,Product,In Progress,43670,44301,78,9,0.7
+2023-12,Operations,Completed,30753,29011,117,12,1.0
+2024-01,Engineering,Completed,104286,105344,78,5,1.0
+2024-01,Customer Success,On Hold,138101,109722,57,14,0.49
+2024-01,Finance,Completed,30260,25918,70,10,1.0
+2024-01,Product,Completed,179856,147169,61,7,1.0
+2024-01,Operations,In Progress,108700,113257,20,13,0.79
+2024-02,Engineering,In Progress,44774,44322,63,7,0.58
+2024-02,Customer Success,At Risk,177994,200334,56,4,0.76
+2024-02,Finance,In Progress,111703,98678,97,14,0.8
+2024-02,Product,In Progress,42208,37274,62,13,0.87
+2024-02,Operations,At Risk,157990,124841,99,9,0.72
+2024-03,Engineering,In Progress,100967,83551,41,8,0.95
+2024-03,Customer Success,Completed,79386,93674,33,4,1.0
+2024-03,Finance,In Progress,46513,45038,83,14,0.92
+2024-03,Product,In Progress,108280,122015,93,5,0.77
+2024-03,Operations,In Progress,67407,74651,112,12,0.88
+2024-04,Engineering,In Progress,134733,103581,60,13,0.83
+2024-04,Customer Success,On Hold,94692,101654,114,10,0.57
+2024-04,Finance,In Progress,142949,162777,38,8,0.81
+2024-04,Product,Completed,135499,128523,50,9,1.0
+2024-04,Operations,Completed,129749,151221,118,6,1.0
+2024-05,Engineering,At Risk,56280,63336,20,13,0.7
+2024-05,Customer Success,In Progress,46893,49514,80,4,0.6
+2024-05,Finance,Completed,91510,86312,79,5,1.0
+2024-05,Product,At Risk,44042,50954,42,10,0.92
+2024-05,Operations,On Hold,128762,99520,78,8,0.57
+2024-06,Engineering,On Hold,118281,100130,54,4,0.89
+2024-06,Customer Success,Completed,58285,47162,50,10,1.0
+2024-06,Finance,Completed,56383,60685,74,10,1.0
+2024-06,Product,Completed,40768,30909,41,5,1.0
+2024-06,Operations,Completed,179614,175472,28,7,1.0
+2024-07,Engineering,In Progress,51941,40022,67,13,0.87
+2024-07,Customer Success,Completed,49060,54445,77,12,1.0
+2024-07,Finance,Completed,155102,154678,105,5,1.0
+2024-07,Product,In Progress,20410,20703,44,12,0.67
+2024-07,Operations,Completed,42443,41386,60,4,1.0
+2024-08,Engineering,On Hold,162627,157447,78,11,0.46
+2024-08,Customer Success,At Risk,31412,32145,61,7,0.85
+2024-08,Finance,In Progress,37710,33873,107,13,0.78
+2024-08,Product,Completed,107167,86523,59,11,1.0
+2024-08,Operations,In Progress,65898,72953,101,10,0.97
+2024-09,Engineering,Completed,67783,74489,22,14,1.0
+2024-09,Customer Success,Completed,139977,107208,39,3,1.0
+2024-09,Finance,Completed,30985,27443,53,11,1.0
+2024-09,Product,In Progress,162352,154812,18,13,0.55
+2024-09,Operations,In Progress,32531,36509,56,7,0.52
+2024-10,Engineering,In Progress,124863,133556,63,8,0.97
+2024-10,Customer Success,Completed,150422,136577,116,11,1.0
+2024-10,Finance,In Progress,41656,44265,24,9,0.77
+2024-10,Product,At Risk,162992,142833,27,4,0.62
+2024-10,Operations,In Progress,136894,138143,68,5,0.82
+2024-11,Engineering,In Progress,31103,33047,59,12,0.98
+2024-11,Customer Success,In Progress,35036,27407,95,9,0.64
+2024-11,Finance,At Risk,61939,71830,32,12,0.81
+2024-11,Product,Completed,53090,41352,113,13,1.0
+2024-11,Operations,In Progress,120362,139411,18,12,0.53
+2024-12,Engineering,Completed,117246,106689,111,4,1.0
+2024-12,Customer Success,Completed,158794,144151,54,13,1.0
+2024-12,Finance,In Progress,49739,37858,37,10,0.72
+2024-12,Product,At Risk,50870,43878,47,14,0.69
+2024-12,Operations,On Hold,94862,99454,76,6,0.51

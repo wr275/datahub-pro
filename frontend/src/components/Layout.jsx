@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { adminApi } from '../api'
+import OnboardingTour from './OnboardingTour'
 
 const NAV = [
   {
@@ -187,8 +188,11 @@ function LayoutInner({ children }) {
         <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 0' }}>
           {NAV.map(({ section, icon, items, aiGated }) => {
             const locked = aiGated && !aiEnabled
+            // The onboarding tour step 4 highlights the DATA section — tag
+            // it so the spotlight overlay can find it via querySelector.
+            const tourAttr = section === 'DATA' ? { 'data-tour': 'nav-data' } : {}
             return (
-            <div key={section}>
+            <div key={section} {...tourAttr}>
               {sidebarOpen ? (
                 <button onClick={() => toggleSection(section)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -351,6 +355,12 @@ function LayoutInner({ children }) {
           {children}
         </main>
       </div>
+
+      {/* Onboarding tour — self-gates via localStorage, only fires once per
+          browser. Mounted at the Layout level so it can reach elements in
+          both the sidebar (nav-data) and the page content (upload-btn,
+          sample-picker). */}
+      <OnboardingTour />
     </div>
   )
 }

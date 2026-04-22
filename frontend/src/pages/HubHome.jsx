@@ -114,11 +114,18 @@ export default function HubHome() {
   const [requestingAccess, setRequestingAccess] = useState(false)
   const [tab, setTab] = useState('workspace') // 'workspace' | 'ai'
   const [prompt, setPrompt] = useState('')
+  // Which sample template (if any) is currently being seeded — used to
+  // disable other CTAs and show a spinner without blocking the whole UI.
+  const [seeding, setSeeding] = useState(null)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
   const aiEnabled = !!(user?.organisation?.ai_enabled ?? user?.ai_enabled)
   const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin'
+  // Zero-file workspaces get a dedicated empty-state that funnels the user
+  // towards either sample data or an upload — both paths end on a populated
+  // dashboard, which is the point of the onboarding flow.
+  const hasFiles = stats.files > 0
 
   useEffect(() => {
     filesApi.list().then(r => {
@@ -127,6 +134,23 @@ export default function HubHome() {
       setRecentFiles(files.slice(0, 3))
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  const handleSeedSample = async (templateId) => {
+    setSeeding(templateId)
+    try {
+      const res = await filesApi.seedSample(templateId)
+      const fileId = res.data?.id
+      if (!fileId) throw new Error('No file id returned')
+      toast.success('Loading your sample dashboard…')
+      // first_run=true tells ExecutiveDashboard to fire the audit event and
+      // show the "here's what we detected" banner so auto-generation feels
+      // deliberate, not magical.
+      navigate(`/executive-dashboard?fileId=${fileId}&first_run=true`)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Could not load sample data')
+      setSeeding(null)
+    }
+  }
 
   const toggleSection = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }))
 
@@ -230,6 +254,10 @@ export default function HubHome() {
           setSearchQuery={setSearchQuery}
           expanded={expanded}
           toggleSection={toggleSection}
+          hasFiles={hasFiles}
+          seeding={seeding}
+          handleSeedSample={handleSeedSample}
+          loading={loading}
         />
       ) : (
         <AiTab
@@ -285,25 +313,36 @@ function TabButton({ active, onClick, label, icon, count, locked, highlight }) {
   )
 }
 
-function WorkspaceTab({ navigate, recentFiles, searchQuery, setSearchQuery, expanded, toggleSection }) {
+function WorkspaceTab({ navigate, recentFiles, searchQuery, setSearchQuery, expanded, toggleSection, hasFiles, seeding, handleSeedSample, loading }) {
   return (
     <>
-      {/* Quick Actions (workspace-relevant only) */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Quick Actions</div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {QUICK_ACTIONS
-            .filter(a => !['/ai-insights', '/ask-your-data', '/auto-report', '/ai-narrative', '/formula-builder', '/ai-settings'].includes(a.path))
-            .map(a => (
-              <button key={a.path} onClick={() => navigate(a.path)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#fff', border: `1px solid #e8eaf4`, borderRadius: 24, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0c1446', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = a.color; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = a.color; e.currentTarget.style.boxShadow = `0 4px 16px rgba(0,0,0,0.15)` }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0c1446'; e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)' }}>
-                <span>{a.icon}</span> {a.label}
-              </button>
-            ))}
+      {/* Empty-state: takes over the top of the page until the org has its
+          first file. Both CTAs funnel the user to a populated dashboard —
+          that's the whole point of the 120-second wow moment. Everything
+          below (tool sections) stays visible so nothing feels hidden. */}
+      {!loading && !hasFiles ? (
+        <OnboardingEmptyState
+          navigate={navigate}
+          seeding={seeding}
+          handleSeedSample={handleSeedSample}
+        />
+      ) : (
+        <div style={{ marginBottom: 24 }} data-tour="upload-btn">
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Quick Actions</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {QUICK_ACTIONS
+              .filter(a => !['/ai-insights', '/ask-your-data', '/auto-report', '/ai-narrative', '/formula-builder', '/ai-settings'].includes(a.path))
+              .map(a => (
+                <button key={a.path} onClick={() => navigate(a.path)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: '#fff', border: `1px solid #e8eaf4`, borderRadius: 24, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#0c1446', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = a.color; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = a.color; e.currentTarget.style.boxShadow = `0 4px 16px rgba(0,0,0,0.15)` }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0c1446'; e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)' }}>
+                  <span>{a.icon}</span> {a.label}
+                </button>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Files */}
       {recentFiles.length > 0 && (
@@ -575,6 +614,101 @@ function AiTab({
             </div>
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+
+// Zero-files onboarding card. The primary CTA is sample data (instant wow)
+// because the common failure mode is "user signs up, sees empty workspace,
+// has nothing to explore, leaves". The secondary CTA is the real upload
+// path. The three sample tiles are labelled by buyer persona so a finance
+// user, marketer, or ops manager all see something recognisable.
+function OnboardingEmptyState({ navigate, seeding, handleSeedSample }) {
+  const SAMPLES = [
+    { id: 'uk_smb_sales', icon: '💼', label: 'Sales Performance', desc: '24 months × 4 regions' },
+    { id: 'marketing_campaigns', icon: '📣', label: 'Marketing Campaigns', desc: 'Spend, clicks, ROI by channel' },
+    { id: 'operations_pipeline', icon: '⚙️', label: 'Operations Pipeline', desc: 'Budgets, status, completion' },
+  ]
+  const disabled = !!seeding
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#fff 0%,#fef6fb 100%)',
+      border: '1px solid #f9d6e8',
+      borderRadius: 18,
+      padding: '32px 36px',
+      marginBottom: 28,
+      boxShadow: '0 4px 20px rgba(233,30,140,0.06)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', marginBottom: 20 }}>
+        <div style={{ flex: '1 1 320px' }}>
+          <div style={{ display: 'inline-block', background: '#fce7f3', color: '#be185d', padding: '4px 10px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10 }}>
+            Get started
+          </div>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, color: '#0c1446', letterSpacing: '-0.01em' }}>
+            See your first dashboard in 30 seconds
+          </h2>
+          <p style={{ margin: '6px 0 0', color: '#6b7280', fontSize: '0.92rem', maxWidth: 560, lineHeight: 1.5 }}>
+            Pick a sample dataset to see DataHub Pro in action — or upload your own CSV or Excel file. Either way, your dashboard will be live before your kettle boils.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/files')}
+          disabled={disabled}
+          data-tour="upload-btn"
+          style={{
+            padding: '12px 22px', background: '#fff', border: '1.5px solid #e8eaf4',
+            borderRadius: 10, cursor: disabled ? 'not-allowed' : 'pointer',
+            fontWeight: 700, fontSize: '0.9rem', color: '#0c1446',
+            opacity: disabled ? 0.6 : 1,
+            display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = '#0c1446'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#0c1446' } }}
+          onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0c1446'; e.currentTarget.style.borderColor = '#e8eaf4' } }}>
+          <span>📂</span> Upload my own file
+        </button>
+      </div>
+
+      <div data-tour="sample-picker" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 12,
+      }}>
+        {SAMPLES.map(s => {
+          const isLoading = seeding === s.id
+          return (
+            <button key={s.id}
+              onClick={() => handleSeedSample(s.id)}
+              disabled={disabled}
+              style={{
+                background: '#fff', border: '1.5px solid #e8eaf4', borderRadius: 12,
+                padding: '18px 18px', textAlign: 'left',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled && !isLoading ? 0.5 : 1,
+                transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', gap: 14, minHeight: 76,
+              }}
+              onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = '#e91e8c'; e.currentTarget.style.background = '#fff5f9'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+              onMouseLeave={e => { if (!disabled) { e.currentTarget.style.borderColor = '#e8eaf4'; e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)' } }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+                background: 'linear-gradient(135deg,#fce7f3,#fbcfe8)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.4rem',
+              }}>{isLoading ? '⏳' : s.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0c1446', marginBottom: 3 }}>
+                  {isLoading ? 'Loading…' : s.label}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{s.desc}</div>
+              </div>
+              {!isLoading && (
+                <span style={{ color: '#e91e8c', fontWeight: 700, fontSize: '1.1rem' }}>→</span>
+              )}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

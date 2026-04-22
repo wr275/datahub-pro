@@ -43,6 +43,10 @@ export const filesApi = {
   upload: (formData) => api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   download: (id) => api.get(`/files/${id}/download`),
   delete: (id) => api.delete(`/files/${id}`),
+  // Onboarding: seed a bundled demo CSV into the caller's org so new users
+  // can jump straight to a populated dashboard without uploading anything.
+  sampleTemplates: () => api.get('/files/sample-templates'),
+  seedSample: (templateId) => api.post(`/files/seed-sample/${templateId}`),
 }
 
 export const analyticsApi = {
@@ -62,6 +66,9 @@ export const usersApi = {
   team: () => api.get('/users/team'),
   invite: (data) => api.post('/users/invite', data),
   auditLog: () => api.get('/users/audit-log'),
+  // Log a whitelisted client-side event (e.g. first_dashboard_viewed).
+  // Fire-and-forget — failures must never block the UI.
+  logEvent: (event, detail) => api.post('/users/events', { event, detail: detail || '' }),
 }
 
 export const connectorsApi = {

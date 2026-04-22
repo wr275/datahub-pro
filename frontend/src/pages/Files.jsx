@@ -26,6 +26,12 @@ export default function Files() {
   useEffect(() => { loadFiles() }, [])
 
   const uploadFile = async (file) => {
+    // Snapshot the pre-upload file count. If this upload takes the user from
+    // zero to one file, we redirect them to a populated Executive Dashboard
+    // so the first thing they see after ingesting data is a live view of it,
+    // not a file list. Subsequent uploads stay on this page (power-user
+    // workflow — bulk uploading shouldn't keep yanking you away).
+    const wasEmpty = files.length === 0
     setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
@@ -44,6 +50,10 @@ export default function Files() {
         } catch (_) {}
       }
       toast.success(file.name + ' uploaded successfully!')
+      if (wasEmpty && uploaded?.id) {
+        navigate(`/executive-dashboard?fileId=${uploaded.id}&first_run=true`)
+        return
+      }
       loadFiles()
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Upload failed')
