@@ -121,6 +121,8 @@ export const dashboardsApi = {
   update: (id, data) => api.put('/dashboards/' + id, data),
   delete: (id) => api.delete('/dashboards/' + id),
   share: (id) => api.post('/dashboards/' + id + '/share'),
+  // Configure expiry, password, embed flag, or regenerate the token.
+  updateShareSettings: (id, data) => api.patch('/dashboards/' + id + '/share-settings', data),
 }
 
 export const sheetsApi = {

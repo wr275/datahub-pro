@@ -1,19 +1,35 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""
+Dashboards — custom layouts built on top of a DataFile.
+
+Storage note: share settings (expiry, password hash, embed flag) live inside
+`config_json` under a top-level `share` key, so no schema migration is needed.
+Shape:
+
+    {
+      "widgets": [...],
+      "filters": {"date_column": "...", "from": "...", "to": "...", "dimension": "...", "values": [...]},
+      "share":   {"expires_at": "2026-05-30T12:00:00Z", "password_hash": "...", "allow_embed": true}
+    }
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime, timezone
 from database import get_db, Dashboard, DataFile, User
 from auth_utils import get_current_user
 import uuid
 import json
 import io
 import csv
+import hashlib
+import secrets
 
 router = APIRouter()
 share_router = APIRouter()
 
 
-# ââ Schemas ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# -- Schemas -----------------------------------------------------------------
 
 class DashboardCreate(BaseModel):
     name: str
@@ -29,9 +45,59 @@ class DashboardUpdate(BaseModel):
     file_id: Optional[str] = None
 
 
-# ââ Helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+class ShareSettings(BaseModel):
+    is_public: Optional[bool] = None
+    # Null clears; "never" means no expiry; ISO datetime otherwise.
+    expires_at: Optional[str] = None
+    # Set to non-empty to require a password. Send "" to clear.
+    password: Optional[str] = None
+    allow_embed: Optional[bool] = None
+    regenerate_token: Optional[bool] = False
+
+
+# -- Helpers -----------------------------------------------------------------
+
+def _hash_password(pw: str) -> str:
+    if not pw:
+        return ""
+    salt = secrets.token_hex(8)
+    h = hashlib.sha256((salt + pw).encode("utf-8")).hexdigest()
+    return f"{salt}${h}"
+
+
+def _verify_password(pw: str, stored: str) -> bool:
+    if not stored:
+        return True  # no password set
+    if not pw:
+        return False
+    try:
+        salt, h = stored.split("$", 1)
+    except ValueError:
+        return False
+    return hashlib.sha256((salt + pw).encode("utf-8")).hexdigest() == h
+
+
+def _parse_config(raw: Optional[str]) -> dict:
+    if not raw:
+        return {}
+    try:
+        cfg = json.loads(raw)
+        return cfg if isinstance(cfg, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_share_settings(cfg: dict) -> dict:
+    share = cfg.get("share") or {}
+    return {
+        "expires_at": share.get("expires_at"),
+        "has_password": bool(share.get("password_hash")),
+        "allow_embed": bool(share.get("allow_embed", True)),
+    }
+
 
 def dash_dict(d: Dashboard):
+    cfg = _parse_config(d.config_json)
     return {
         "id": d.id,
         "name": d.name,
@@ -40,6 +106,7 @@ def dash_dict(d: Dashboard):
         "file_id": d.file_id,
         "is_public": getattr(d, "is_public", False),
         "share_token": getattr(d, "share_token", None),
+        "share_settings": _get_share_settings(cfg),
         "created_at": d.created_at.isoformat() if d.created_at else None,
         "updated_at": d.updated_at.isoformat() if d.updated_at else None,
     }
@@ -50,14 +117,14 @@ def _get_file_data(file_id: str, db: Session):
     f = db.query(DataFile).filter(DataFile.id == file_id).first()
     if not f or not f.file_content:
         return None
-    text = f.file_content.decode("utf-8", errors="replace")
+    text = bytes(f.file_content).decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     headers = list(reader.fieldnames or [])
     rows = [dict(r) for r in reader]
     return {"headers": headers, "rows": rows, "filename": f.original_filename}
 
 
-# ââ Authenticated endpoints ââââââââââââââââââââââââââââââââââââââââââââââââââ
+# -- Authenticated endpoints -------------------------------------------------
 
 @router.get("/")
 def list_dashboards(
@@ -114,7 +181,13 @@ def update_dashboard(
     if body.description is not None:
         d.description = body.description
     if body.config_json is not None:
-        d.config_json = body.config_json
+        # Preserve any share settings across an update that might overwrite them
+        existing_cfg = _parse_config(d.config_json)
+        existing_share = existing_cfg.get("share")
+        new_cfg = _parse_config(body.config_json)
+        if existing_share is not None and "share" not in new_cfg:
+            new_cfg["share"] = existing_share
+        d.config_json = json.dumps(new_cfg)
     if body.file_id is not None:
         d.file_id = body.file_id
     db.commit()
@@ -145,6 +218,7 @@ def toggle_share(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Flip is_public on/off. Preserves existing share settings."""
     d = db.query(Dashboard).filter(
         Dashboard.id == dashboard_id,
         Dashboard.organisation_id == current_user.organisation_id,
@@ -157,28 +231,135 @@ def toggle_share(
             d.share_token = str(uuid.uuid4())
         db.commit()
         db.refresh(d)
-        return {"is_public": d.is_public, "share_token": d.share_token}
+        return {
+            "is_public": d.is_public,
+            "share_token": d.share_token,
+            "share_settings": _get_share_settings(_parse_config(d.config_json)),
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ââ Public share endpoint (no auth required) âââââââââââââââââââââââââââââââââ
+@router.patch("/{dashboard_id}/share-settings")
+def update_share_settings(
+    dashboard_id: str,
+    body: ShareSettings,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Configure expiry, password, and embed for a dashboard's share link.
 
-@share_router.get("/{token}")
-def get_shared_dashboard(token: str, db: Session = Depends(get_db)):
+    - Pass `password: ""` to clear an existing password.
+    - Pass `expires_at: "never"` to clear expiry.
+    - Pass `regenerate_token: true` to invalidate the current share URL.
+    """
     d = db.query(Dashboard).filter(
-        Dashboard.share_token == token,
+        Dashboard.id == dashboard_id,
+        Dashboard.organisation_id == current_user.organisation_id,
     ).first()
     if not d:
         raise HTTPException(status_code=404, detail="Dashboard not found")
-    try:
-        if not d.is_public:
-            raise HTTPException(status_code=403, detail="This dashboard is not publicly shared")
-    except AttributeError:
+
+    cfg = _parse_config(d.config_json)
+    share = dict(cfg.get("share") or {})
+
+    if body.expires_at is not None:
+        if body.expires_at == "" or body.expires_at.lower() == "never":
+            share.pop("expires_at", None)
+        else:
+            # Validate ISO-8601
+            try:
+                datetime.fromisoformat(body.expires_at.replace("Z", "+00:00"))
+            except Exception:
+                raise HTTPException(status_code=400, detail="expires_at must be ISO-8601")
+            share["expires_at"] = body.expires_at
+
+    if body.password is not None:
+        if body.password == "":
+            share.pop("password_hash", None)
+        else:
+            if len(body.password) < 4:
+                raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+            share["password_hash"] = _hash_password(body.password)
+
+    if body.allow_embed is not None:
+        share["allow_embed"] = bool(body.allow_embed)
+
+    if body.is_public is not None:
+        d.is_public = bool(body.is_public)
+        if d.is_public and not d.share_token:
+            d.share_token = str(uuid.uuid4())
+
+    if body.regenerate_token:
+        d.share_token = str(uuid.uuid4())
+
+    cfg["share"] = share
+    d.config_json = json.dumps(cfg)
+    db.commit()
+    db.refresh(d)
+
+    return {
+        "is_public": d.is_public,
+        "share_token": d.share_token,
+        "share_settings": _get_share_settings(cfg),
+    }
+
+
+# -- Public share endpoint (no auth required) -------------------------------
+
+@share_router.get("/{token}")
+def get_shared_dashboard(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    x_share_password: Optional[str] = Header(None),
+):
+    d = db.query(Dashboard).filter(Dashboard.share_token == token).first()
+    if not d:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    if not getattr(d, "is_public", False):
         raise HTTPException(status_code=403, detail="This dashboard is not publicly shared")
 
+    cfg = _parse_config(d.config_json)
+    share = cfg.get("share") or {}
+
+    # Expiry gate
+    expires_at = share.get("expires_at")
+    if expires_at:
+        try:
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc)
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if now > exp_dt:
+                raise HTTPException(status_code=410, detail={"code": "share_expired", "message": "This share link has expired"})
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Malformed expiry — fail open rather than lock out
+
+    # Password gate
+    stored_hash = share.get("password_hash") or ""
+    if stored_hash:
+        supplied = x_share_password or request.query_params.get("pw") or ""
+        if not _verify_password(supplied, stored_hash):
+            raise HTTPException(
+                status_code=401,
+                detail={"code": "password_required", "message": "This share link is password-protected"},
+            )
+
+    # Build response — strip share.password_hash before returning
     result = dash_dict(d)
+    try:
+        out_cfg = _parse_config(d.config_json)
+        if "share" in out_cfg and "password_hash" in out_cfg["share"]:
+            del out_cfg["share"]["password_hash"]
+        result["config_json"] = json.dumps(out_cfg)
+    except Exception:
+        pass
+
     if d.file_id:
         file_data = _get_file_data(d.file_id, db)
         if file_data:

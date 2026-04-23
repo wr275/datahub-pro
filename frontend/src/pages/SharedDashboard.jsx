@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { shareApi } from '../api'
+import axios from 'axios'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer
@@ -8,6 +8,39 @@ import {
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6']
 const APP_URL = 'https://datahub-pro-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api'
+
+// Apply the dashboard-level filters that were saved alongside widgets.
+// Filters live in config_json.filters = {date_column, from, to, dimension, values[]}
+function applyFilters(rows, filters) {
+  if (!filters || !rows || rows.length === 0) return rows
+  let out = rows
+
+  // Date range
+  if (filters.date_column && (filters.from || filters.to)) {
+    const col = filters.date_column
+    const fromMs = filters.from ? new Date(filters.from).getTime() : null
+    const toMs = filters.to ? new Date(filters.to).getTime() + 86399999 : null
+    out = out.filter(r => {
+      const v = r[col]
+      if (!v) return false
+      const ms = new Date(v).getTime()
+      if (isNaN(ms)) return false
+      if (fromMs !== null && ms < fromMs) return false
+      if (toMs !== null && ms > toMs) return false
+      return true
+    })
+  }
+
+  // Dimension multi-select
+  if (filters.dimension && Array.isArray(filters.values) && filters.values.length > 0) {
+    const col = filters.dimension
+    const allow = new Set(filters.values.map(String))
+    out = out.filter(r => allow.has(String(r[col])))
+  }
+
+  return out
+}
 
 function Widget({ widget, rows, headers }) {
   const numericCols = headers.filter(h => rows.some(r => !isNaN(parseFloat(r[h]))))
@@ -120,28 +153,76 @@ function Widget({ widget, rows, headers }) {
   return null
 }
 
+// Centred pane used for the three blocking states (expired / password / error).
+function StatePane({ icon, title, message, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 420, width: '100%', background: '#fff', padding: 36, borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ fontSize: '2.8rem', marginBottom: 14 }}>{icon}</div>
+        <div style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: 6, color: '#0c1446' }}>{title}</div>
+        <div style={{ color: '#6b7280', marginBottom: 20, fontSize: '0.9rem' }}>{message}</div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function SharedDashboard() {
   const { token } = useParams()
   const [dash, setDash] = useState(null)
   const [rows, setRows] = useState([])
   const [headers, setHeaders] = useState([])
-  const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  // status is one of: 'loading', 'ok', 'password', 'expired', 'not_found', 'error'
+  const [status, setStatus] = useState('loading')
+  const [pwInput, setPwInput] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    shareApi.get(token)
-      .then(res => {
-        const data = res.data
-        setDash(data)
-        const fileData = data.file_data || {}
-        setHeaders(fileData.headers || [])
-        setRows(fileData.rows || [])
-        setLoading(false)
-      })
-      .catch(() => { setError(true); setLoading(false) })
+  const fetchDashboard = useCallback(async (password) => {
+    setLoading(true)
+    setPwError('')
+    try {
+      const headers = password ? { 'X-Share-Password': password } : {}
+      const res = await axios.get(API_BASE + '/share/' + encodeURIComponent(token), { headers })
+      const data = res.data
+      setDash(data)
+      const fileData = data.file_data || {}
+      setHeaders(fileData.headers || [])
+      setRows(fileData.rows || [])
+      setStatus('ok')
+    } catch (err) {
+      const resp = err.response
+      const detail = resp && resp.data ? resp.data.detail : null
+      const code = detail && typeof detail === 'object' ? detail.code : null
+      if (resp && resp.status === 401 && code === 'password_required') {
+        setStatus('password')
+        if (password) setPwError('Incorrect password. Try again.')
+      } else if (resp && resp.status === 410) {
+        setStatus('expired')
+      } else if (resp && resp.status === 404) {
+        setStatus('not_found')
+      } else if (resp && resp.status === 403) {
+        setStatus('not_found')  // "not publicly shared" reads the same to the viewer
+      } else {
+        setStatus('error')
+      }
+    } finally {
+      setLoading(false)
+      setSubmitting(false)
+    }
   }, [token])
 
-  if (loading) return (
+  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+
+  const onSubmitPassword = (e) => {
+    e.preventDefault()
+    if (!pwInput) { setPwError('Enter the password to continue.'); return }
+    setSubmitting(true)
+    fetchDashboard(pwInput)
+  }
+
+  if (loading && status === 'loading') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
       <div style={{ textAlign: 'center', color: '#6b7280' }}>
         <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>Loading dashboard...</div>
@@ -149,23 +230,101 @@ export default function SharedDashboard() {
     </div>
   )
 
-  if (error) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>&#128274;</div>
-        <div style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: 6, color: '#0c1446' }}>Dashboard not available</div>
-        <div style={{ color: '#6b7280', marginBottom: 20, fontSize: '0.9rem' }}>This dashboard may have been unshared or deleted.</div>
-        <a href={APP_URL} style={{
-          display: 'inline-block', background: '#e91e8c', color: '#fff',
-          padding: '10px 24px', borderRadius: 8, fontWeight: 700,
-          textDecoration: 'none', fontSize: '0.9rem'
-        }}>Go to DataHub Pro</a>
-      </div>
-    </div>
+  if (status === 'expired') return (
+    <StatePane
+      icon="&#9203;"
+      title="This share link has expired"
+      message="The owner set an expiry date on this dashboard and it has passed. Ask them for a new link."
+    >
+      <a href={APP_URL} style={{
+        display: 'inline-block', background: '#e91e8c', color: '#fff',
+        padding: '10px 24px', borderRadius: 8, fontWeight: 700,
+        textDecoration: 'none', fontSize: '0.9rem'
+      }}>Go to DataHub Pro</a>
+    </StatePane>
   )
 
+  if (status === 'not_found') return (
+    <StatePane
+      icon="&#128274;"
+      title="Dashboard not available"
+      message="This dashboard may have been unshared, deleted, or the link is incorrect."
+    >
+      <a href={APP_URL} style={{
+        display: 'inline-block', background: '#e91e8c', color: '#fff',
+        padding: '10px 24px', borderRadius: 8, fontWeight: 700,
+        textDecoration: 'none', fontSize: '0.9rem'
+      }}>Go to DataHub Pro</a>
+    </StatePane>
+  )
+
+  if (status === 'error') return (
+    <StatePane
+      icon="&#9888;&#65039;"
+      title="Something went wrong"
+      message="We couldn't load this dashboard. Please try again in a moment."
+    >
+      <button
+        onClick={() => fetchDashboard()}
+        style={{
+          background: '#e91e8c', color: '#fff', border: 'none',
+          padding: '10px 24px', borderRadius: 8, fontWeight: 700,
+          cursor: 'pointer', fontSize: '0.9rem'
+        }}
+      >
+        Retry
+      </button>
+    </StatePane>
+  )
+
+  if (status === 'password') return (
+    <StatePane
+      icon="&#128272;"
+      title="Password required"
+      message="This dashboard is protected. Enter the password shared with you to view it."
+    >
+      <form onSubmit={onSubmitPassword} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <input
+          type="password"
+          autoFocus
+          value={pwInput}
+          onChange={e => setPwInput(e.target.value)}
+          placeholder="Enter password"
+          style={{
+            padding: '10px 14px', borderRadius: 8, border: '1px solid #d1d5db',
+            fontSize: '0.95rem', outline: 'none'
+          }}
+        />
+        {pwError && <div style={{ color: '#dc2626', fontSize: '0.82rem' }}>{pwError}</div>}
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{
+            background: submitting ? '#9ca3af' : '#e91e8c', color: '#fff',
+            border: 'none', padding: '10px 24px', borderRadius: 8,
+            fontWeight: 700, cursor: submitting ? 'default' : 'pointer',
+            fontSize: '0.9rem'
+          }}
+        >
+          {submitting ? 'Checking...' : 'Unlock'}
+        </button>
+      </form>
+    </StatePane>
+  )
+
+  // status === 'ok' — render the dashboard
   let widgets = []
-  try { widgets = JSON.parse(dash.config_json || '{}').widgets || [] } catch {}
+  let filters = null
+  let shareSettings = {}
+  try {
+    const cfg = JSON.parse(dash.config_json || '{}')
+    widgets = cfg.widgets || []
+    filters = cfg.filters || null
+  } catch {}
+  shareSettings = dash.share_settings || {}
+
+  const visibleRows = applyFilters(rows, filters)
+  const allowEmbed = shareSettings.allow_embed !== false  // default true
 
   const embedCode = `<iframe src="${window.location.href}" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px;"></iframe>`
   return (
@@ -202,7 +361,9 @@ export default function SharedDashboard() {
         <h1 style={{ fontWeight: 900, fontSize: '1.9rem', color: '#0c1446', marginBottom: 6 }}>{dash.name}</h1>
         {dash.file_name && (
           <p style={{ color: '#6b7280', fontSize: '0.82rem', marginBottom: 28 }}>
-            Dataset: {dash.file_name} &nbsp;&middot;&nbsp; {rows.length} rows &nbsp;&middot;&nbsp; {headers.length} columns
+            Dataset: {dash.file_name} &nbsp;&middot;&nbsp; {visibleRows.length}
+            {visibleRows.length !== rows.length && <span> of {rows.length}</span>} rows
+            &nbsp;&middot;&nbsp; {headers.length} columns
           </p>
         )}
         {widgets.length === 0 && (
@@ -210,19 +371,21 @@ export default function SharedDashboard() {
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
           {widgets.map(w => (
-            <Widget key={w.id} widget={w} rows={rows} headers={headers} />
+            <Widget key={w.id} widget={w} rows={visibleRows} headers={headers} />
           ))}
         </div>
       </div>
 
-      {/* Embed section */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 24px 0' }}>
-        <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 700, whiteSpace: 'nowrap' }}>Embed this dashboard:</span>
-          <input readOnly onClick={e => e.target.select()} value={embedCode} style={{ flex: 1, minWidth: 260, padding: '6px 12px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
-          <button onClick={() => navigator.clipboard.writeText(embedCode).catch(()=>{})} style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}>Copy embed</button>
+      {/* Embed section — hidden if owner disabled embedding */}
+      {allowEmbed && (
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 24px 0' }}>
+          <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 700, whiteSpace: 'nowrap' }}>Embed this dashboard:</span>
+            <input readOnly onClick={e => e.target.select()} value={embedCode} style={{ flex: 1, minWidth: 260, padding: '6px 12px', borderRadius: 6, border: '1px solid #c4b5fd', fontSize: '0.75rem', background: '#fff', color: '#374151' }} />
+            <button onClick={() => navigator.clipboard.writeText(embedCode).catch(()=>{})} style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600 }}>Copy embed</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Footer CTA */}
       <div style={{
