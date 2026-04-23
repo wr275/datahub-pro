@@ -1,124 +1,242 @@
 import React, { useState, useEffect } from 'react'
-import { filesApi, analyticsApi } from '../api'
+import { filesApi, analyticsApi, aiApi } from '../api'
+
+// -----------------------------------------------------------------------------
+// AI Narrative 2.0 — real LLM-written prose with audience/tone/length controls
+// -----------------------------------------------------------------------------
+
+const AUDIENCE_OPTS = [
+  { value: 'client', label: 'Client',
+    desc: 'Addressed to the client reading the deliverable' },
+  { value: 'board', label: 'Board / exec',
+    desc: 'Briefing for senior stakeholders; emphasises "so what"' },
+  { value: 'team', label: 'Internal team',
+    desc: 'Team voice, actionable, candid' },
+]
+
+const TONE_OPTS = [
+  { value: 'executive',   label: 'Executive',   desc: 'Confident, decisive, outcome-led' },
+  { value: 'analyst',     label: 'Analyst',     desc: 'Precise, includes caveats where relevant' },
+  { value: 'storyteller', label: 'Storyteller', desc: 'Narrative arc — hook, tension, resolution' },
+  { value: 'plain',       label: 'Plain English', desc: 'Simple words, no jargon' },
+]
+
+const LENGTH_OPTS = [
+  { value: 'short',  label: 'Short',  desc: '≈ 80-120 words' },
+  { value: 'medium', label: 'Medium', desc: '≈ 180-240 words' },
+  { value: 'long',   label: 'Long',   desc: '≈ 320-400 words' },
+]
 
 export default function AINarrative() {
   const [files, setFiles] = useState([])
   const [fileId, setFileId] = useState('')
   const [headers, setHeaders] = useState([])
-  const [rows, setRows] = useState([])
-  const [narrativeType, setNarrativeType] = useState('executive')
+  const [audience, setAudience] = useState('client')
+  const [tone, setTone] = useState('executive')
+  const [length, setLength] = useState('medium')
+  const [focusColumn, setFocusColumn] = useState('')
   const [loading, setLoading] = useState(false)
-  const [narrative, setNarrative] = useState(null)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
+  useEffect(() => {
+    filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
+  }, [])
 
   function loadFile(id) {
-    setFileId(id); setNarrative(null)
-    if (!id) return
-    analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
+    setFileId(id); setResult(null); setFocusColumn(''); setError('')
+    if (!id) { setHeaders([]); return }
+    analyticsApi.preview(id).then(r => {
+      setHeaders(r.data.headers || [])
+    }).catch(() => {})
   }
 
-  function generate() {
-    if (!fileId || !rows.length) return
-    setLoading(true); setNarrative(null)
-    analyticsApi.summary(fileId).then(r => {
-      const raw = r.data; const summary = raw.summary || {}
-      const numericCols = Object.entries(summary).filter(([, v]) => v.type === 'numeric')
-      const textCols = Object.entries(summary).filter(([, v]) => v.type !== 'numeric')
-      const totalRows = raw.rows || 0; const totalCols = raw.columns || 0
-
-      let text = ''
-
-      if (narrativeType === 'executive') {
-        text = `Executive Summary — ${raw.filename}\n\nThis analysis examines a dataset comprising ${totalRows.toLocaleString()} records across ${totalCols} data dimensions, including ${numericCols.length} quantitative metrics and ${textCols.length} categorical attributes.\n\n`
-        if (numericCols.length > 0) {
-          const [topCol, topStats] = numericCols[0]
-          text += `The primary quantitative measure, ${topCol}, shows a mean value of ${(topStats.mean || 0).toFixed(2)}, ranging from ${(topStats.min || 0).toFixed(2)} to ${(topStats.max || 0).toFixed(2)}. `
-          if (numericCols.length > 1) {
-            text += `Additional key metrics include ${numericCols.slice(1, 3).map(([k, v]) => `${k} (avg: ${(v.mean || 0).toFixed(2)})`).join(' and ')}. `
-          }
-        }
-        const missingCount = Object.values(summary).reduce((a, v) => a + (totalRows - (v.count || 0)), 0)
-        text += `\nData quality assessment indicates ${missingCount === 0 ? 'excellent completeness with no missing values detected' : `${missingCount} missing data points requiring attention before further analysis`}.\n\n`
-        text += `Key Findings:\n• Dataset contains ${totalRows.toLocaleString()} observations suitable for statistical analysis\n`
-        numericCols.slice(0, 3).forEach(([col, stats]) => {
-          text += `• ${col}: avg ${(stats.mean || 0).toFixed(2)}, range ${((stats.max || 0) - (stats.min || 0)).toFixed(2)}\n`
-        })
-        text += `\nThis data provides a solid foundation for further analysis and decision-making.`
-      } else if (narrativeType === 'technical') {
-        text = `Technical Analysis Report — ${raw.filename}\n\n`
-        text += `Dataset Characteristics:\n- Observations: ${totalRows.toLocaleString()}\n- Variables: ${totalCols} (${numericCols.length} continuous, ${textCols.length} categorical)\n\n`
-        text += `Continuous Variable Statistics:\n`
-        numericCols.forEach(([col, stats]) => {
-          text += `${col}: n=${stats.count || 0}, μ=${(stats.mean || 0).toFixed(4)}, min=${(stats.min || 0).toFixed(4)}, max=${(stats.max || 0).toFixed(4)}\n`
-        })
-        text += `\nCategorical Variables:\n`
-        textCols.forEach(([col, stats]) => {
-          text += `${col}: n=${stats.count || 0}, top="${stats.top || ''}" (${stats.freq || 0} occurrences)\n`
-        })
-        text += `\nMissing Data Summary:\n`
-        Object.entries(summary).forEach(([col, stats]) => {
-          const missing = totalRows - (stats.count || 0)
-          if (missing > 0) text += `${col}: ${missing} missing (${(missing / totalRows * 100).toFixed(1)}%)\n`
-        })
-        if (!Object.entries(summary).some(([, v]) => (totalRows - (v.count || 0)) > 0)) text += 'No missing values detected.\n'
-      } else {
-        text = `Data Story — ${raw.filename}\n\nWelcome to the story of this dataset. Behind the numbers, there's a narrative worth exploring.\n\n`
-        text += `We're working with a collection of ${totalRows.toLocaleString()} data points — each one a snapshot of real-world activity. Across ${totalCols} dimensions, patterns begin to emerge.\n\n`
-        if (numericCols.length > 0) {
-          const [col, stats] = numericCols[0]
-          text += `Take ${col}, for instance. On average, it sits at ${(stats.mean || 0).toFixed(2)} — but the story gets interesting when you see its range: from a low of ${(stats.min || 0).toFixed(2)} all the way up to ${(stats.max || 0).toFixed(2)}. That's the kind of variation that tells you something is happening beneath the surface.\n\n`
-        }
-        if (textCols.length > 0) {
-          const [col, stats] = textCols[0]
-          text += `Among the categories, ${col} stands out. The most common value is "${stats.top || 'unknown'}", appearing ${stats.freq || 0} times. What does that tell us? Perhaps a dominant segment, or a common pattern that deserves closer attention.\n\n`
-        }
-        text += `Every dataset has a story. This one is yours to explore.`
-      }
-
-      setNarrative(text)
-    }).catch(() => {}).finally(() => setLoading(false))
+  async function generate() {
+    if (!fileId || loading) return
+    setLoading(true); setError(''); setResult(null); setCopied(false)
+    try {
+      const r = await aiApi.narrative(fileId, {
+        audience, tone, length,
+        focus_column: focusColumn || null,
+      })
+      setResult(r.data)
+    } catch (e) {
+      const d = e?.response?.data?.detail
+      if (d?.code === 'ai_disabled') setError('AI is not enabled on this workspace.')
+      else setError(typeof d === 'string' ? d : (e.message || 'Narrative generation failed'))
+    } finally {
+      setLoading(false)
+    }
   }
+
+  async function copyText() {
+    const txt = result?.narrative?.narrative || ''
+    if (!txt) return
+    try {
+      await navigator.clipboard.writeText(txt)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setError('Copy to clipboard blocked by the browser. Select text and copy manually.')
+    }
+  }
+
+  const narrative = result?.narrative
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ margin: '0 0 6px', fontSize: '1.6rem', fontWeight: 800, color: '#0c1446' }}>AI Narrative</h1>
-      <p style={{ margin: '0 0 24px', color: '#6b7280' }}>Auto-generate written narratives about your data in different styles</p>
+    <div style={{ padding: 28, maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+        <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446' }}>AI Narrative</h1>
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 800, color: '#fff',
+          background: 'linear-gradient(135deg,#e91e8c,#0097b2)', padding: '3px 8px',
+          borderRadius: 6, letterSpacing: 0.5,
+        }}>LLM · TUNED PROSE</span>
+      </div>
+      <p style={{ margin: '0 0 22px', color: '#6b7280', fontSize: '0.9rem' }}>
+        Turn your data into a finished paragraph ready to paste into a deck or email — tuned to audience, tone and length.
+      </p>
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Dataset</div>
-            <select value={fileId} onChange={e => loadFile(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}>
-              <option value="">-- Choose --</option>
+      <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+          <Field label='Dataset'>
+            <select value={fileId} onChange={e => loadFile(e.target.value)} style={selectStyle}>
+              <option value=''>-- Choose a file --</option>
               {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
             </select>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Narrative Style</div>
-            <select value={narrativeType} onChange={e => setNarrativeType(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}>
-              <option value="executive">Executive Summary</option>
-              <option value="technical">Technical Analysis</option>
-              <option value="story">Data Story</option>
+          </Field>
+          <Field label='Anchor on column (optional)'>
+            <select value={focusColumn} onChange={e => setFocusColumn(e.target.value)} style={selectStyle} disabled={!headers.length}>
+              <option value=''>-- let the model pick --</option>
+              {headers.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
-          </div>
-          <button onClick={generate} disabled={!fileId || loading} style={{ padding: '9px 24px', background: fileId && !loading ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: fileId && !loading ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
-            {loading ? '✨ Generating...' : '✨ Generate'}
+          </Field>
+        </div>
+
+        <SegmentedGroup label='Audience' value={audience} onChange={setAudience} options={AUDIENCE_OPTS} />
+        <SegmentedGroup label='Tone'     value={tone}     onChange={setTone}     options={TONE_OPTS} />
+        <SegmentedGroup label='Length'   value={length}   onChange={setLength}   options={LENGTH_OPTS} />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <button onClick={generate} disabled={!fileId || loading}
+            style={{
+              padding: '10px 22px',
+              background: (!fileId || loading) ? '#d1d5db' : 'linear-gradient(135deg,#e91e8c,#c4166e)',
+              color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700,
+              cursor: (!fileId || loading) ? 'not-allowed' : 'pointer',
+            }}>
+            {loading ? 'Writing…' : 'Generate narrative'}
           </button>
         </div>
       </div>
 
-      {narrative && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, color: '#0c1446', fontSize: '1rem' }}>Generated Narrative</div>
-            <button onClick={() => navigator.clipboard?.writeText(narrative)} style={{ padding: '6px 14px', background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', color: '#374151' }}>Copy Text</button>
-          </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: '#374151', fontSize: '0.95rem' }}>{narrative}</div>
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
+          padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: '0.85rem' }}>
+          {error}
         </div>
       )}
 
-      {!narrative && !loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>✍️</div><div>Select a dataset and narrative style to generate written analysis</div></div>}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: 50, color: '#6b7280' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0c1446' }}>Writing your narrative…</div>
+          <div style={{ fontSize: '0.82rem', marginTop: 4 }}>Typically 5-15 seconds.</div>
+        </div>
+      )}
+
+      {narrative && !loading && (
+        <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.72rem', color: '#e91e8c', fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                Narrative
+              </div>
+              {narrative.headline && (
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0c1446', marginTop: 4, lineHeight: 1.4 }}>
+                  {narrative.headline}
+                </div>
+              )}
+              {narrative.anchor_column && (
+                <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 4 }}>
+                  Anchored on <strong style={{ color: '#0097b2' }}>{narrative.anchor_column}</strong> · {LENGTH_OPTS.find(l => l.value === length)?.label} · {TONE_OPTS.find(t => t.value === tone)?.label}
+                </div>
+              )}
+            </div>
+            <button onClick={copyText} style={{
+              padding: '7px 14px', background: copied ? '#10b981' : '#f3f4f6',
+              color: copied ? '#fff' : '#0c1446', border: 'none', borderRadius: 7,
+              fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+            }}>
+              {copied ? '✓ Copied' : 'Copy text'}
+            </button>
+          </div>
+
+          <div style={{
+            fontSize: '0.98rem', color: '#1f2937', lineHeight: 1.75,
+            whiteSpace: 'pre-wrap', fontFamily: 'Georgia, ui-serif, serif',
+          }}>
+            {narrative.narrative}
+          </div>
+
+          {narrative.raw && (
+            <details style={{ marginTop: 14 }}>
+              <summary style={{ cursor: 'pointer', color: '#dc2626', fontSize: '0.78rem', fontWeight: 700 }}>
+                Model returned unparsable output — view raw
+              </summary>
+              <pre style={{ background: '#fef2f2', color: '#991b1b', padding: 10, borderRadius: 8,
+                fontSize: '0.75rem', overflow: 'auto', maxHeight: 260, marginTop: 8 }}>{narrative.raw}</pre>
+            </details>
+          )}
+        </div>
+      )}
+
+      {!narrative && !loading && !error && (
+        <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>✍️</div>
+          <div>Pick a dataset, choose an audience and tone, and click <strong>Generate narrative</strong>.</div>
+        </div>
+      )}
     </div>
   )
+}
+
+function SegmentedGroup({ label, value, onChange, options }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {options.map(o => {
+          const active = o.value === value
+          return (
+            <button key={o.value} onClick={() => onChange(o.value)} title={o.desc}
+              style={{
+                padding: '7px 14px',
+                background: active ? 'linear-gradient(135deg,#e91e8c,#c4166e)' : '#fff',
+                color: active ? '#fff' : '#374151',
+                border: active ? '1px solid transparent' : '1px solid #d1d5db',
+                borderRadius: 999, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                boxShadow: active ? '0 2px 8px rgba(233,30,140,0.25)' : 'none',
+              }}>
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5 }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+const selectStyle = {
+  width: '100%', padding: '9px 12px', border: '1px solid #d1d5db',
+  borderRadius: 8, fontSize: '0.9rem', background: '#fff',
 }

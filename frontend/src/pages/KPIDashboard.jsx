@@ -422,13 +422,20 @@ export default function KPIDashboard() {
   const [editing, setEditing] = useState(null)    // index or 'new' or null
   const [drillIdx, setDrillIdx] = useState(null)
   const [loading, setLoading] = useState(false)
+  // Gates the save-on-change effect. We flip it true only AFTER a file's saved
+  // config has been restored, so the initial reset-to-empty doesn't clobber
+  // the localStorage entry we're about to restore from.
+  const [configLoaded, setConfigLoaded] = useState(false)
 
   useEffect(() => {
     filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
   }, [])
 
   function loadFile(id) {
+    // Pause persistence during the reset → preview → restore sequence.
+    setConfigLoaded(false)
     setFileId(id); setRows([]); setHeaders([]); setKpis([]); setFilename('')
+    setDateCol('')
     if (!id) return
     setLoading(true)
     analyticsApi.preview(id).then(r => {
@@ -436,22 +443,27 @@ export default function KPIDashboard() {
       setHeaders(d.headers || [])
       setRows(d.rows || [])
       setFilename(d.filename || '')
-      // Guess a date column
-      const dateGuess = (d.headers || []).find(h => /date|time|month|period/i.test(h))
-      if (dateGuess) setDateCol(dateGuess)
-      // Restore saved config
+      // Restore saved config first (takes precedence over auto-guess).
       const saved = loadKpisFor(id)
       if (saved?.kpis) setKpis(saved.kpis)
-      if (saved?.dateCol) setDateCol(saved.dateCol)
-    }).catch(() => {}).finally(() => setLoading(false))
+      if (saved?.dateCol) {
+        setDateCol(saved.dateCol)
+      } else {
+        const dateGuess = (d.headers || []).find(h => /date|time|month|period/i.test(h))
+        if (dateGuess) setDateCol(dateGuess)
+      }
+    }).catch(() => {}).finally(() => {
+      setLoading(false)
+      setConfigLoaded(true)
+    })
   }
 
-  // Save whenever config changes
+  // Save whenever config changes — only after the initial load has settled.
   useEffect(() => {
-    if (fileId && (kpis.length || dateCol)) {
+    if (fileId && configLoaded) {
       saveKpisFor(fileId, { kpis, dateCol })
     }
-  }, [fileId, kpis, dateCol])
+  }, [fileId, kpis, dateCol, configLoaded])
 
   const numericHeaders = useMemo(() => {
     if (!rows.length) return []

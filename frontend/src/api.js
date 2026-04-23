@@ -40,7 +40,15 @@ export const authApi = {
 
 export const filesApi = {
   list: () => api.get('/files/'),
-  upload: (formData) => api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  upload: (formData, onProgress) => api.post('/files/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (!onProgress || !e.total) return
+      onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)))
+    },
+  }),
+  // Lightweight pre-upload dedup check — filename + size only, no payload sent.
+  checkDuplicate: (filename, size) => api.post('/files/check-duplicate', { filename, size }),
   download: (id) => api.get(`/files/${id}/download`),
   delete: (id) => api.delete(`/files/${id}`),
   // Onboarding: seed a bundled demo CSV into the caller's org so new users
@@ -53,6 +61,7 @@ export const analyticsApi = {
   preview: (fileId) => api.get(`/analytics/preview/${fileId}`),
   summary: (fileId) => api.post(`/analytics/summary/${fileId}`),
   kpis: (fileId) => api.post(`/analytics/kpi/${fileId}`),
+  forecast: (fileId, opts) => api.post(`/analytics/forecast/${fileId}`, opts || {}),
 }
 
 export const aiApi = {
@@ -63,6 +72,7 @@ export const aiApi = {
   chat: (data) => api.post('/ai/chat', data),
   report: (fileId) => api.post(`/ai/report/${fileId}`),
   reportExport: (data) => api.post('/ai/report/export', data, { responseType: 'blob' }),
+  narrative: (fileId, opts) => api.post(`/ai/narrative/${fileId}`, opts || {}),
 }
 
 export const billingApi = {

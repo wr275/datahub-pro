@@ -15,16 +15,52 @@ const PIE_COLORS = ['#e91e8c', '#0097b2', '#0c1446', '#f59e0b', '#10b981', '#636
 function tryParseJson(text) {
   if (!text) return null
   const s = text.trim()
-  if (!s.startsWith('{') || !s.endsWith('}')) return null
-  try { return JSON.parse(s) } catch { return null }
+  // Strip ```json ... ``` fences if present.
+  const fenced = s.match(/^```(?:json)?\s*([\s\S]+?)\s*```$/)
+  const body = fenced ? fenced[1].trim() : s
+  // Fast path: whole response is JSON.
+  if (body.startsWith('{') && body.endsWith('}')) {
+    try { return { parsed: JSON.parse(body), preamble: '', postamble: '' } } catch { /* fall through */ }
+  }
+  // Relaxed path: find the outermost balanced {...} block and parse it.
+  const first = body.indexOf('{')
+  if (first < 0) return null
+  let depth = 0, end = -1, inStr = false, esc = false
+  for (let i = first; i < body.length; i++) {
+    const ch = body[i]
+    if (esc) { esc = false; continue }
+    if (ch === '\\') { esc = true; continue }
+    if (ch === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) { end = i; break }
+    }
+  }
+  if (end < 0) return null
+  try {
+    const obj = JSON.parse(body.slice(first, end + 1))
+    // Only treat as structured if it has a 'type' we care about.
+    if (obj?.type !== 'table' && obj?.type !== 'chart') return null
+    return {
+      parsed: obj,
+      preamble: body.slice(0, first).trim(),
+      postamble: body.slice(end + 1).trim(),
+    }
+  } catch { return null }
 }
 
 function RenderedMessage({ text }) {
-  const parsed = tryParseJson(text)
+  const extracted = tryParseJson(text)
+  const parsed = extracted?.parsed
+  const preamble = extracted?.preamble
+  const postamble = extracted?.postamble
 
   if (parsed?.type === 'table' && Array.isArray(parsed.columns) && Array.isArray(parsed.rows)) {
     return (
       <div>
+        {preamble && <div style={{ fontSize: '0.88rem', color: '#374151', marginBottom: 10, whiteSpace: 'pre-wrap' }}>{preamble}</div>}
         {parsed.summary && (
           <div style={{ fontSize: '0.85rem', color: '#374151', marginBottom: 10 }}>{parsed.summary}</div>
         )}
@@ -50,6 +86,7 @@ function RenderedMessage({ text }) {
             </tbody>
           </table>
         </div>
+        {postamble && <div style={{ fontSize: '0.88rem', color: '#374151', marginTop: 10, whiteSpace: 'pre-wrap' }}>{postamble}</div>}
       </div>
     )
   }
@@ -59,6 +96,7 @@ function RenderedMessage({ text }) {
     const yKeys = Array.isArray(parsed.y_keys) && parsed.y_keys.length ? parsed.y_keys : ['value']
     return (
       <div>
+        {preamble && <div style={{ fontSize: '0.88rem', color: '#374151', marginBottom: 10, whiteSpace: 'pre-wrap' }}>{preamble}</div>}
         {parsed.title && <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0c1446', marginBottom: 4 }}>{parsed.title}</div>}
         {parsed.summary && <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: 10 }}>{parsed.summary}</div>}
         <div style={{ height: 280, width: '100%' }}>
@@ -97,6 +135,7 @@ function RenderedMessage({ text }) {
             )}
           </ResponsiveContainer>
         </div>
+        {postamble && <div style={{ fontSize: '0.88rem', color: '#374151', marginTop: 10, whiteSpace: 'pre-wrap' }}>{postamble}</div>}
       </div>
     )
   }

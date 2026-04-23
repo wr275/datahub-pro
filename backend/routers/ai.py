@@ -924,6 +924,151 @@ async def ai_insights(
 
 
 # ---------------------------------------------------------------------------
+# AI Narrative 2.0 — LLM-written prose tuned to audience / tone / length
+# ---------------------------------------------------------------------------
+
+NARRATIVE_SYSTEM_PROMPT = """You are a senior insight analyst writing prose
+for an agency deck. You will receive:
+- a statistical "stat pack" describing an uploaded dataset
+- author preferences: audience, tone, length, optional focus column
+
+Write a single continuous narrative — no lists, no headings, no markdown.
+Ground every claim in specific numbers from the stat pack. Never invent data.
+
+Tone guide:
+- "executive": confident, outcome-led, decisive. No hedging.
+- "analyst":   precise, includes sample sizes and caveats where relevant.
+- "storyteller": uses narrative arc — opening hook, tension, resolution.
+- "plain": simple words, no jargon, written for a non-technical reader.
+
+Length guide:
+- "short": 80-120 words, one paragraph.
+- "medium": 180-240 words, two paragraphs.
+- "long": 320-400 words, three paragraphs.
+
+Audience framing:
+- "client": address the reader as the client receiving the deliverable.
+  Avoid internal-only language.
+- "board": framed as briefing senior stakeholders. Emphasise "so what".
+- "team": internal voice, team context, actionable.
+
+If a focus_column is given, anchor the narrative around it; otherwise pick
+the single most interesting numeric column from the stat pack (largest
+concentration, biggest outlier, strongest correlation) and anchor there.
+
+Return ONLY raw JSON:
+{"narrative": "...", "headline": "short one-line headline under 12 words",
+ "anchor_column": "name of the column you anchored on"}
+"""
+
+
+class NarrativeRequest(BaseModel):
+    audience: str = "client"       # client | board | team
+    tone: str = "executive"        # executive | analyst | storyteller | plain
+    length: str = "medium"         # short | medium | long
+    focus_column: Optional[str] = None
+
+
+@router.post("/narrative/{file_id}")
+async def ai_narrative(
+    file_id: str,
+    body: NarrativeRequest,
+    current_user: User = Depends(require_ai_enabled),
+    db: Session = Depends(get_db),
+):
+    """Generate a tuned written narrative about the dataset using the same
+    stat pack the Report and Insights endpoints use. Keeps the page fast
+    because the heavy statistics are computed server-side and only a compact
+    JSON blob goes to the model.
+    """
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+    _get_owned_file(file_id, current_user, db)
+    rows, filename = load_file_data(file_id, current_user.organisation_id, db)
+    stat_pack = build_stat_pack(rows, filename)
+
+    if stat_pack.get("empty"):
+        return {
+            "stat_pack": stat_pack,
+            "narrative": {
+                "narrative": "The dataset has no rows, so there is nothing to narrate. Re-upload a file with data and try again.",
+                "headline": "Empty dataset",
+                "anchor_column": None,
+            },
+        }
+
+    trimmed = dict(stat_pack)
+    trimmed["columns"] = stat_pack["columns"][:40]
+
+    user_prefs = {
+        "audience": body.audience,
+        "tone": body.tone,
+        "length": body.length,
+        "focus_column": body.focus_column,
+    }
+    user_message = (
+        f"Author preferences:\n{json.dumps(user_prefs)}\n\n"
+        f"Stat pack:\n{json.dumps(trimmed, default=str)}\n\n"
+        "Write the narrative per the schema."
+    )
+
+    async with httpx.AsyncClient(timeout=90) as client:
+        response = await client.post(
+            ANTHROPIC_URL,
+            headers={
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "max_tokens": 1500,
+                "system": NARRATIVE_SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": user_message}],
+            },
+        )
+        result = response.json()
+
+    try:
+        usage = result.get("usage", {}) or {}
+        in_tok = int(usage.get("input_tokens", 0) or 0)
+        out_tok = int(usage.get("output_tokens", 0) or 0)
+        total = in_tok + out_tok
+        if total > 0 and current_user.organisation_id:
+            log_usage(
+                db,
+                organisation_id=current_user.organisation_id,
+                user_id=current_user.id,
+                kind="ai_tokens",
+                quantity=total,
+                cost_cents=_estimate_cost_cents(in_tok, out_tok),
+                meta={"model": MODEL, "endpoint": "/ai/narrative", "input_tokens": in_tok, "output_tokens": out_tok, "file_id": file_id},
+            )
+    except Exception as exc:
+        logger.warning("usage logging failed in /ai/narrative: %s", exc)
+
+    content = result.get("content", [{}])
+    text = content[0].get("text", "") if content else ""
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+        if raw.rstrip().endswith("```"):
+            raw = raw.rstrip()[:-3]
+    try:
+        narrative = json.loads(raw)
+    except Exception:
+        # Fallback: return the raw text so user isn't blocked.
+        narrative = {
+            "narrative": text,
+            "headline": "AI narrative (unstructured)",
+            "anchor_column": None,
+            "raw": text,
+        }
+
+    return {"stat_pack": stat_pack, "narrative": narrative, "preferences": user_prefs}
+
+
+# ---------------------------------------------------------------------------
 # AI Auto-Report 2.0 — structured report + DOCX/PPTX export
 # ---------------------------------------------------------------------------
 

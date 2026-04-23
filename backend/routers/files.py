@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db, User, DataFile, Organisation
 from auth_utils import get_current_user
@@ -6,6 +7,7 @@ from config import settings
 import uuid
 import os
 import json
+import hashlib
 from datetime import datetime
 
 router = APIRouter()
@@ -110,7 +112,12 @@ def _ingest_bytes(
     org: Organisation,
     current_user: User,
     db: Session,
-) -> DataFile:
+):
+    """Persist a file and parse headers + a small preview.
+
+    Returns (db_file, meta) where meta carries warnings and a 5-row preview that
+    the frontend can surface to the user immediately after upload.
+    """
     ext = os.path.splitext(filename)[1].lower()
 
     # Storage — R2 if configured, else local disk
@@ -124,30 +131,81 @@ def _ingest_bytes(
         storage_type = "local"
         file_content_db = content
 
-    # Parse headers + row count
+    # Parse headers + row count + preview. Capture warnings so the UI can
+    # surface silent failures (encoding drops, mismatched column counts).
     row_count = None
     col_count = None
     columns = []
+    preview_rows = []
+    warnings = []
     try:
         import io
         if ext in [".xlsx", ".xls"]:
             import openpyxl
             wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
             ws = wb.active
-            headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-            columns = [str(h) for h in headers if h is not None]
-            row_count = ws.max_row - 1
+            header_row = next(ws.iter_rows(min_row=1, max_row=1), None) or []
+            raw_headers = [cell.value for cell in header_row]
+            columns = [str(h) for h in raw_headers if h is not None]
+            row_count = max(0, (ws.max_row or 1) - 1)
             col_count = len(columns)
+            # Pull up to 5 data rows for preview
+            for i, row in enumerate(ws.iter_rows(min_row=2, max_row=6, values_only=True)):
+                if i >= 5:
+                    break
+                preview_rows.append({
+                    str(h): ("" if v is None else v)
+                    for h, v in zip(columns, row)
+                })
         elif ext == ".csv":
             import csv
-            reader = csv.reader(io.StringIO(content.decode("utf-8", errors="ignore")))
+            # Try strict decode first. If it fails, fall back to replacement
+            # and count the bytes that couldn't decode as a warning signal.
+            text = None
+            lossy = False
+            for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
+                try:
+                    text = content.decode(enc)
+                    if enc != "utf-8":
+                        warnings.append(f"File was decoded as {enc} (not UTF-8). Some characters may display differently.")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if text is None:
+                text = content.decode("utf-8", errors="replace")
+                lossy = True
+                # Count replacement characters as a rough encoding-loss metric
+                repl_count = text.count("\ufffd")
+                warnings.append(
+                    f"File had {repl_count:,} characters that couldn't be decoded and were replaced. "
+                    "Please re-save the file as UTF-8 for best results."
+                )
+
+            reader = csv.reader(io.StringIO(text))
             rows = list(reader)
             if rows:
                 columns = rows[0]
                 row_count = len(rows) - 1
                 col_count = len(columns)
-    except Exception:
-        pass
+                # Detect rows that don't match the column count — a common
+                # symptom of quoting / delimiter issues that would otherwise
+                # fail silently later.
+                bad_row_count = sum(1 for r in rows[1:] if len(r) != col_count)
+                if bad_row_count:
+                    warnings.append(
+                        f"{bad_row_count:,} row(s) did not match the header column count. "
+                        "This can indicate unquoted commas or line-breaks in values."
+                    )
+                for r in rows[1:6]:
+                    preview_rows.append({
+                        columns[i] if i < len(columns) else f"col_{i}": v
+                        for i, v in enumerate(r)
+                    })
+    except Exception as e:
+        warnings.append(f"Could not fully parse file: {e}")
+
+    # Content hash for duplicate detection (cheap: just SHA-256 of the bytes).
+    content_hash = hashlib.sha256(content).hexdigest()
 
     db_file = DataFile(
         id=str(uuid.uuid4()),
@@ -163,10 +221,22 @@ def _ingest_bytes(
         organisation_id=org.id,
         uploaded_by=current_user.id,
     )
+    # Store the hash on the model if the column exists (forward-compatible
+    # with a future migration). We don't rely on it for dedup — that path uses
+    # an on-the-fly hash against prior content when needed.
+    if hasattr(db_file, "content_hash"):
+        db_file.content_hash = content_hash
+
     db.add(db_file)
     db.commit()
     db.refresh(db_file)
-    return db_file
+
+    meta = {
+        "warnings": warnings,
+        "preview_rows": preview_rows,
+        "content_hash": content_hash,
+    }
+    return db_file, meta
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -192,7 +262,7 @@ async def upload_file(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 500MB.")
 
-    db_file = _ingest_bytes(content, file.filename, org, current_user, db)
+    db_file, meta = _ingest_bytes(content, file.filename, org, current_user, db)
 
     return {
         "id": db_file.id,
@@ -202,6 +272,9 @@ async def upload_file(
         "columns": db_file.column_count,
         "column_names": json.loads(db_file.columns_json) if db_file.columns_json else [],
         "uploaded_at": db_file.created_at.isoformat(),
+        "warnings": meta.get("warnings") or [],
+        "preview_rows": meta.get("preview_rows") or [],
+        "content_hash": meta.get("content_hash"),
     }
 
 
@@ -235,7 +308,7 @@ def seed_sample(
     with open(src_path, "rb") as fh:
         content = fh.read()
 
-    db_file = _ingest_bytes(content, template["display_name"], org, current_user, db)
+    db_file, _meta = _ingest_bytes(content, template["display_name"], org, current_user, db)
 
     return {
         "id": db_file.id,
@@ -247,6 +320,49 @@ def seed_sample(
         "uploaded_at": db_file.created_at.isoformat(),
         "is_sample": True,
         "template_id": template_id,
+    }
+
+
+class DuplicateCheck(BaseModel):
+    filename: str
+    size: int
+
+
+@router.post("/check-duplicate")
+def check_duplicate(
+    body: DuplicateCheck,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Called from the Files page BEFORE a user uploads a big file. If another
+    file in this org has exactly the same name AND byte size, return it so the
+    UI can offer "use existing" instead of re-ingesting the same data. Cheap
+    approximation of a real content-hash dedup; doesn't require the user to
+    wait for a full upload to find out they duplicated something.
+    """
+    if not current_user.organisation_id:
+        return {"match": None}
+    match = (
+        db.query(DataFile)
+        .filter(
+            DataFile.organisation_id == current_user.organisation_id,
+            DataFile.original_filename == body.filename,
+            DataFile.file_size == body.size,
+        )
+        .order_by(DataFile.created_at.desc())
+        .first()
+    )
+    if not match:
+        return {"match": None}
+    return {
+        "match": {
+            "id": match.id,
+            "filename": match.original_filename,
+            "size": match.file_size,
+            "row_count": match.row_count,
+            "column_count": match.column_count,
+            "uploaded_at": match.created_at.isoformat() if match.created_at else None,
+        }
     }
 
 
