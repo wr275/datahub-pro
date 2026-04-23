@@ -1,64 +1,129 @@
 import React, { useState, useEffect } from 'react'
-import { filesApi, analyticsApi } from '../api'
+import { filesApi, aiApi } from '../api'
 
-function generateInsights(data) {
-  const out = { key: [], quality: [], highlights: [] }
-  if (!data) return out
+// --- visual helpers ---------------------------------------------------------
 
-  const rows = data.rows || 0
-  const cols = data.columns || 0
-  const summaryObj = data.summary || {}
-
-  // Build numeric and text column arrays from the summary object
-  const nc = Object.entries(summaryObj).filter(([, v]) => v.type === 'numeric').map(([col, v]) => ({ column: col, ...v }))
-  const tc = Object.entries(summaryObj).filter(([, v]) => v.type === 'text').map(([col, v]) => ({ column: col, ...v }))
-
-  // Key findings
-  out.key.push('Dataset has ' + rows.toLocaleString() + ' records and ' + cols + ' columns.')
-  if (nc.length) out.key.push(nc.length + ' numeric column' + (nc.length > 1 ? 's' : '') + ' ready for quantitative analysis.')
-  if (tc.length) out.key.push(tc.length + ' categorical column' + (tc.length > 1 ? 's' : '') + ' available for grouping and segmentation.')
-
-  // Highest average numeric column
-  if (nc.length) {
-    const top = nc.reduce((a, b) => (b.mean > a.mean ? b : a), nc[0])
-    if (top && top.mean) out.key.push('"' + top.column + '" has the highest average: ' + Number(top.mean).toLocaleString(undefined, { maximumFractionDigits: 2 }) + '.')
-  }
-
-  // Data quality
-  const nmiss = nc.filter(c => (c.count || 0) < rows)
-  const tmiss = tc.filter(c => (c.count || 0) < rows)
-  if (!nmiss.length && nc.length) out.quality.push('All numeric columns are complete - no missing values detected.')
-  nmiss.forEach(c => {
-    const missing = rows - (c.count || 0)
-    out.quality.push('"' + c.column + '": ' + missing + ' missing values (' + ((missing / rows) * 100).toFixed(1) + '%).')
-  })
-  if (!tmiss.length && tc.length) out.quality.push('All categorical columns are complete with no missing values.')
-  else if (tmiss.length) out.quality.push(tmiss.length + ' categorical column' + (tmiss.length > 1 ? 's' : '') + ' have missing values.')
-  if (rows < 100) out.quality.push('Small dataset - statistical conclusions may have limited reliability.')
-  else if (rows > 10000) out.quality.push('Large dataset (' + rows.toLocaleString() + ' rows) - results are statistically robust.')
-
-  // Column highlights
-  nc.forEach(c => {
-    if (c.min !== undefined && c.max !== undefined) {
-      const range = c.max - c.min
-      if (range === 0) out.highlights.push('"' + c.column + '" has no variance (all values are identical).')
-      else out.highlights.push('"' + c.column + '" ranges from ' + Number(c.min).toLocaleString() + ' to ' + Number(c.max).toLocaleString() + '.')
-    }
-  })
-  tc.forEach(c => {
-    if (c.unique) out.highlights.push('"' + c.column + '" has ' + c.unique + ' unique value' + (c.unique > 1 ? 's' : '') + (c.top_values?.length ? ': ' + c.top_values.slice(0, 3).join(', ') : '') + '.')
-  })
-  if (!out.highlights.length) out.highlights.push('No notable anomalies detected in numeric distributions.')
-
-  return out
+const SEVERITY_STYLES = {
+  alert: { border: '#dc2626', bg: '#fef2f2', dot: '#dc2626', label: 'ALERT' },
+  warn:  { border: '#f59e0b', bg: '#fffbeb', dot: '#f59e0b', label: 'WARN'  },
+  info:  { border: '#0097b2', bg: '#effaf9', dot: '#0097b2', label: 'INFO'  },
 }
+
+const CATEGORY_ICON = {
+  growth: '↗',
+  concentration: '◐',
+  trend: '∿',
+  outlier: '★',
+  segmentation: '▦',
+  opportunity: '◎',
+}
+
+function SeverityBadge({ severity }) {
+  const s = SEVERITY_STYLES[severity] || SEVERITY_STYLES.info
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '2px 8px', borderRadius: 999,
+      background: s.bg, color: s.dot,
+      fontSize: '0.7rem', fontWeight: 800, letterSpacing: 0.4,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot }} />
+      {s.label}
+    </span>
+  )
+}
+
+function FindingCard({ f }) {
+  const s = SEVERITY_STYLES[f.severity] || SEVERITY_STYLES.info
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid #e8eaf4',
+      borderLeft: `4px solid ${s.dot}`,
+      borderRadius: 10,
+      padding: '16px 18px',
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1.1rem', color: s.dot }}>{CATEGORY_ICON[f.category] || '•'}</span>
+          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0c1446' }}>{f.title}</span>
+        </div>
+        <SeverityBadge severity={f.severity} />
+      </div>
+      {f.metric && (
+        <div style={{
+          fontSize: '0.8rem', color: s.dot, fontWeight: 700,
+          fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+        }}>
+          {f.metric}
+        </div>
+      )}
+      <div style={{ fontSize: '0.87rem', color: '#374151', lineHeight: 1.5 }}>{f.detail}</div>
+    </div>
+  )
+}
+
+function QualityRow({ q }) {
+  const s = SEVERITY_STYLES[q.severity] || SEVERITY_STYLES.info
+  return (
+    <div style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid #f1f3f9' }}>
+      <div style={{ minWidth: 60 }}><SeverityBadge severity={q.severity} /></div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0c1446' }}>
+          {q.field}: <span style={{ fontWeight: 500, color: '#374151' }}>{q.issue}</span>
+        </div>
+        <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 4 }}>→ {q.recommendation}</div>
+      </div>
+    </div>
+  )
+}
+
+function OpportunityCard({ o }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg,#fff,#fdf2f8)',
+      border: '1px solid #fbcfe8',
+      borderRadius: 10,
+      padding: '16px 18px',
+    }}>
+      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0c1446', marginBottom: 6 }}>
+        ◎ {o.title}
+      </div>
+      <div style={{ fontSize: '0.85rem', color: '#374151', lineHeight: 1.5, marginBottom: 8 }}>{o.detail}</div>
+      <div style={{
+        fontSize: '0.78rem', color: '#e91e8c', fontWeight: 700,
+        background: '#fff', border: '1px dashed #f9a8d4',
+        padding: '6px 10px', borderRadius: 6, display: 'inline-block',
+      }}>
+        Next: {o.suggested_next_step}
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, hint }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.08)',
+      borderRadius: 8, padding: '8px 14px',
+      minWidth: 100,
+    }}>
+      <div style={{ fontSize: '0.7rem', opacity: 0.7, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontWeight: 800, fontSize: '1.15rem' }}>{value}</div>
+      {hint && <div style={{ fontSize: '0.7rem', opacity: 0.65, marginTop: 1 }}>{hint}</div>}
+    </div>
+  )
+}
+
+// --- page -------------------------------------------------------------------
 
 export default function AIInsights() {
   const [files, setFiles] = useState([])
   const [selectedFile, setSelectedFile] = useState('')
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState(null)
-  const [insights, setInsights] = useState(null)
+  const [err, setErr] = useState('')
+  const [result, setResult] = useState(null)
 
   useEffect(() => {
     filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
@@ -66,32 +131,53 @@ export default function AIInsights() {
 
   const handleGenerate = async () => {
     if (!selectedFile) return
-    setLoading(true)
-    setData(null)
-    setInsights(null)
+    setLoading(true); setErr(''); setResult(null)
     try {
-      const res = await analyticsApi.summary(selectedFile)
-      const d = res.data || res
-      setData(d)
-      setInsights(generateInsights(d))
+      const res = await aiApi.insights(selectedFile)
+      setResult(res.data || res)
     } catch (e) {
-      console.error('AI Insights error', e)
+      const detail = e?.response?.data?.detail
+      if (detail?.code === 'ai_disabled') {
+        setErr('AI is not enabled for this workspace. Ask your org owner to enable AI in settings.')
+      } else {
+        setErr(e?.response?.data?.detail || e.message || 'Failed to generate insights')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const numericCount = data ? Object.values(data.summary || {}).filter(v => v.type === 'numeric').length : 0
-  const categoricalCount = data ? Object.values(data.summary || {}).filter(v => v.type === 'text').length : 0
+  const pack = result?.stat_pack
+  const insights = result?.insights
+
+  const numericCount = pack ? (pack.columns || []).filter(c => c.type === 'numeric').length : 0
+  const categoricalCount = pack ? (pack.columns || []).filter(c => c.type === 'text').length : 0
+  const dateCount = pack ? (pack.columns || []).filter(c => c.type === 'date').length : 0
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', margin: '0 0 4px' }}>AI Insights</h1>
-      <p style={{ color: '#6b7280', margin: '0 0 24px', fontSize: '0.9rem' }}>Auto-generated findings, quality checks and recommendations from your data</p>
+    <div style={{ padding: '28px 32px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0c1446', margin: 0 }}>AI Insights</h1>
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 800, color: '#fff',
+          background: 'linear-gradient(135deg,#e91e8c,#0097b2)',
+          padding: '3px 8px', borderRadius: 6, letterSpacing: 0.5,
+        }}>LLM-POWERED</span>
+      </div>
+      <p style={{ color: '#6b7280', margin: '0 0 24px', fontSize: '0.9rem' }}>
+        Executive-quality findings written by Claude Haiku from a full statistical analysis of your data.
+      </p>
 
-      <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+      {/* File picker */}
+      <div style={{
+        background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12,
+        padding: '18px 22px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 16,
+      }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Select file to analyse</label>
+          <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
+            Select file to analyse
+          </label>
           <select
             value={selectedFile}
             onChange={e => setSelectedFile(e.target.value)}
@@ -104,51 +190,159 @@ export default function AIInsights() {
         <button
           onClick={handleGenerate}
           disabled={!selectedFile || loading}
-          style={{ marginTop: 22, padding: '10px 24px', background: selectedFile && !loading ? 'linear-gradient(135deg,#e91e8c,#c4166e)' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.9rem', cursor: selectedFile && !loading ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
+          style={{
+            marginTop: 22, padding: '10px 24px',
+            background: selectedFile && !loading ? 'linear-gradient(135deg,#e91e8c,#c4166e)' : '#d1d5db',
+            color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700,
+            fontSize: '0.9rem', cursor: selectedFile && !loading ? 'pointer' : 'not-allowed',
+            whiteSpace: 'nowrap',
+          }}
         >
-          {loading ? 'Generating...' : 'Generate Insights'}
+          {loading ? 'Analysing...' : 'Generate Insights'}
         </button>
       </div>
 
-      {!data && !loading && (
+      {err && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
+          padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: '0.85rem' }}>
+          {err}
+        </div>
+      )}
+
+      {!result && !loading && !err && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>[ ? ]</div>
-          <div style={{ fontWeight: 600, color: '#374151', marginBottom: 4 }}>Select a file to get started</div>
-          <div style={{ fontSize: '0.85rem' }}>AI Insights will automatically analyse your dataset and surface key findings, data quality issues, and actionable recommendations.</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>◎</div>
+          <div style={{ fontWeight: 600, color: '#374151', marginBottom: 4 }}>Pick a file to get an insight brief</div>
+          <div style={{ fontSize: '0.85rem', maxWidth: 480, margin: '0 auto' }}>
+            We&apos;ll compute a full stat pack (distributions, outliers, concentrations, correlations)
+            and ask the model to write findings, quality flags, and recommended next steps.
+          </div>
         </div>
       )}
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: 12 }}>⏳</div>
-          <div>Analysing your data...</div>
+          <div style={{ fontSize: '1.2rem', marginBottom: 8 }}>Computing statistics…</div>
+          <div style={{ fontSize: '0.85rem' }}>Then handing the stat pack to Claude for interpretation.</div>
         </div>
       )}
 
-      {data && insights && (
+      {result && pack && insights && (
         <>
-          <div style={{ background: 'linear-gradient(135deg,#0c1446,#0097b2)', borderRadius: 12, padding: '16px 24px', marginBottom: 24, display: 'flex', gap: 32, color: '#fff' }}>
-            <div><div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 2 }}>File</div><div style={{ fontWeight: 700 }}>{data.filename}</div></div>
-            <div><div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 2 }}>Rows</div><div style={{ fontWeight: 700, fontSize: '1.2rem' }}>{(data.rows || 0).toLocaleString()}</div></div>
-            <div><div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 2 }}>Columns</div><div style={{ fontWeight: 700, fontSize: '1.2rem' }}>{data.columns || 0}</div></div>
-            <div><div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 2 }}>Numeric</div><div style={{ fontWeight: 700, fontSize: '1.2rem' }}>{numericCount}</div></div>
-            <div><div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 2 }}>Categorical</div><div style={{ fontWeight: 700, fontSize: '1.2rem' }}>{categoricalCount}</div></div>
+          {/* Header card */}
+          <div style={{
+            background: 'linear-gradient(135deg,#0c1446,#1a2080 50%,#0097b2)',
+            borderRadius: 12, padding: '20px 24px', marginBottom: 24, color: '#fff',
+          }}>
+            <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: 4, letterSpacing: 0.5 }}>HEADLINE</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.35, marginBottom: 16 }}>
+              {insights.headline}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <StatCard label="File" value={pack.filename} />
+              <StatCard label="Rows" value={(pack.row_count || 0).toLocaleString()} hint={pack.low_n ? 'low n (<30)' : ''} />
+              <StatCard label="Cols" value={pack.column_count || 0} />
+              <StatCard label="Numeric" value={numericCount} />
+              <StatCard label="Text" value={categoricalCount} />
+              {dateCount > 0 && <StatCard label="Date" value={dateCount} />}
+              {pack.correlations?.length > 0 && (
+                <StatCard label="Correlations" value={pack.correlations.length} hint="|r|≥0.3" />
+              )}
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: '20px 24px' }}>
-              <div style={{ fontWeight: 800, color: '#0c1446', marginBottom: 12, fontSize: '0.95rem' }}>🔍 Key Findings</div>
-              {insights.key.map((t, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: '0.85rem', color: '#374151' }}><span>•</span><span>{t}</span></div>)}
-            </div>
-            <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: '20px 24px' }}>
-              <div style={{ fontWeight: 800, color: '#0c1446', marginBottom: 12, fontSize: '0.95rem' }}>✅ Data Quality</div>
-              {insights.quality.map((t, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: '0.85rem', color: '#374151' }}><span>•</span><span>{t}</span></div>)}
-            </div>
-            <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: '20px 24px' }}>
-              <div style={{ fontWeight: 800, color: '#0c1446', marginBottom: 12, fontSize: '0.95rem' }}>📊 Column Highlights</div>
-              {insights.highlights.map((t, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: '0.85rem', color: '#374151' }}><span>•</span><span>{t}</span></div>)}
-            </div>
-          </div>
+          {/* Key findings */}
+          {insights.key_findings?.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c1446', margin: '0 0 12px' }}>
+                Key findings
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+                {insights.key_findings.map((f, i) => <FindingCard key={i} f={f} />)}
+              </div>
+            </section>
+          )}
+
+          {/* Data quality */}
+          {insights.data_quality?.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c1446', margin: '0 0 12px' }}>
+                Data quality
+              </h2>
+              <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 10, padding: '4px 18px' }}>
+                {insights.data_quality.map((q, i) => <QualityRow key={i} q={q} />)}
+              </div>
+            </section>
+          )}
+
+          {/* Opportunities */}
+          {insights.opportunities?.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c1446', margin: '0 0 12px' }}>
+                Recommended next steps
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+                {insights.opportunities.map((o, i) => <OpportunityCard key={i} o={o} />)}
+              </div>
+            </section>
+          )}
+
+          {/* Correlations drill-down */}
+          {pack.correlations?.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c1446', margin: '0 0 12px' }}>
+                Numeric relationships
+              </h2>
+              <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 10, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead style={{ background: '#f8f9fc' }}>
+                    <tr>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#4b5563' }}>Column A</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: '#4b5563' }}>Column B</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: '#4b5563' }}>Pearson r</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: '#4b5563' }}>n</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pack.correlations.map((c, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid #f1f3f9' }}>
+                        <td style={{ padding: '8px 14px' }}>{c.a}</td>
+                        <td style={{ padding: '8px 14px' }}>{c.b}</td>
+                        <td style={{ padding: '8px 14px', textAlign: 'right', fontFamily: 'ui-monospace, monospace',
+                          color: Math.abs(c.r) > 0.6 ? '#e91e8c' : '#0097b2', fontWeight: 700 }}>
+                          {c.r > 0 ? '+' : ''}{c.r.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '8px 14px', textAlign: 'right', color: '#6b7280' }}>{c.n}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* Raw stat pack (collapsible debug) */}
+          <details style={{ marginBottom: 20 }}>
+            <summary style={{ cursor: 'pointer', color: '#6b7280', fontSize: '0.8rem', fontWeight: 600 }}>
+              View raw stat pack (debug)
+            </summary>
+            <pre style={{
+              background: '#0c1446', color: '#d1d5db', padding: 16, borderRadius: 8,
+              fontSize: '0.72rem', overflow: 'auto', maxHeight: 380, marginTop: 10,
+            }}>{JSON.stringify(pack, null, 2)}</pre>
+          </details>
+
+          {insights.raw && (
+            <details style={{ marginBottom: 20 }}>
+              <summary style={{ cursor: 'pointer', color: '#dc2626', fontSize: '0.8rem', fontWeight: 700 }}>
+                Model returned unparsable output — view raw
+              </summary>
+              <pre style={{ background: '#fef2f2', color: '#991b1b', padding: 16, borderRadius: 8,
+                fontSize: '0.8rem', overflow: 'auto', maxHeight: 380, marginTop: 10 }}>
+                {insights.raw}
+              </pre>
+            </details>
+          )}
         </>
       )}
     </div>

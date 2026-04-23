@@ -1,137 +1,241 @@
 import React, { useState, useEffect } from 'react'
-import { filesApi, analyticsApi } from '../api'
+import { filesApi, aiApi } from '../api'
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 export default function AutoReport() {
   const [files, setFiles] = useState([])
   const [fileId, setFileId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [report, setReport] = useState(null)
+  const [exporting, setExporting] = useState('')   // '' | 'docx' | 'pptx'
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
 
-  useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
+  useEffect(() => {
+    filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
+  }, [])
 
-  function generate() {
+  async function generate() {
     if (!fileId) return
-    setLoading(true); setReport(null)
-    analyticsApi.summary(fileId).then(r => {
-      const raw = r.data
-      const summary = raw.summary || {}
-      const totalRows = raw.rows || 0
-      const totalCols = raw.columns || 0
-      const numericCols = Object.entries(summary).filter(([, v]) => v.type === 'numeric')
-      const textCols = Object.entries(summary).filter(([, v]) => v.type !== 'numeric')
-
-      const insights = []
-      // Missing values
-      const missingCols = Object.entries(summary).filter(([, v]) => (totalRows - (v.count || 0)) > 0)
-      if (missingCols.length === 0) insights.push({ type: 'positive', text: 'Data completeness is excellent — no missing values detected across all columns.' })
-      else insights.push({ type: 'warning', text: `Missing values found in ${missingCols.length} column(s): ${missingCols.map(([k]) => k).join(', ')}.` })
-
-      // Numeric analysis
-      if (numericCols.length > 0) {
-        const [topCol, topStats] = [...numericCols].sort((a, b) => (b[1].mean || 0) - (a[1].mean || 0))[0]
-        insights.push({ type: 'info', text: `Highest average numeric column: **${topCol}** with mean of ${(topStats.mean || 0).toFixed(2)}.` })
-        numericCols.forEach(([col, stats]) => {
-          if (stats.max && stats.min && stats.mean) {
-            const range = stats.max - stats.min
-            if (range / (stats.mean || 1) > 5) insights.push({ type: 'warning', text: `High variance detected in **${col}** — range is ${range.toFixed(2)}, which is ${(range / stats.mean).toFixed(1)}x the mean. Consider investigating outliers.` })
-          }
-        })
-      }
-
-      // Generate report sections
-      const sections = [
-        {
-          title: '📊 Dataset Overview',
-          content: `This dataset contains **${totalRows.toLocaleString()} rows** and **${totalCols} columns** (${numericCols.length} numeric, ${textCols.length} categorical).`
-        },
-        {
-          title: '🔢 Numeric Columns Summary',
-          rows: numericCols.map(([col, stats]) => ({
-            Column: col,
-            Count: (stats.count || 0).toLocaleString(),
-            Mean: (stats.mean || 0).toFixed(2),
-            Min: (stats.min || 0).toFixed(2),
-            Max: (stats.max || 0).toFixed(2),
-            Missing: totalRows - (stats.count || 0)
-          }))
-        },
-        {
-          title: '🏷️ Categorical Columns Summary',
-          rows: textCols.map(([col, stats]) => ({
-            Column: col,
-            Count: (stats.count || 0).toLocaleString(),
-            'Top Value': stats.top || '—',
-            'Top Freq': stats.freq || '—',
-            Missing: totalRows - (stats.count || 0)
-          }))
-        }
-      ]
-
-      setReport({ insights, sections, filename: raw.filename, generated: new Date().toLocaleString() })
-    }).catch(() => {}).finally(() => setLoading(false))
+    setLoading(true); setError(''); setResult(null)
+    try {
+      const r = await aiApi.report(fileId)
+      setResult(r.data || r)
+    } catch (e) {
+      const d = e?.response?.data?.detail
+      if (d?.code === 'ai_disabled') setError('AI is not enabled on this workspace.')
+      else setError(typeof d === 'string' ? d : (e.message || 'Report generation failed'))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const iconMap = { positive: '✅', warning: '⚠️', info: 'ℹ️' }
-  const colorMap = { positive: '#10b981', warning: '#f59e0b', info: '#0097b2' }
+  async function exportReport(format) {
+    if (!result?.report || !fileId) return
+    setExporting(format); setError('')
+    try {
+      const r = await aiApi.reportExport({ file_id: fileId, format, report: result.report })
+      const blob = new Blob([r.data], {
+        type: format === 'pptx'
+          ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+      const file = files.find(f => f.id === fileId)
+      const base = (file?.filename || 'report').replace(/\.[^.]+$/, '')
+      downloadBlob(blob, `${base}_report.${format}`)
+    } catch (e) {
+      setError('Export failed: ' + (e?.response?.data?.detail || e.message))
+    } finally {
+      setExporting('')
+    }
+  }
+
+  const report = result?.report
+  const pack = result?.stat_pack
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ margin: '0 0 6px', fontSize: '1.6rem', fontWeight: 800, color: '#0c1446' }}>Auto Report AI</h1>
-      <p style={{ margin: '0 0 24px', color: '#6b7280' }}>Automatically generate a comprehensive data analysis report</p>
+    <div style={{ padding: 28, maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+        <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0c1446' }}>Auto Report</h1>
+        <span style={{
+          fontSize: '0.68rem', fontWeight: 800, color: '#fff',
+          background: 'linear-gradient(135deg,#e91e8c,#0097b2)', padding: '3px 8px',
+          borderRadius: 6, letterSpacing: 0.5,
+        }}>LLM · DOCX · PPTX</span>
+      </div>
+      <p style={{ margin: '0 0 22px', color: '#6b7280', fontSize: '0.9rem' }}>
+        A client-ready analytical report with executive summary, narrative sections, quality notes and recommendations —
+        exportable as Word or PowerPoint.
+      </p>
 
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+      <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: 18, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Select Dataset</div>
-            <select value={fileId} onChange={e => setFileId(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}>
-              <option value="">-- Choose a file --</option>
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5 }}>
+              Dataset
+            </label>
+            <select value={fileId} onChange={e => setFileId(e.target.value)}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}>
+              <option value=''>-- Choose a file --</option>
               {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
             </select>
           </div>
-          <button onClick={generate} disabled={!fileId || loading} style={{ padding: '9px 24px', background: fileId && !loading ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: fileId && !loading ? 'pointer' : 'default' }}>
-            {loading ? '🔄 Generating...' : '✨ Generate Report'}
+          <button onClick={generate} disabled={!fileId || loading}
+            style={{
+              padding: '10px 22px',
+              background: (!fileId || loading) ? '#d1d5db' : 'linear-gradient(135deg,#e91e8c,#c4166e)',
+              color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700,
+              cursor: (!fileId || loading) ? 'not-allowed' : 'pointer',
+            }}>
+            {loading ? 'Writing…' : 'Generate report'}
           </button>
         </div>
       </div>
 
-      {report && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontWeight: 800, color: '#0c1446', fontSize: '1.2rem' }}>Data Analysis Report</div>
-              <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{report.filename} — Generated {report.generated}</div>
-            </div>
-          </div>
-
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 12 }}>🔍 Key Insights</div>
-            {report.insights.map((ins, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '1rem', marginTop: 1 }}>{iconMap[ins.type]}</span>
-                <span style={{ fontSize: '0.9rem', color: '#374151' }}>{ins.text.replace(/\*\*(.*?)\*\*/g, '$1')}</span>
-              </div>
-            ))}
-          </div>
-
-          {report.sections.map(sec => (
-            <div key={sec.title} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 12 }}>{sec.title}</div>
-              {sec.content ? (
-                <p style={{ color: '#374151', margin: 0, lineHeight: 1.6 }}>{sec.content.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
-              ) : sec.rows && sec.rows.length > 0 ? (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                    <thead><tr style={{ background: '#f9fafb' }}>{Object.keys(sec.rows[0]).map(h => <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e5e7eb' }}>{h}</th>)}</tr></thead>
-                    <tbody>{sec.rows.map((r, i) => <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>{Object.values(r).map((v, vi) => <td key={vi} style={{ padding: '7px 12px', color: v === 0 ? '#9ca3af' : v > 0 && vi === Object.keys(r).length - 1 ? '#ef4444' : '#374151', borderBottom: '1px solid #f3f4f6' }}>{v}</td>)}</tr>)}</tbody>
-                  </table>
-                </div>
-              ) : <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No data available.</div>}
-            </div>
-          ))}
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
+          padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: '0.85rem' }}>
+          {error}
         </div>
       )}
 
-      {!report && !loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📋</div><div>Select a dataset and click Generate Report to get instant insights</div></div>}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0c1446' }}>Computing statistics & writing report…</div>
+          <div style={{ fontSize: '0.85rem', marginTop: 6 }}>Takes 10-30 seconds depending on dataset size.</div>
+        </div>
+      )}
+
+      {report && pack && (
+        <>
+          {/* Export bar */}
+          <div style={{
+            position: 'sticky', top: 10, zIndex: 10,
+            background: 'linear-gradient(135deg,#0c1446,#0097b2)',
+            borderRadius: 12, padding: '14px 18px', marginBottom: 18,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            color: '#fff', boxShadow: '0 4px 20px rgba(12,20,70,0.35)',
+          }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', opacity: 0.75, letterSpacing: 0.5, textTransform: 'uppercase' }}>Report ready</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{pack.filename}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => exportReport('docx')} disabled={!!exporting}
+                style={exportBtn('#fff', '#0c1446', !!exporting)}>
+                {exporting === 'docx' ? '…' : '⬇  DOCX'}
+              </button>
+              <button onClick={() => exportReport('pptx')} disabled={!!exporting}
+                style={exportBtn('#e91e8c', '#fff', !!exporting)}>
+                {exporting === 'pptx' ? '…' : '⬇  PPTX'}
+              </button>
+            </div>
+          </div>
+
+          {/* Title */}
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0c1446', margin: '0 0 6px' }}>
+              {report.title}
+            </h2>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              {pack.row_count?.toLocaleString?.() ?? pack.row_count} rows · {pack.column_count} columns · generated {new Date().toLocaleString()}
+            </div>
+          </div>
+
+          {/* Executive summary */}
+          <Section heading='Executive summary' color='#e91e8c'>
+            <p style={bodyStyle}>{report.executive_summary}</p>
+          </Section>
+
+          {/* Sections */}
+          {(report.sections || []).map((s, i) => (
+            <Section key={i} heading={s.heading} color='#0c1446'>
+              {s.narrative && <p style={bodyStyle}>{s.narrative}</p>}
+              {s.bullets?.length > 0 && (
+                <ul style={{ paddingLeft: 22, margin: '8px 0 0' }}>
+                  {s.bullets.map((b, j) => (
+                    <li key={j} style={{ margin: '4px 0', color: '#374151', fontSize: '0.9rem', lineHeight: 1.55 }}>{b}</li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          ))}
+
+          {/* Data quality */}
+          {report.data_quality_notes?.length > 0 && (
+            <Section heading='Data quality notes' color='#0097b2'>
+              <ul style={{ paddingLeft: 22, margin: 0 }}>
+                {report.data_quality_notes.map((n, i) => (
+                  <li key={i} style={{ margin: '4px 0', color: '#374151', fontSize: '0.9rem', lineHeight: 1.55 }}>{n}</li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          {/* Recommendations */}
+          {report.recommendations?.length > 0 && (
+            <Section heading='Recommended next steps' color='#e91e8c'>
+              <ol style={{ paddingLeft: 22, margin: 0 }}>
+                {report.recommendations.map((r, i) => (
+                  <li key={i} style={{ margin: '6px 0', color: '#374151', fontSize: '0.9rem', lineHeight: 1.55 }}>{r}</li>
+                ))}
+              </ol>
+            </Section>
+          )}
+
+          {report.raw && (
+            <details style={{ marginTop: 16 }}>
+              <summary style={{ cursor: 'pointer', color: '#dc2626', fontSize: '0.8rem', fontWeight: 700 }}>
+                Model returned unparsable output — view raw
+              </summary>
+              <pre style={{ background: '#fef2f2', color: '#991b1b', padding: 12, borderRadius: 8,
+                fontSize: '0.78rem', overflow: 'auto', maxHeight: 300, marginTop: 8 }}>{report.raw}</pre>
+            </details>
+          )}
+        </>
+      )}
+
+      {!result && !loading && !error && (
+        <div style={{ textAlign: 'center', padding: 70, color: '#9ca3af' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>◎</div>
+          <div>Pick a file and click <strong>Generate report</strong>.</div>
+        </div>
+      )}
     </div>
   )
+}
+
+function Section({ heading, color, children }) {
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12,
+      padding: '18px 22px', marginBottom: 16, borderLeft: `4px solid ${color}`,
+    }}>
+      <div style={{ fontWeight: 800, fontSize: '1.05rem', color, marginBottom: 8 }}>
+        {heading}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+const bodyStyle = { color: '#374151', fontSize: '0.9rem', lineHeight: 1.65, margin: 0 }
+
+function exportBtn(bg, fg, disabled) {
+  return {
+    padding: '8px 16px',
+    background: disabled ? '#d1d5db' : bg,
+    color: disabled ? '#6b7280' : fg,
+    border: 'none', borderRadius: 6, fontWeight: 700, fontSize: '0.8rem',
+    cursor: disabled ? 'not-allowed' : 'pointer', letterSpacing: 0.3,
+  }
 }

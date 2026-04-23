@@ -55,6 +55,16 @@ export const analyticsApi = {
   kpis: (fileId) => api.post(`/analytics/kpi/${fileId}`),
 }
 
+export const aiApi = {
+  insights: (fileId) => api.post(`/ai/insights/${fileId}`),
+  prompt: (data) => api.post('/ai/prompt', data),
+  greet: (data) => api.post('/ai/greet', data),
+  formula: (data) => api.post('/ai/formula', data),
+  chat: (data) => api.post('/ai/chat', data),
+  report: (fileId) => api.post(`/ai/report/${fileId}`),
+  reportExport: (data) => api.post('/ai/report/export', data, { responseType: 'blob' }),
+}
+
 export const billingApi = {
   plans: () => api.get('/billing/plans'),
   createCheckout: (planId) => api.post('/billing/create-checkout', { plan_id: planId }),
