@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataHub Pro — Agentic Organisation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Manrope', sans-serif;
+    background: #0c0a09;
+    color: #fafaf9;
+    min-height: 100vh;
+    padding: 48px 24px 64px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .header-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: #f59e0b;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 18px; color: #000;
+  }
+  .logo-name { font-size: 18px; font-weight: 800; color: #fafaf9; }
+  .header h1 {
+    font-size: 2rem; font-weight: 900;
+    background: linear-gradient(135deg, #f59e0b, #fcd34d);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .header p { color: #78716c; font-size: 0.95rem; }
+
+  /* ── Tree layout ── */
+  .tree {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* ── Cards ── */
+  .card {
+    position: relative;
+    background: #1c1916;
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 14px;
+    padding: 18px 22px;
+    text-align: center;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+  .card:hover {
+    border-color: rgba(245,158,11,0.6);
+    transform: translateY(-2px);
+  }
+  .card .role {
+    font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: #f59e0b;
+    margin-bottom: 4px;
+  }
+  .card .name {
+    font-size: 0.95rem; font-weight: 800;
+    color: #fafaf9;
+    margin-bottom: 4px;
+  }
+  .card .desc {
+    font-size: 0.72rem;
+    color: #78716c;
+    line-height: 1.4;
+  }
+  .card .avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    margin: 0 auto 10px;
+  }
+
+  /* CEO card — special */
+  .card-ceo {
+    background: linear-gradient(135deg, #1c1510, #251f14);
+    border: 2px solid #f59e0b;
+    padding: 24px 32px;
+    min-width: 220px;
+    box-shadow: 0 0 40px rgba(245,158,11,0.15);
+  }
+  .card-ceo .avatar {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #000; font-size: 1.4rem; font-weight: 900;
+  }
+  .card-ceo .name { font-size: 1.15rem; }
+  .card-ceo .role { font-size: 0.7rem; color: #fcd34d; }
+
+  /* Agent cards */
+  .card-agent { min-width: 170px; max-width: 190px; }
+  .card-agent .avatar { background: rgba(245,158,11,0.1); color: #f59e0b; }
+
+  /* Tier cards */
+  .card-tier { min-width: 160px; max-width: 180px; }
+
+  /* ── Connectors ── */
+  .connector-v {
+    width: 2px;
+    background: linear-gradient(to bottom, rgba(245,158,11,0.5), rgba(245,158,11,0.2));
+    height: 40px;
+    margin: 0 auto;
+  }
+  .connector-h-wrap {
+    display: flex;
+    align-items: flex-start;
+    position: relative;
+  }
+  .connector-h-wrap::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, rgba(245,158,11,0.4), rgba(245,158,11,0.15));
+  }
+
+  .branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .branch-line-top {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, rgba(245,158,11,0.4), rgba(245,158,11,0.15));
+  }
+
+  /* ── Level rows ── */
+  .level {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+  }
+
+  /* horizontal line connecting siblings */
+  .level-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    position: relative;
+  }
+  .level-inner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(190px / 2);
+    right: calc(190px / 2);
+    height: 2px;
+    background: linear-gradient(to right, rgba(245,158,11,0.15), rgba(245,158,11,0.4), rgba(245,158,11,0.15));
+  }
+
+  /* ── Section labels ── */
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #44403c;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* ── Bottom agents row ── */
+  .agents-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0;
+  }
+
+  /* ── Tag chips ── */
+  .tag {
+    display: inline-block;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.2);
+    color: #f59e0b;
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    margin-top: 6px;
+    letter-spacing: 0.04em;
+  }
+  .tag.human { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.25); color: #22c55e; }
+  .tag.ai { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); color: #a78bfa; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    margin-top: 56px;
+    color: #44403c;
+    font-size: 0.75rem;
+  }
+  .legend {
+    display: flex; gap: 24px; justify-content: center; margin-bottom: 12px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #78716c; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-mark">D</div>
+    <span class="logo-name">DataHub Pro</span>
+  </div>
+  <h1>Agentic Organisation</h1>
+  <p>Human leadership · AI-powered execution</p>
+</div>
+
+<div class="tree">
+
+  <!-- CEO -->
+  <div class="branch">
+    <div class="card card-ceo">
+      <div class="avatar">W</div>
+      <div class="role">Founder &amp; CEO</div>
+      <div class="name">Waqas Rafique</div>
+      <div class="desc">Product vision, strategy &amp; client relationships</div>
+      <span class="tag human">Human</span>
+    </div>
+    <div class="connector-v"></div>
+  </div>
+
+  <!-- Level 1 — three pillars -->
+  <div class="level-inner">
+
+    <!-- Pillar 1: Product -->
+    <div class="branch">
+      <div class="branch-line-top"></div>
+      <div class="card card-agent">
+        <div class="avatar">🧠</div>
+        <div class="role">Product Agent</div>
+        <div class="name">Claude — Builder</div>
+        <div class="desc">Feature dev, UI/UX, code execution</div>
+        <span class="tag ai">AI Agent</span>
+      </div>
+      <div class="connector-v" style="height:32px"></div>
+      <div class="section-label">Executes on</div>
+      <div class="agents-row" style="flex-direction:column; gap:12px; align-items:center;">
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">⚙️</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Code &amp; Deploy</div>
+          <div class="desc">Writes, tests &amp; ships to Railway</div>
+          <span class="tag ai">AI</span>
+        </div>
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">🎨</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Design &amp; Theme</div>
+          <div class="desc">UI polish, themes, components</div>
+          <span class="tag ai">AI</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pillar 2: Revenue -->
+    <div class="branch" style="margin: 0 32px;">
+      <div class="branch-line-top"></div>
+      <div class="card card-agent" style="border-color: rgba(245,158,11,0.4); box-shadow: 0 0 20px rgba(245,158,11,0.08);">
+        <div class="avatar">💰</div>
+        <div class="role">Revenue Agent</div>
+        <div class="name">Claude — GTM</div>
+        <div class="desc">Sales, billing, onboarding &amp; growth</div>
+        <span class="tag ai">AI Agent</span>
+      </div>
+      <div class="connector-v" style="height:32px"></div>
+      <div class="section-label">Executes on</div>
+      <div class="agents-row" style="flex-direction:column; gap:12px; align-items:center;">
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">💳</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Billing &amp; Stripe</div>
+          <div class="desc">Subscriptions, upgrades, invoices</div>
+          <span class="tag ai">AI</span>
+        </div>
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">📧</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Outreach &amp; Email</div>
+          <div class="desc">Prospects, demos, follow-ups</div>
+          <span class="tag ai">AI</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pillar 3: Ops -->
+    <div class="branch">
+      <div class="branch-line-top"></div>
+      <div class="card card-agent">
+        <div class="avatar">🔬</div>
+        <div class="role">Analytics Agent</div>
+        <div class="name">Claude — Insights</div>
+        <div class="desc">Data analysis, AI tools &amp; scheduled reports</div>
+        <span class="tag ai">AI Agent</span>
+      </div>
+      <div class="connector-v" style="height:32px"></div>
+      <div class="section-label">Executes on</div>
+      <div class="agents-row" style="flex-direction:column; gap:12px; align-items:center;">
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">📊</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Report Runner</div>
+          <div class="desc">Scheduled AI narratives &amp; KPI alerts</div>
+          <span class="tag ai">AI</span>
+        </div>
+        <div class="card card-tier" style="min-width:160px">
+          <div class="avatar" style="font-size:0.85rem">🔍</div>
+          <div class="role">Sub-Agent</div>
+          <div class="name">Insight Engine</div>
+          <div class="desc">Anomaly detection, churn &amp; RFM</div>
+          <span class="tag ai">AI</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Legend + footer -->
+<div class="footer">
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#22c55e"></div>
+      Human
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#a78bfa"></div>
+      AI Agent
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:rgba(245,158,11,0.6)"></div>
+      Sub-Agent
+    </div>
+  </div>
+  DataHub Pro · Agentic Organisation · 2026
+</div>
+
+</body>
+</html>

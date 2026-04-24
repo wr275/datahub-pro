@@ -7,7 +7,7 @@ import uvicorn
 from routers import (
     auth, files, analytics, billing, users, connectors, pipelines, budget,
     calculated_fields, sharepoint, ai, dashboards, sheets, scheduled_reports,
-    organisation, admin,
+    organisation, admin, rfm,
 )
 from database import engine, Base, SessionLocal
 from config import settings
@@ -189,6 +189,26 @@ async def lifespan(app: FastAPI):
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """))
+            # Scheduled Reports 2.0: attach-CSV + retry controls.
+            conn.execute(text("ALTER TABLE scheduled_reports ADD COLUMN IF NOT EXISTS attach_csv BOOLEAN DEFAULT FALSE NOT NULL"))
+            conn.execute(text("ALTER TABLE scheduled_reports ADD COLUMN IF NOT EXISTS max_retries INTEGER DEFAULT 2 NOT NULL"))
+
+            # Per-send delivery log (Scheduled Reports 2.0). One row per attempt.
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS scheduled_report_deliveries (
+                    id VARCHAR PRIMARY KEY,
+                    report_id VARCHAR NOT NULL REFERENCES scheduled_reports(id) ON DELETE CASCADE,
+                    status VARCHAR(20) NOT NULL,
+                    attempted_at TIMESTAMP DEFAULT NOW() NOT NULL,
+                    recipients TEXT,
+                    attempt INTEGER DEFAULT 1 NOT NULL,
+                    error_message TEXT,
+                    rows_included INTEGER,
+                    trigger VARCHAR(20) DEFAULT 'scheduled' NOT NULL
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sched_deliveries_report ON scheduled_report_deliveries (report_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sched_deliveries_attempted ON scheduled_report_deliveries (attempted_at)"))
 
             conn.commit()
     except Exception:
@@ -285,6 +305,7 @@ app.include_router(sheets.router,            prefix="/api/sheets",             t
 app.include_router(scheduled_reports.router, prefix="/api/scheduled-reports",  tags=["Scheduled Reports"])
 app.include_router(organisation.router,      prefix="/api/organisation",       tags=["Organisation"])
 app.include_router(admin.router,             prefix="/api/admin",              tags=["Admin"])
+app.include_router(rfm.router,               prefix="/api/rfm",                tags=["RFM"])
 
 @app.get("/health")
 def health_check():

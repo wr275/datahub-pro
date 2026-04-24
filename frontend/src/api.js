@@ -85,6 +85,14 @@ export const billingApi = {
 export const usersApi = {
   team: () => api.get('/users/team'),
   invite: (data) => api.post('/users/invite', data),
+  // Bulk invite — body: { invites: [{email, full_name, role}, ...] }
+  inviteBulk: (invites) => api.post('/users/invite-bulk', { invites }),
+  // Re-issue a fresh invite token + re-send the email for a pending invite.
+  resendInvite: (userId) => api.post(`/users/${userId}/resend-invite`),
+  // Change an existing user's role (owner/admin/member/viewer).
+  updateRole: (userId, role) => api.patch(`/users/${userId}`, { role }),
+  // Cancel a pending invite (only works on users who haven't accepted yet).
+  cancelInvite: (userId) => api.delete(`/users/${userId}`),
   auditLog: () => api.get('/users/audit-log'),
   // Log a whitelisted client-side event (e.g. first_dashboard_viewed).
   // Fire-and-forget — failures must never block the UI.
@@ -105,12 +113,19 @@ export const pipelinesApi = {
   remove: (id) => api.delete('/pipelines/' + id),
   preview: (id, data) => api.post('/pipelines/' + id + '/preview', data),
   run: (id, data) => api.post('/pipelines/' + id + '/run', data),
+  // Live per-step validation — body: { file_id?, steps[] }
+  // Returns { errors: [{step_index, error}], input_columns: [...] }
+  validate: (data) => api.post('/pipelines/validate', data),
 }
 
 
 export const budgetApi = {
   listBudgets: () => api.get('/budget/budgets'),
+  // 2.0 summary response includes: entries, totals, periods (trend), alerts,
+  // departments, available_periods.
   getSummary: (name, period) => api.get('/budget/' + encodeURIComponent(name) + '/summary', { params: period ? { period } : {} }),
+  // Drill-down: one category across every period of a budget.
+  getCategoryDetail: (name, category) => api.get('/budget/' + encodeURIComponent(name) + '/categories/' + encodeURIComponent(category)),
   upload: (data) => api.post('/budget/upload', data),
   deleteBudget: (name) => api.delete('/budget/' + encodeURIComponent(name)),
 }
@@ -147,6 +162,9 @@ export const scheduledReportsApi = {
   remove: (id) => api.delete('/scheduled-reports/' + id),
   toggle: (id) => api.patch('/scheduled-reports/' + id + '/toggle'),
   sendNow: (id) => api.post('/scheduled-reports/' + id + '/send-now'),
+  // 2.0: template catalogue + per-schedule delivery history.
+  templates: () => api.get('/scheduled-reports/templates'),
+  deliveries: (id, limit = 50) => api.get('/scheduled-reports/' + id + '/deliveries', { params: { limit } }),
 }
 
 export const calculatedFieldsApi = {
@@ -155,6 +173,14 @@ export const calculatedFieldsApi = {
   preview: (data) => api.post('/calculated-fields/preview', data),
   export: (data) => api.post('/calculated-fields/export', data, { responseType: 'blob' }),
   delete: (id) => api.delete('/calculated-fields/' + id),
+}
+
+// RFM 2.0 — server-side compute + custom segments + CSV export + LLM actions
+export const rfmApi = {
+  defaults: () => api.get('/rfm/segments/defaults'),
+  analyze: (data) => api.post('/rfm/analyze', data),
+  export: (data) => api.post('/rfm/export', data, { responseType: 'blob' }),
+  aiAction: (data) => api.post('/rfm/ai-action', data),
 }
 
 // Organisation-level settings & add-on entitlements

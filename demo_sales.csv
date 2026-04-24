@@ -1,0 +1,51 @@
+Date,Customer,Product,Category,Quantity,Unit_Price,Revenue,Region,Sales_Rep
+2025-01-05,Acme Ltd,Analytics Pro,Software,3,499,1497,North,Sarah Chen
+2025-01-08,BrightStar Inc,Data Suite,Software,1,999,999,South,James Patel
+2025-01-12,CloudBase Co,Analytics Pro,Software,5,499,2495,East,Sarah Chen
+2025-01-15,Delta Systems,Reporting Tool,Software,2,299,598,West,Mike Torres
+2025-01-18,Echo Digital,Data Suite,Software,1,999,999,North,James Patel
+2025-01-22,Falcon Tech,Analytics Pro,Software,4,499,1996,South,Sarah Chen
+2025-01-25,GreenPath Ltd,Reporting Tool,Software,3,299,897,East,Mike Torres
+2025-01-28,HighMark Co,Data Suite,Software,2,999,1998,West,James Patel
+2025-02-03,Acme Ltd,Reporting Tool,Software,1,299,299,North,Mike Torres
+2025-02-06,Ironclad Inc,Analytics Pro,Software,6,499,2994,South,Sarah Chen
+2025-02-10,Jupiter Corp,Data Suite,Software,3,999,2997,East,James Patel
+2025-02-14,KloudSync,Analytics Pro,Software,2,499,998,West,Sarah Chen
+2025-02-18,Luminary Ltd,Reporting Tool,Software,4,299,1196,North,Mike Torres
+2025-02-21,MegaTrend,Data Suite,Software,1,999,999,South,James Patel
+2025-02-25,NovaTech,Analytics Pro,Software,5,499,2495,East,Sarah Chen
+2025-03-02,Omega Systems,Data Suite,Software,2,999,1998,West,James Patel
+2025-03-06,PeakView Co,Analytics Pro,Software,3,499,1497,North,Sarah Chen
+2025-03-09,QuantumLeap,Reporting Tool,Software,6,299,1794,South,Mike Torres
+2025-03-14,RapidScale,Data Suite,Software,1,999,999,East,James Patel
+2025-03-18,Skyline Ltd,Analytics Pro,Software,4,499,1996,West,Sarah Chen
+2025-03-22,TechPulse,Reporting Tool,Software,2,299,598,North,Mike Torres
+2025-03-26,UniFlow Inc,Data Suite,Software,3,999,2997,South,James Patel
+2025-04-02,Vertex Corp,Analytics Pro,Software,5,499,2495,East,Sarah Chen
+2025-04-07,WebCore Ltd,Reporting Tool,Software,1,299,299,West,Mike Torres
+2025-04-11,Acme Ltd,Data Suite,Software,2,999,1998,North,James Patel
+2025-04-15,Xcelerate Inc,Analytics Pro,Software,7,499,3493,South,Sarah Chen
+2025-04-19,YieldBase,Reporting Tool,Software,3,299,897,East,Mike Torres
+2025-04-23,ZenFlow Co,Data Suite,Software,1,999,999,West,James Patel
+2025-04-27,BrightStar Inc,Analytics Pro,Software,4,499,1996,North,Sarah Chen
+2025-05-02,CloudBase Co,Reporting Tool,Software,2,299,598,South,Mike Torres
+2025-05-06,Delta Systems,Data Suite,Software,3,999,2997,East,James Patel
+2025-05-10,Echo Digital,Analytics Pro,Software,5,499,2495,West,Sarah Chen
+2025-05-14,Falcon Tech,Reporting Tool,Software,1,299,299,North,Mike Torres
+2025-05-18,GreenPath Ltd,Analytics Pro,Software,6,499,2994,South,Sarah Chen
+2025-05-22,HighMark Co,Data Suite,Software,2,999,1998,East,James Patel
+2025-05-26,Ironclad Inc,Reporting Tool,Software,4,299,1196,West,Mike Torres
+2025-06-01,Jupiter Corp,Analytics Pro,Software,3,499,1497,North,Sarah Chen
+2025-06-05,KloudSync,Data Suite,Software,1,999,999,South,James Patel
+2025-06-09,Luminary Ltd,Analytics Pro,Software,5,499,2495,East,Sarah Chen
+2025-06-13,MegaTrend,Reporting Tool,Software,2,299,598,West,Mike Torres
+2025-06-17,NovaTech,Data Suite,Software,4,999,3996,North,James Patel
+2025-06-21,Omega Systems,Analytics Pro,Software,3,499,1497,South,Sarah Chen
+2025-06-25,PeakView Co,Reporting Tool,Software,1,299,299,East,Mike Torres
+2025-06-29,QuantumLeap,Analytics Pro,Software,6,499,2994,West,Sarah Chen
+2025-07-04,RapidScale,Data Suite,Software,2,999,1998,North,James Patel
+2025-07-08,Skyline Ltd,Reporting Tool,Software,3,299,897,South,Mike Torres
+2025-07-12,TechPulse,Analytics Pro,Software,5,499,2495,East,Sarah Chen
+2025-07-16,UniFlow Inc,Data Suite,Software,1,999,999,West,James Patel
+2025-07-20,Vertex Corp,Reporting Tool,Software,4,299,1196,North,Mike Torres
+2025-07-24,WebCore Ltd,Analytics Pro,Software,2,499,998,South,Sarah Chen

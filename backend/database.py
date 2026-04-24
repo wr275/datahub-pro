@@ -186,6 +186,7 @@ class ScheduledReport(Base):
     __tablename__ = "scheduled_reports"
     id = Column(String, primary_key=True)
     name = Column(String(255), nullable=False)
+    # 2.0 templates: data_summary | kpi_digest | alerts_digest | raw_attachment
     report_type = Column(String(50), default="data_summary")
     frequency = Column(String(20), nullable=False)           # daily | weekly | monthly
     day_of_week = Column(String(20), nullable=True)          # Monday..Sunday
@@ -195,10 +196,33 @@ class ScheduledReport(Base):
     file_id = Column(String, ForeignKey("data_files.id"), nullable=True)
     status = Column(String(20), default="active")            # active | paused
     last_run_at = Column(DateTime, nullable=True)
+    # 2.0: attach the source CSV to outgoing emails.
+    attach_csv = Column(Boolean, default=False, nullable=False)
+    # 2.0: max retries for transient email failures (exponential backoff, per-send).
+    max_retries = Column(Integer, default=2, nullable=False)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ScheduledReportDelivery(Base):
+    """Single send-attempt record. One row per delivery (initial + retries).
+
+    Enables an audit log in the UI and lets the backend reason about retry
+    counts without parsing log files.
+    """
+    __tablename__ = "scheduled_report_deliveries"
+    id = Column(String, primary_key=True)
+    report_id = Column(String, ForeignKey("scheduled_reports.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(20), nullable=False)  # sent | failed | retrying | skipped
+    attempted_at = Column(DateTime, server_default=func.now(), nullable=False)
+    recipients = Column(Text, nullable=True)      # snapshot at send time
+    attempt = Column(Integer, default=1, nullable=False)
+    error_message = Column(Text, nullable=True)
+    rows_included = Column(Integer, nullable=True)
+    # 'scheduled' = fired by cron, 'manual' = fired from Send-now button
+    trigger = Column(String(20), default="scheduled", nullable=False)
 
 
 # ─── Admin / Platform-level tables ─────────────────────────────────

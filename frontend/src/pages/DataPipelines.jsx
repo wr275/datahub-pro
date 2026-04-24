@@ -1,13 +1,42 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { pipelinesApi, filesApi } from '../api'
+
+// -----------------------------------------------------------------------------
+// Pipelines 2.0
+// ---------------
+// * HTML5 drag-reorder (replaces up/down arrow buttons)
+// * Join types: inner / left / right / outer
+// * Filter operators expanded with >=, <=, is_empty, is_not_empty
+// * Live per-step validation — debounced call to /pipelines/validate
+// * Inline red-border error display + disabled Save if any step is invalid
+// -----------------------------------------------------------------------------
 
 const STEP_TYPES = [
   { value: 'remove_nulls', label: 'Remove Nulls', icon: '🧹', tooltip: 'Remove rows where selected columns have empty or null values. Leave column list empty to check all columns.' },
   { value: 'rename_columns', label: 'Rename Columns', icon: '✏️', tooltip: 'Rename one or more column headers. Enter pairs as old_name:new_name, one per line.' },
-  { value: 'filter_rows', label: 'Filter Rows', icon: '🔍', tooltip: 'Keep only rows matching a condition. Choose a column, operator (equals, contains, greater_than, etc.) and a value to compare against.' },
-  { value: 'join_datasets', label: 'Join Datasets', icon: '🔀', tooltip: 'Merge a second dataset into this one using a shared key column. Choose inner join (only matching rows) or left join (keep all rows from first dataset).' },
+  { value: 'filter_rows', label: 'Filter Rows', icon: '🔍', tooltip: 'Keep only rows matching a condition. Choose a column, operator and a value to compare against. is_empty / is_not_empty ignore the value field.' },
+  { value: 'join_datasets', label: 'Join Datasets', icon: '🔀', tooltip: 'Merge a second dataset using a shared key. Inner keeps only matching rows; left/right keep all rows from that side; outer keeps all rows from both.' },
 ]
+
+const FILTER_OPERATORS = [
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'not equals' },
+  { value: 'contains', label: 'contains' },
+  { value: 'not_contains', label: 'not contains' },
+  { value: 'greater_than', label: 'greater than' },
+  { value: 'less_than', label: 'less than' },
+  { value: 'greater_or_equal', label: '≥ (greater or equal)' },
+  { value: 'less_or_equal', label: '≤ (less or equal)' },
+  { value: 'is_empty', label: 'is empty' },
+  { value: 'is_not_empty', label: 'is not empty' },
+]
+
+// Operators that don't read the "value" field — we hide/disable it for them.
+const VALUELESS_OPERATORS = new Set(['is_empty', 'is_not_empty'])
+
+let _stepKeySeq = 0
+function newStepKey() { _stepKeySeq += 1; return `s${Date.now()}_${_stepKeySeq}` }
 
 function Tooltip({ text }) {
   return (
@@ -65,6 +94,8 @@ function StepConfig({ step, onChange, files }) {
   }
 
   if (type === 'filter_rows') {
+    const op = cfg.operator || 'equals'
+    const valueless = VALUELESS_OPERATORS.has(op)
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         <div>
@@ -74,20 +105,18 @@ function StepConfig({ step, onChange, files }) {
         </div>
         <div>
           <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Operator</label>
-          <select value={cfg.operator || 'equals'} onChange={e => set('operator', e.target.value)}
+          <select value={op} onChange={e => set('operator', e.target.value)}
             style={{ width: '100%', padding: '8px 10px', border: '1px solid #e8eaf4', borderRadius: 7, fontSize: '0.85rem', boxSizing: 'border-box', background: '#fff' }}>
-            <option value="equals">equals</option>
-            <option value="not_equals">not equals</option>
-            <option value="contains">contains</option>
-            <option value="not_contains">not contains</option>
-            <option value="greater_than">greater than</option>
-            <option value="less_than">less than</option>
+            {FILTER_OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Value</label>
-          <input value={cfg.value || ''} onChange={e => set('value', e.target.value)} placeholder="value"
-            style={{ width: '100%', padding: '8px 10px', border: '1px solid #e8eaf4', borderRadius: 7, fontSize: '0.85rem', boxSizing: 'border-box' }} />
+          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>
+            Value{valueless && <span style={{ color: '#9ca3af', fontWeight: 400 }}> (not used)</span>}
+          </label>
+          <input value={cfg.value || ''} onChange={e => set('value', e.target.value)} placeholder={valueless ? '—' : 'value'}
+            disabled={valueless}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #e8eaf4', borderRadius: 7, fontSize: '0.85rem', boxSizing: 'border-box', background: valueless ? '#f3f4f6' : '#fff', color: valueless ? '#9ca3af' : '#111827' }} />
         </div>
       </div>
     )
@@ -118,8 +147,10 @@ function StepConfig({ step, onChange, files }) {
           <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Join Type</label>
           <select value={cfg.join_type || 'inner'} onChange={e => set('join_type', e.target.value)}
             style={{ width: '100%', padding: '8px 10px', border: '1px solid #e8eaf4', borderRadius: 7, fontSize: '0.85rem', background: '#fff', boxSizing: 'border-box' }}>
-            <option value="inner">Inner</option>
-            <option value="left">Left</option>
+            <option value="inner">Inner (matches only)</option>
+            <option value="left">Left (keep all from this side)</option>
+            <option value="right">Right (keep all from second)</option>
+            <option value="outer">Outer (keep all, both sides)</option>
           </select>
         </div>
       </div>
@@ -137,16 +168,30 @@ function RunModal({ pipeline, files, onClose }) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [stepErrors, setStepErrors] = useState([]) // structured list from backend
+
+  // Normalise any error into {message, stepErrors[]}.
+  const normaliseError = (err) => {
+    const detail = err?.response?.data?.detail
+    if (detail && typeof detail === 'object' && detail.code === 'invalid_steps') {
+      return {
+        message: detail.message || 'Pipeline has configuration errors',
+        stepErrors: detail.errors || [],
+      }
+    }
+    if (typeof detail === 'string') return { message: detail, stepErrors: [] }
+    return { message: 'Request failed', stepErrors: [] }
+  }
 
   const handlePreview = async () => {
     if (!fileId) return
-    setPreviewing(true)
-    setError(null)
+    setPreviewing(true); setError(null); setStepErrors([])
     try {
       const resp = await pipelinesApi.preview(pipeline.id, { file_id: fileId, preview_only: true })
       setPreview(resp.data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Preview failed')
+      const e = normaliseError(err)
+      setError(e.message); setStepErrors(e.stepErrors)
     } finally {
       setPreviewing(false)
     }
@@ -154,13 +199,13 @@ function RunModal({ pipeline, files, onClose }) {
 
   const handleRun = async () => {
     if (!fileId) return
-    setRunning(true)
-    setError(null)
+    setRunning(true); setError(null); setStepErrors([])
     try {
       const resp = await pipelinesApi.run(pipeline.id, { file_id: fileId })
       setResult(resp.data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Run failed')
+      const e = normaliseError(err)
+      setError(e.message); setStepErrors(e.stepErrors)
     } finally {
       setRunning(false)
     }
@@ -198,7 +243,18 @@ function RunModal({ pipeline, files, onClose }) {
               </button>
             </div>
 
-            {error && <div style={{ padding: '10px 14px', background: '#fef2f2', borderRadius: 8, color: '#991b1b', fontSize: '0.85rem', marginBottom: 16 }}>❌ {error}</div>}
+            {error && (
+              <div style={{ padding: '12px 14px', background: '#fef2f2', borderRadius: 8, color: '#991b1b', fontSize: '0.85rem', marginBottom: 16, border: '1px solid #fca5a5' }}>
+                <div style={{ fontWeight: 700, marginBottom: stepErrors.length ? 6 : 0 }}>❌ {error}</div>
+                {stepErrors.length > 0 && (
+                  <ul style={{ margin: '4px 0 0 18px', padding: 0, fontSize: '0.8rem' }}>
+                    {stepErrors.map((se, i) => (
+                      <li key={i}>Step {se.step_index + 1}: {se.error}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {preview && (
               <div>
@@ -270,6 +326,16 @@ export default function DataPipelines() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
 
+  // Validation state — map of step_index -> error string, plus flag for pipeline-level errors.
+  const [validateFileId, setValidateFileId] = useState('') // optional file to validate against
+  const [stepErrors, setStepErrors] = useState({}) // {0: "...", 2: "..."}
+  const [validating, setValidating] = useState(false)
+  const validateTimer = useRef(null)
+
+  // Drag reorder state
+  const [dragKey, setDragKey] = useState(null)
+  const [overKey, setOverKey] = useState(null)
+
   useEffect(() => {
     Promise.all([
       pipelinesApi.list().then(r => setPipelines(r.data || [])),
@@ -279,54 +345,114 @@ export default function DataPipelines() {
 
   const loadPipelines = () => pipelinesApi.list().then(r => setPipelines(r.data || []))
 
+  // Attach a stable _key to each step for React + drag. Server doesn't know about _key.
+  const withKeys = (steps) => (steps || []).map(s => s._key ? s : { ...s, _key: newStepKey() })
+  const stripKeys = (steps) => (steps || []).map(({ _key, ...rest }) => rest)
+
   const startNew = () => {
     setForm({ name: '', description: '', steps: [] })
+    setStepErrors({})
     setEditing('new')
   }
 
   const startEdit = (p) => {
-    setForm({ name: p.name, description: p.description || '', steps: p.steps || [] })
+    setForm({ name: p.name, description: p.description || '', steps: withKeys(p.steps || []) })
+    setStepErrors({})
     setEditing(p)
   }
 
   const addStep = (type) => {
-    setForm(f => ({ ...f, steps: [...f.steps, { type, config: {} }] }))
+    setForm(f => ({ ...f, steps: [...f.steps, { type, config: {}, _key: newStepKey() }] }))
   }
 
   const updateStep = (idx, updated) => {
-    setForm(f => ({ ...f, steps: f.steps.map((s, i) => i === idx ? updated : s) }))
+    setForm(f => ({ ...f, steps: f.steps.map((s, i) => i === idx ? { ...updated, _key: s._key } : s) }))
   }
 
   const removeStep = (idx) => {
     setForm(f => ({ ...f, steps: f.steps.filter((_, i) => i !== idx) }))
   }
 
-  const moveStep = (idx, dir) => {
+  // ---- HTML5 drag reorder ----
+  const onDragStart = (key) => (e) => {
+    setDragKey(key)
+    try { e.dataTransfer.effectAllowed = 'move' } catch {}
+  }
+  const onDragOver = (key) => (e) => {
+    e.preventDefault()
+    if (key !== overKey) setOverKey(key)
+  }
+  const onDragEnd = () => { setDragKey(null); setOverKey(null) }
+  const onDrop = (key) => (e) => {
+    e.preventDefault()
+    const src = dragKey, dst = key
+    setDragKey(null); setOverKey(null)
+    if (!src || !dst || src === dst) return
     setForm(f => {
       const steps = [...f.steps]
-      const newIdx = idx + dir
-      if (newIdx < 0 || newIdx >= steps.length) return f
-      ;[steps[idx], steps[newIdx]] = [steps[newIdx], steps[idx]]
+      const from = steps.findIndex(s => s._key === src)
+      const to = steps.findIndex(s => s._key === dst)
+      if (from < 0 || to < 0) return f
+      const [moved] = steps.splice(from, 1)
+      steps.splice(to, 0, moved)
       return { ...f, steps }
     })
   }
 
+  // ---- Live validation (debounced) ----
+  const stepsSerial = useMemo(() => JSON.stringify(stripKeys(form.steps)), [form.steps])
+
+  useEffect(() => {
+    if (editing === null) return
+    if (form.steps.length === 0) { setStepErrors({}); return }
+    if (validateTimer.current) clearTimeout(validateTimer.current)
+    validateTimer.current = setTimeout(async () => {
+      setValidating(true)
+      try {
+        const resp = await pipelinesApi.validate({
+          file_id: validateFileId || null,
+          steps: stripKeys(form.steps),
+        })
+        const map = {}
+        ;(resp.data?.errors || []).forEach(e => { map[e.step_index] = e.error })
+        setStepErrors(map)
+      } catch (err) {
+        // Best effort — validation failures shouldn't block editing; clear errors.
+        setStepErrors({})
+      } finally {
+        setValidating(false)
+      }
+    }, 500)
+    return () => { if (validateTimer.current) clearTimeout(validateTimer.current) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepsSerial, validateFileId, editing])
+
+  const hasErrors = Object.keys(stepErrors).length > 0
+
   const handleSave = async (e) => {
     e.preventDefault()
+    if (hasErrors) {
+      setMessage({ type: 'error', text: 'Fix the step errors before saving.' })
+      return
+    }
     setSaving(true)
     setMessage(null)
     try {
+      const payload = { ...form, steps: stripKeys(form.steps) }
       if (editing === 'new') {
-        await pipelinesApi.create(form)
+        await pipelinesApi.create(payload)
         setMessage({ type: 'success', text: 'Pipeline created!' })
       } else {
-        await pipelinesApi.update(editing.id, form)
+        await pipelinesApi.update(editing.id, payload)
         setMessage({ type: 'success', text: 'Pipeline updated!' })
       }
       await loadPipelines()
       setEditing(null)
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.detail || 'Save failed' })
+      const detail = err.response?.data?.detail
+      const msg = (typeof detail === 'object' && detail?.message) ? detail.message
+                : (typeof detail === 'string' ? detail : 'Save failed')
+      setMessage({ type: 'error', text: msg })
     } finally {
       setSaving(false)
     }
@@ -350,7 +476,7 @@ export default function DataPipelines() {
             <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#0c1446' }}>
               {editing === 'new' ? '+ New Pipeline' : `✏️ Edit: ${editing.name}`}
             </h1>
-            <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.85rem' }}>Build a sequence of transforms to run on any dataset</p>
+            <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.85rem' }}>Drag to reorder · steps validate as you type</p>
           </div>
           <button onClick={() => setEditing(null)} style={{ padding: '8px 16px', background: '#f3f4f6', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, color: '#6b7280' }}>← Back</button>
         </div>
@@ -377,6 +503,24 @@ export default function DataPipelines() {
             </div>
           </div>
 
+          {/* Validation context file (optional) */}
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '16px 22px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151' }}>Validate against file:</div>
+            <select value={validateFileId} onChange={e => setValidateFileId(e.target.value)}
+              style={{ padding: '7px 10px', border: '1px solid #e8eaf4', borderRadius: 7, fontSize: '0.82rem', background: '#fff' }}>
+              <option value="">(none — structure-only check)</option>
+              {files.map(f => <option key={f.id} value={f.id}>{f.filename}</option>)}
+            </select>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              Pick a file to validate column names against real data. {validating && <span style={{ color: '#0097b2' }}>· checking…</span>}
+            </div>
+            {hasErrors && (
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '3px 10px', borderRadius: 12, border: '1px solid #fca5a5' }}>
+                {Object.keys(stepErrors).length} step{Object.keys(stepErrors).length !== 1 ? 's' : ''} need fixing
+              </span>
+            )}
+          </div>
+
           {/* Steps */}
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8eaf4', padding: '20px 24px', marginBottom: 20 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Transform Steps</div>
@@ -389,23 +533,47 @@ export default function DataPipelines() {
 
             {form.steps.map((step, idx) => {
               const stepMeta = STEP_TYPES.find(s => s.value === step.type) || {}
+              const err = stepErrors[idx]
+              const isDragging = dragKey === step._key
+              const isOver = overKey === step._key && dragKey && dragKey !== step._key
+              const borderColor = err ? '#fca5a5' : (isOver ? '#0097b2' : '#e8eaf4')
               return (
-                <div key={idx} style={{ background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8eaf4', padding: '14px 16px', marginBottom: 10 }}>
+                <div key={step._key}
+                  onDragOver={onDragOver(step._key)}
+                  onDrop={onDrop(step._key)}
+                  onDragEnd={onDragEnd}
+                  style={{
+                    background: err ? '#fff7f7' : '#f8f9ff',
+                    borderRadius: 10,
+                    border: `${isOver ? '2px' : '1px'} solid ${borderColor}`,
+                    padding: '14px 16px',
+                    marginBottom: 10,
+                    opacity: isDragging ? 0.4 : 1,
+                    transition: 'opacity 120ms ease, border-color 120ms ease',
+                  }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        draggable
+                        onDragStart={onDragStart(step._key)}
+                        onDragEnd={onDragEnd}
+                        title="Drag to reorder"
+                        style={{ cursor: 'grab', color: '#9ca3af', fontSize: '1rem', padding: '0 4px', userSelect: 'none' }}>⋮⋮</span>
                       <span style={{ fontSize: '1rem' }}>{stepMeta.icon}</span>
                       <span style={{ fontWeight: 700, color: '#0c1446', fontSize: '0.85rem' }}>Step {idx + 1}: {stepMeta.label}</span>
+                      {err && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#b91c1c', background: '#fef2f2', padding: '2px 8px', borderRadius: 10, border: '1px solid #fca5a5' }}>needs fix</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button type="button" onClick={() => moveStep(idx, -1)} disabled={idx === 0}
-                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #e8eaf4', borderRadius: 5, cursor: idx === 0 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', color: '#6b7280' }}>↑</button>
-                      <button type="button" onClick={() => moveStep(idx, 1)} disabled={idx === form.steps.length - 1}
-                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #e8eaf4', borderRadius: 5, cursor: idx === form.steps.length - 1 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', color: '#6b7280' }}>↓</button>
+                    <div>
                       <button type="button" onClick={() => removeStep(idx)}
-                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', color: '#ef4444' }}>Remove</button>
+                        style={{ padding: '4px 10px', background: '#fff', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', color: '#ef4444' }}>Remove</button>
                     </div>
                   </div>
                   <StepConfig step={step} onChange={updated => updateStep(idx, updated)} files={files} />
+                  {err && (
+                    <div style={{ marginTop: 10, padding: '7px 10px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 7, color: '#991b1b', fontSize: '0.78rem' }}>
+                      ❌ {err}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -428,15 +596,17 @@ export default function DataPipelines() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button type="button" onClick={() => setEditing(null)}
               style={{ padding: '11px 24px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 600 }}>
               Cancel
             </button>
-            <button type="submit" disabled={saving}
-              style={{ padding: '11px 28px', background: saving ? '#9ca3af' : '#0c1446', color: '#fff', border: 'none', borderRadius: 9, cursor: saving ? 'wait' : 'pointer', fontWeight: 700 }}>
+            <button type="submit" disabled={saving || hasErrors}
+              title={hasErrors ? 'Fix the step errors before saving' : ''}
+              style={{ padding: '11px 28px', background: (saving || hasErrors) ? '#9ca3af' : '#0c1446', color: '#fff', border: 'none', borderRadius: 9, cursor: (saving || hasErrors) ? 'not-allowed' : 'pointer', fontWeight: 700 }}>
               {saving ? 'Saving…' : (editing === 'new' ? 'Create Pipeline' : 'Save Changes')}
             </button>
+            {hasErrors && <span style={{ fontSize: '0.78rem', color: '#b91c1c' }}>Save disabled — fix errors above.</span>}
           </div>
         </form>
       </div>
