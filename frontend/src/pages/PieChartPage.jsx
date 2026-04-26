@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899', '#14b8a6']
 
@@ -15,6 +19,7 @@ export default function PieChartPage() {
   const [chartType, setChartType] = useState('pie')
   const [topN, setTopN] = useState(10)
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -77,7 +82,24 @@ export default function PieChartPage() {
       </div>
 
       {chartData && (
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
+        <>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+          <OpenInAskYourData
+            fileId={fileId}
+            prompt={`In a pie chart of ${valCol} by ${labelCol}, the top slice is ${chartData[0]?.name} (${chartData[0]?.pct}%). Is the distribution healthy or too concentrated? What's the right benchmark?`}
+          />
+          <PinToDashboard
+            widget={{
+              type: 'pie',
+              col: valCol,
+              label: `${valCol} by ${labelCol}`,
+              file_id: fileId,
+              extra: { labelCol, agg, topN, chartType },
+            }}
+          />
+          <ExportMenu data={chartData} filename={`pie-${labelCol}-${valCol}`} containerRef={chartRef} title={`Pie: ${valCol} by ${labelCol}`} />
+        </div>
+        <div ref={chartRef} style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>{agg.charAt(0).toUpperCase() + agg.slice(1)} of {valCol} by {labelCol}</div>
             <ResponsiveContainer width="100%" height={320}>
@@ -102,9 +124,16 @@ export default function PieChartPage() {
             ))}
           </div>
         </div>
+        </>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🥧</div><div>Configure labels and values to build the chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="🥧"
+          title="Configure labels and values"
+          body="Pick a category column for slices, a numeric column for values, and choose pie or donut. Slices beyond Max are bundled into 'Other'."
+        />
+      )}
     </div>
   )
 }

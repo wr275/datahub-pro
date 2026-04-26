@@ -1,11 +1,16 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function BreakEvenCalculator() {
   const [fixedCosts, setFixedCosts] = useState('')
   const [varCostPerUnit, setVarCostPerUnit] = useState('')
   const [pricePerUnit, setPricePerUnit] = useState('')
   const [result, setResult] = useState(null)
+  const chartRef = useRef(null)
 
   function calculate() {
     const fc = parseFloat(fixedCosts) || 0
@@ -54,6 +59,18 @@ export default function BreakEvenCalculator() {
 
       {result && !result.error && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            <PinToDashboard
+              widget={{
+                type: 'kpi',
+                col: 'break_even_units',
+                label: `Break-even: ${result.bepUnits.toLocaleString()} units`,
+                file_id: null,
+                extra: { fc: result.fc, vc: result.vc, p: result.p, bepUnits: result.bepUnits, bepRevenue: result.bepRevenue, marginPct: result.marginPct },
+              }}
+            />
+            <ExportMenu data={result.chartData} filename="break-even" containerRef={chartRef} title="Break-Even Analysis" />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
             {[
               ['Break-Even Units', result.bepUnits.toLocaleString(), '#e91e8c'],
@@ -68,7 +85,7 @@ export default function BreakEvenCalculator() {
             ))}
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 4 }}>Break-Even Analysis Chart</div>
             <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: 16 }}>Where Revenue line crosses Total Cost line = Break-Even Point ({result.bepUnits.toLocaleString()} units)</div>
             <ResponsiveContainer width="100%" height={280}>
@@ -105,7 +122,13 @@ export default function BreakEvenCalculator() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>💰</div><div>Enter your cost and pricing data to calculate the break-even point</div></div>}
+      {!result && (
+        <EmptyState
+          icon="💰"
+          title="Enter cost and pricing data"
+          body="Fill in fixed costs, variable cost per unit, and selling price. We'll show units to break even, contribution margin, and a profitability chart."
+        />
+      )}
     </div>
   )
 }

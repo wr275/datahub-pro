@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function WaterfallChart() {
   const [files, setFiles] = useState([])
@@ -10,6 +14,7 @@ export default function WaterfallChart() {
   const [labelCol, setLabelCol] = useState('')
   const [valCol, setValCol] = useState('')
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -66,8 +71,26 @@ export default function WaterfallChart() {
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Waterfall: {valCol} by {labelCol}</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>Waterfall: {valCol} by {labelCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`In a waterfall of ${valCol} by ${labelCol}, the running total ends at ${chartData[chartData.length - 1]?.end?.toLocaleString()}. Which step contributed most positively and most negatively, and why?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'waterfall',
+                  col: valCol,
+                  label: `Waterfall: ${valCol} by ${labelCol}`,
+                  file_id: fileId,
+                  extra: { labelCol },
+                }}
+              />
+              <ExportMenu data={chartData} filename={`waterfall-${labelCol}-${valCol}`} containerRef={chartRef} title={`Waterfall: ${valCol} by ${labelCol}`} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             {[['Positive', '#10b981'], ['Negative', '#ef4444'], ['Total', '#0c1446']].map(([l, c]) => (
               <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#6b7280' }}>
@@ -91,7 +114,13 @@ export default function WaterfallChart() {
         </div>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🏗️</div><div>Select label and value columns to build the waterfall chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="🏗️"
+          title="Pick label and value columns"
+          body="The waterfall shows the cumulative effect of sequential positive and negative contributions, with green/red bars and a final total."
+        />
+      )}
     </div>
   )
 }

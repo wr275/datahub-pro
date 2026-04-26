@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function WhatIf() {
   const [files, setFiles] = useState([])
@@ -14,6 +18,7 @@ export default function WhatIf() {
     { name: 'Optimistic', change: 20, color: '#10b981' }
   ])
   const [result, setResult] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -98,6 +103,22 @@ export default function WhatIf() {
 
       {result && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`I modelled scenarios on ${baseCol}: base total ${result.base.toLocaleString()}. Explain the risk profile and which assumptions drive the biggest swings.`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'line',
+                col: baseCol,
+                label: `What-if scenarios on ${baseCol}`,
+                file_id: fileId,
+                extra: { scenarios: result.totals, base: result.base, mean: result.mean },
+              }}
+            />
+            <ExportMenu data={result.chartData} filename={`whatif-${baseCol}`} containerRef={chartRef} title={`What-If Scenarios on ${baseCol}`} />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
             <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: '4px solid #0c1446' }}>
               <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 4 }}>Base Total</div>
@@ -111,7 +132,7 @@ export default function WhatIf() {
             ))}
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Scenario Comparison (first 50 rows)</div>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={result.chartData}>
@@ -129,7 +150,13 @@ export default function WhatIf() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🎯</div><div>Configure scenarios and select a column to begin</div></div>}
+      {!result && (
+        <EmptyState
+          icon="🎯"
+          title="Configure scenarios and pick a column"
+          body="Apply percentage changes (e.g., -20% / 0% / +20%) to a numeric column to see what total each assumption produces."
+        />
+      )}
     </div>
   )
 }

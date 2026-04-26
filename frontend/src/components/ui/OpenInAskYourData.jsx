@@ -6,6 +6,16 @@
  * /ask-your-data with the prompt prefilled via ?q=… (which AskYourData
  * autosubmits per task #25).
  *
+ * AI / non-AI separation:
+ *   This component is the ONE bridge between non-AI pages and the AI section.
+ *   The product treats AI as a separately granted add-on (per AIGate.jsx —
+ *   "Everything else — data analysis, charts, pivots, forecasting, dashboards
+ *   — works exactly as before"). To respect that boundary, this component
+ *   reads `organisation.ai_enabled` from the auth context and renders nothing
+ *   when AI is disabled. AI-enabled orgs see the cross-link; non-AI orgs see
+ *   their non-AI pages exactly as they did before — no upsell button, no
+ *   accidental bounce to the AIGate upgrade screen.
+ *
  * Props:
  *   prompt   {string}           — the question to prefill
  *   fileId   {string?}          — optional file context (passed as ?f=…)
@@ -19,6 +29,7 @@
 
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 export default function OpenInAskYourData({
   prompt,
@@ -27,6 +38,13 @@ export default function OpenInAskYourData({
   accent = '#7c3aed', // AI-tools purple
 }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  // Single guard for the whole AI/non-AI separation. Mirrors AIGate.jsx's
+  // resolution of the flag — both shapes are checked because /auth/me has
+  // historically populated either organisation.ai_enabled or a flat ai_enabled.
+  const aiEnabled = !!(user?.organisation?.ai_enabled ?? user?.ai_enabled)
+  if (!aiEnabled) return null
 
   const go = () => {
     const params = new URLSearchParams()

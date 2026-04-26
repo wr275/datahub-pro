@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function ComboChart() {
   const [files, setFiles] = useState([])
@@ -12,6 +16,7 @@ export default function ComboChart() {
   const [lineCol, setLineCol] = useState('')
   const [agg, setAgg] = useState('sum')
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -59,8 +64,26 @@ export default function ComboChart() {
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>{chartData.barCol} (bar) + {chartData.lineCol} (line) by {xCol}</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>{chartData.barCol} (bar) + {chartData.lineCol} (line) by {xCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`In a combo chart of ${chartData.barCol} (bar) + ${chartData.lineCol} (line) over ${xCol}, where do bar volume and line direction agree, and where do they conflict?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'combo',
+                  col: chartData.barCol,
+                  label: `${chartData.barCol} + ${chartData.lineCol} by ${xCol}`,
+                  file_id: fileId,
+                  extra: { xCol, barCol: chartData.barCol, lineCol: chartData.lineCol, agg },
+                }}
+              />
+              <ExportMenu data={chartData.data} filename={`combo-${xCol}`} containerRef={chartRef} title={`Combo Chart: ${chartData.barCol} + ${chartData.lineCol} by ${xCol}`} />
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={chartData.data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -76,7 +99,13 @@ export default function ComboChart() {
         </div>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div><div>Configure series and click Build Chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="📊"
+          title="Configure series and click Build"
+          body="Pick an X-axis category, a numeric column for the bars, and a numeric column for the line. The bar and line use independent Y axes (left/right)."
+        />
+      )}
     </div>
   )
 }

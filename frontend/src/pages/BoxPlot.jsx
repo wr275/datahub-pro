@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function BoxPlot() {
   const [files, setFiles] = useState([])
@@ -8,6 +12,7 @@ export default function BoxPlot() {
   const [rows, setRows] = useState([])
   const [cols, setCols] = useState([])
   const [result, setResult] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -77,8 +82,31 @@ export default function BoxPlot() {
       </div>
 
       {result && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Distribution Analysis</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>Distribution Analysis</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`I plotted box plots for ${cols.join(', ')}. ${result.stats.filter(s => s.outliers.length > 0).map(s => `${s.col} has ${s.outliers.length} outliers`).join('; ')}. Are these outliers signal or noise?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'boxplot',
+                  col: cols[0] || '',
+                  label: `Distribution: ${cols.join(', ')}`,
+                  file_id: fileId,
+                  extra: { columns: cols },
+                }}
+              />
+              <ExportMenu
+                data={result.stats.map(s => ({ column: s.col, n: s.count, min: s.min, q1: s.q1, median: s.median, mean: s.mean, q3: s.q3, max: s.max, iqr: s.iqr, outliers: s.outliers.length }))}
+                filename="box-plot-stats"
+                containerRef={chartRef}
+                title="Box Plot — Distribution Statistics"
+              />
+            </div>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <svg width={result.stats.length * (W + PAD * 2) + 60} height={H + 60} style={{ display: 'block' }}>
               {/* Y axis labels */}
@@ -143,7 +171,13 @@ export default function BoxPlot() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📦</div><div>Select columns to visualize their distributions</div></div>}
+      {!result && (
+        <EmptyState
+          icon="📦"
+          title="Pick up to 6 numeric columns"
+          body="Box plots show min/max, IQR, median, mean, and outliers side-by-side — useful for spotting which columns have wide spreads or unusual tails."
+        />
+      )}
     </div>
   )
 }

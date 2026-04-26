@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function HeatmapPage() {
   const [files, setFiles] = useState([])
@@ -11,6 +15,7 @@ export default function HeatmapPage() {
   const [valCol, setValCol] = useState('')
   const [agg, setAgg] = useState('sum')
   const [result, setResult] = useState(null)
+  const tableRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -77,8 +82,31 @@ export default function HeatmapPage() {
       </div>
 
       {result && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>{agg.charAt(0).toUpperCase() + agg.slice(1)} of {valCol} — {rowCol} × {colCol}</div>
+        <div ref={tableRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>{agg.charAt(0).toUpperCase() + agg.slice(1)} of {valCol} — {rowCol} × {colCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`In the heatmap of ${agg} of ${valCol} across ${rowCol} × ${colCol}, where are the hot spots and cold spots? What's likely driving the pattern?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'table',
+                  col: valCol,
+                  label: `Heatmap: ${rowCol} × ${colCol}`,
+                  file_id: fileId,
+                  extra: { agg, rowCol, colCol },
+                }}
+              />
+              <ExportMenu
+                data={result.rowKeys.flatMap(rk => result.colKeys.map(ck => ({ row: rk, col: ck, value: result.matrix[rk][ck] })))}
+                filename={`heatmap-${rowCol}-${colCol}-${valCol}`}
+                containerRef={tableRef}
+                title={`Heatmap: ${valCol} by ${rowCol} × ${colCol}`}
+              />
+            </div>
+          </div>
           <table style={{ borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr>
@@ -112,7 +140,13 @@ export default function HeatmapPage() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🌡️</div><div>Select row, column, and value axes to build the heatmap</div></div>}
+      {!result && (
+        <EmptyState
+          icon="🌡️"
+          title="Pick row, column, and value axes"
+          body="The heatmap shades each cell by intensity from low to high — useful for spotting concentrations across two categorical dimensions."
+        />
+      )}
     </div>
   )
 }

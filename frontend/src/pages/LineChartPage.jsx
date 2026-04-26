@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const LINE_COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6']
 
@@ -14,11 +19,13 @@ export default function LineChartPage() {
   const [smooth, setSmooth] = useState(true)
   const [showDots, setShowDots] = useState(false)
   const [chartData, setChartData] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setChartData(null)
+    setFileId(id); setChartData(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
@@ -26,7 +33,9 @@ export default function LineChartPage() {
   function build() {
     if (!xCol || !yCols.filter(Boolean).length || !rows.length) return
     const active = yCols.filter(Boolean)
-    const data = rows.slice(0, 500).map(r => {
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setChartData(null); return }
+    const data = scoped.slice(0, 500).map(r => {
       const point = { x: r[xCol] }
       active.forEach(col => { point[col] = parseFloat(r[col]) || null })
       return point
@@ -85,12 +94,41 @@ export default function LineChartPage() {
           </label>
         </div>
 
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="line-chart.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={build} disabled={!xCol || !yCols.some(Boolean)} style={{ padding: '9px 24px', background: xCol && yCols.some(Boolean) ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: xCol && yCols.some(Boolean) ? 'pointer' : 'default' }}>Build Chart</button>
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>{chartData.active.join(', ')} over {xCol}</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>{chartData.active.join(', ')} over {xCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`In a line chart of ${chartData.active.join(', ')} over ${xCol}, where do the series diverge or converge most? Are there obvious turning points?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'line',
+                  col: chartData.active[0],
+                  label: `${chartData.active.join(', ')} over ${xCol}`,
+                  file_id: fileId,
+                  extra: { xCol, series: chartData.active, smooth, showDots },
+                }}
+              />
+              <ExportMenu data={chartData.data} filename={`line-${xCol}`} containerRef={chartRef} title={`Line Chart: ${chartData.active.join(', ')} over ${xCol}`} />
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData.data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -106,7 +144,13 @@ export default function LineChartPage() {
         </div>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📈</div><div>Configure axes and add series to build the chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="📈"
+          title="Configure axes and add series"
+          body="Pick an X-axis (often a date), then up to 5 numeric series to overlay. Use the date range filter to scope to a window."
+        />
+      )}
     </div>
   )
 }

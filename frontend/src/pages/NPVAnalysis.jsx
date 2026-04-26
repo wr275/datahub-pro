@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 function calcNPV(rate, cashflows) {
   return cashflows.reduce(function(acc, cf, i) {
@@ -108,6 +112,7 @@ export default function NPVAnalysis() {
   var chartData = activeResult ? activeResult.cashflows.map(function(cf, i) {
     return { period: i === 0 ? 'Initial' : 'Y' + i, value: cf, positive: cf >= 0 }
   }) : []
+  var chartRef = useRef(null)
 
   var cum = 0
   var cumulativeData = activeResult ? activeResult.cashflows.map(function(cf, i) {
@@ -192,7 +197,23 @@ export default function NPVAnalysis() {
                   </div>
                 </div>
 
-                <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
+                  <OpenInAskYourData
+                    fileId={fileId}
+                    prompt={`We modelled an NPV of ${fmt(result.npv)} at a ${rate}% discount rate, IRR of ${result.irr != null ? result.irr.toFixed(1) + '%' : 'N/A'}, payback ${result.payback != null ? result.payback + ' years' : 'never'}. What sensitivities should we stress-test before approving this?`}
+                  />
+                  <PinToDashboard
+                    widget={{
+                      type: 'kpi',
+                      col: 'npv',
+                      label: `NPV @ ${rate}% — ${fmt(result.npv)}`,
+                      file_id: fileId || null,
+                      extra: { rate, npv: result.npv, irr: result.irr, payback: result.payback },
+                    }}
+                  />
+                  <ExportMenu data={chartData} filename="npv-cashflows" containerRef={chartRef} title="NPV — Cash Flow Waterfall" />
+                </div>
+                <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0c1446', marginBottom: 16 }}>Cash Flow Waterfall</div>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -213,11 +234,11 @@ export default function NPVAnalysis() {
             )}
 
             {!result && (
-              <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 12, color: '#d1d5db', fontWeight: 300 }}>[ NPV ]</div>
-                <div style={{ fontSize: '1rem', fontWeight: 600, color: '#374151', marginBottom: 8 }}>Enter your inputs to calculate</div>
-                <div style={{ fontSize: '0.875rem', maxWidth: 360, margin: '0 auto', lineHeight: 1.6 }}>Fill in the initial investment, discount rate and annual cash flows, then click Calculate.</div>
-              </div>
+              <EmptyState
+                icon="💰"
+                title="Enter your inputs to calculate"
+                body="Fill in the initial investment, discount rate, and annual cash flows then click Calculate. We'll compute NPV, IRR, and payback period."
+              />
             )}
           </div>
         </div>

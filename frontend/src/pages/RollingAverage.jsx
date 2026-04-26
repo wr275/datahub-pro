@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function RollingAverage() {
   const [files, setFiles] = useState([])
@@ -15,11 +20,13 @@ export default function RollingAverage() {
   const [customWindow, setCustomWindow] = useState(14)
   const [useCustom, setUseCustom] = useState(false)
   const [result, setResult] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null)
+    setFileId(id); setResult(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
@@ -34,8 +41,10 @@ export default function RollingAverage() {
 
   function run() {
     if (!valCol || !rows.length) return
-    const vals = rows.map(r => parseFloat(r[valCol]) || 0)
-    const labels = rows.map((r, i) => r[labelCol] || String(i + 1))
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setResult(null); return }
+    const vals = scoped.map(r => parseFloat(r[valCol]) || 0)
+    const labels = scoped.map((r, i) => r[labelCol] || String(i + 1))
     const windows = []
     if (window3) windows.push(3)
     if (window7) windows.push(7)
@@ -83,11 +92,38 @@ export default function RollingAverage() {
           </div>
         </div>
 
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="rolling-average.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!valCol} style={{ padding: '9px 24px', background: valCol ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: valCol ? 'pointer' : 'default' }}>Calculate</button>
       </div>
 
       {result && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`Looking at the ${valCol} time-series with ${result.windows.join('-, ')}-period MAs, where do the smoothed lines diverge from the actuals? What's likely driving each spike?`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'line',
+                col: valCol,
+                label: `${valCol} with rolling averages`,
+                file_id: fileId,
+                extra: { windows: result.windows, mean: result.mean, count: result.count },
+              }}
+            />
+            <ExportMenu data={result.chartData} filename={`rolling-avg-${valCol}`} containerRef={chartRef} title={`Rolling Average — ${valCol}`} />
+          </div>
           <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
             {[['Data Points', result.count, '#0c1446'], ['Mean Value', result.mean.toLocaleString(), '#0097b2']].map(([k, v, c]) => (
               <div key={k} style={{ background: '#fff', borderRadius: 12, padding: '12px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `3px solid ${c}` }}>
@@ -97,7 +133,7 @@ export default function RollingAverage() {
             ))}
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Values with Moving Averages</div>
             <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={result.chartData}>
@@ -116,7 +152,13 @@ export default function RollingAverage() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📈</div><div>Select a value column and moving average windows to smooth the data</div></div>}
+      {!result && (
+        <EmptyState
+          icon="📈"
+          title="Pick a value column + windows"
+          body="Tick which moving-average windows to overlay on the actuals. Use the date filter above to scope to a window first."
+        />
+      )}
     </div>
   )
 }

@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ZAxis } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444']
 
@@ -14,6 +18,7 @@ export default function ScatterPlot() {
   const [sizeCol, setSizeCol] = useState('')
   const [colorCol, setColorCol] = useState('')
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -58,8 +63,31 @@ export default function ScatterPlot() {
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 8 }}>{yCol} vs {xCol}</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>{yCol} vs {xCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`The scatter of ${yCol} vs ${xCol}${colorCol ? ` grouped by ${colorCol}` : ''} shows ${chartData.grouped.reduce((s, g) => s + g.data.length, 0)} points. What's the relationship — linear, non-linear, or no signal?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'scatter',
+                  col: yCol,
+                  label: `${yCol} vs ${xCol}`,
+                  file_id: fileId,
+                  extra: { x: xCol, y: yCol, sizeCol, colorCol },
+                }}
+              />
+              <ExportMenu
+                data={chartData.grouped.flatMap(g => g.data.map(p => ({ group: g.name, x: p.x, y: p.y, size: p.z })))}
+                filename={`scatter-${xCol}-${yCol}`}
+                containerRef={chartRef}
+                title={`Scatter: ${yCol} vs ${xCol}`}
+              />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             {chartData.grouped.map(g => (
               <span key={g.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem' }}>
@@ -83,7 +111,13 @@ export default function ScatterPlot() {
         </div>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>⚡</div><div>Select X and Y axes to plot the scatter chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="⚡"
+          title="Pick X and Y axes"
+          body="Optionally add a size column (bubbles) or color group (categorical legend). Up to 500 points are plotted; oversize datasets are sampled."
+        />
+      )}
     </div>
   )
 }

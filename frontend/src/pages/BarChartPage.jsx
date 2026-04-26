@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1']
 
@@ -15,6 +19,7 @@ export default function BarChartPage() {
   const [orientation, setOrientation] = useState('vertical')
   const [topN, setTopN] = useState(20)
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -62,8 +67,26 @@ export default function BarChartPage() {
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>{agg.charAt(0).toUpperCase() + agg.slice(1)} of {yCol} by {xCol}</div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>{agg.charAt(0).toUpperCase() + agg.slice(1)} of {yCol} by {xCol}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`In a bar chart of ${agg} ${yCol} by ${xCol}, the top performer is ${chartData[0]?.name} (${chartData[0]?.value?.toLocaleString()}). What's driving the gap between top and bottom of the list?`}
+              />
+              <PinToDashboard
+                widget={{
+                  type: 'bar',
+                  col: yCol,
+                  label: `${yCol} by ${xCol}`,
+                  file_id: fileId,
+                  extra: { xCol, agg, topN, orientation },
+                }}
+              />
+              <ExportMenu data={chartData} filename={`bar-${xCol}-${yCol}`} containerRef={chartRef} title={`Bar Chart: ${yCol} by ${xCol}`} />
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={Math.max(320, orientation === 'horizontal' ? chartData.length * 36 + 60 : 320)}>
             {orientation === 'horizontal' ? (
               <BarChart data={chartData} layout="vertical" margin={{ left: 100 }}>
@@ -90,7 +113,13 @@ export default function BarChartPage() {
         </div>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div><div>Configure axes and click Build Chart</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="📊"
+          title="Configure axes and click Build Chart"
+          body="Pick a category column for X, a numeric column for Y, choose aggregation, and decide top N + orientation. Bars are sorted descending by value."
+        />
+      )}
     </div>
   )
 }
