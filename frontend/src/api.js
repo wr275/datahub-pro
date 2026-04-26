@@ -71,7 +71,8 @@ export const aiApi = {
   formula: (data) => api.post('/ai/formula', data),
   chat: (data) => api.post('/ai/chat', data),
   report: (fileId) => api.post(`/ai/report/${fileId}`),
-  reportExport: (data) => api.post('/ai/report/export', data, { responseType: 'blob' }),
+  // /export-report (single segment) so it can't be matched by /report/{file_id}.
+  reportExport: (data) => api.post('/ai/export-report', data, { responseType: 'blob' }),
   narrative: (fileId, opts) => api.post(`/ai/narrative/${fileId}`, opts || {}),
 }
 

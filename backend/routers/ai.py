@@ -1398,7 +1398,12 @@ def _build_pptx(report: dict, stat_pack: dict) -> bytes:
     return buf.getvalue()
 
 
-@router.post("/report/export")
+# NOTE: this path was previously "/report/export" but FastAPI matched it
+# against "/report/{file_id}" first (defined above) — file_id was bound to
+# "export" and the handler returned 404. Renamed to a single segment so the
+# router can't conflate them. The frontend api.js's `aiApi.reportExport` was
+# updated to match.
+@router.post("/export-report")
 async def ai_report_export(
     req: ReportExportRequest,
     current_user: User = Depends(require_ai_enabled),
