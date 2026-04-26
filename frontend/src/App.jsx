@@ -78,6 +78,7 @@ import AIInsights from './pages/AIInsights'
 import ScheduledReports from './pages/ScheduledReports'
 import Integrations from './pages/Integrations'
 import SharePoint from './pages/SharePoint'
+import GoogleSheets from './pages/GoogleSheets'
 import WorkspaceRoles from './pages/WorkspaceRoles'
 import AuditLog from './pages/AuditLog'
 import AISettings from './pages/AISettings'
@@ -211,6 +212,7 @@ export default function App() {
         <Route path="/scheduled-reports" element={<P><ScheduledReports /></P>} />
         <Route path="/integrations" element={<P><Integrations /></P>} />
         <Route path="/sharepoint"   element={<P><SharePoint /></P>} />
+        <Route path="/google-sheets" element={<P><GoogleSheets /></P>} />
         <Route path="/workspace-roles" element={<P><WorkspaceRoles /></P>} />
         <Route path="/audit-log" element={<P><AuditLog /></P>} />
 

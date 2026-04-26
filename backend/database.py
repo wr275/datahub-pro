@@ -82,9 +82,15 @@ class DataFile(Base):
     s3_key = Column(String(1000), nullable=True)
     storage_type = Column(String(50), default="local")
     file_content = Column(LargeBinary, nullable=True)
-    # Google Sheets / external source tracking
+    # Google Sheets / SharePoint / external source tracking
     source_url = Column(String(2000), nullable=True)
     last_synced_at = Column(DateTime, nullable=True)
+    # Google Sheets 2.0 + SharePoint 2.0 — scheduled/linked refresh
+    sync_frequency = Column(String(20), default="off", nullable=False)  # off|hourly|daily
+    last_sync_error = Column(Text, nullable=True)
+    # SharePoint 2.0 linked-file pointers so we can re-stream from Graph
+    sharepoint_drive_id = Column(String(500), nullable=True)
+    sharepoint_item_id = Column(String(500), nullable=True)
     organisation_id = Column(String, ForeignKey("organisations.id"), nullable=False)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())

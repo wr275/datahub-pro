@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
   BarChart, Bar, CartesianGrid,
 } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard } from '../components/ui/Skeleton'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 // -----------------------------------------------------------------------------
 // Date bucketing (shared vocabulary with Period Comparison 2.0)
@@ -180,9 +185,10 @@ function fmtPct(n) {
 // Components
 // -----------------------------------------------------------------------------
 
-function KpiCard({ result, onDrill, onEdit, onDelete }) {
+function KpiCard({ result, onDrill, onEdit, onDelete, fileId }) {
   const { kpi, currentValue, mom, yoy, trendSeries, targetProgress, rowCount } = result
   const deltaColor = (v) => v === null || v === undefined ? '#9ca3af' : v >= 0 ? '#10b981' : '#dc2626'
+  const cardLabel = kpi.label || kpi.metric
 
   return (
     <div style={{
@@ -191,9 +197,24 @@ function KpiCard({ result, onDrill, onEdit, onDelete }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
         <div style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-          {kpi.label || kpi.metric}
+          {cardLabel}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <OpenInAskYourData
+            variant="icon"
+            fileId={fileId}
+            prompt={`Break down ${cardLabel} (${AGG_LABELS[kpi.agg]} of ${kpi.metric}) by the most useful dimension and explain the change.`}
+          />
+          <PinToDashboard
+            variant="icon"
+            widget={{
+              type: 'kpi',
+              col: kpi.metric,
+              label: cardLabel,
+              file_id: fileId,
+              extra: { agg: kpi.agg, target: kpi.target, filterCol: kpi.filterCol, filterVal: kpi.filterVal },
+            }}
+          />
           <button onClick={onEdit} title='Edit'
             style={{ border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', fontSize: '0.75rem' }}>
             ✎
@@ -545,38 +566,63 @@ export default function KPIDashboard() {
         )}
       </div>
 
-      {loading && <div style={{ textAlign: 'center', color: '#6b7280', padding: 40 }}>Loading…</div>}
+      {loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
+      )}
 
       {/* KPI grid */}
       {results.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-          {results.map((r, i) => (
-            <KpiCard
-              key={i}
-              result={r}
-              onEdit={() => setEditing(i)}
-              onDelete={() => removeKpi(i)}
-              onDrill={() => setDrillIdx(i)}
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+            <ExportMenu
+              data={results.map(r => ({
+                kpi: r.kpi.label || r.kpi.metric,
+                metric: r.kpi.metric,
+                agg: r.kpi.agg,
+                value: r.currentValue,
+                mom_pct: r.mom,
+                yoy_pct: r.yoy,
+                target: r.kpi.target ?? '',
+                target_progress_pct: r.targetProgress ?? '',
+                rows_in_scope: r.rowCount,
+              }))}
+              filename={`kpi-dashboard-${filename || 'export'}`}
+              title={`KPI Dashboard — ${filename || ''}`}
             />
-          ))}
-        </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+            {results.map((r, i) => (
+              <KpiCard
+                key={i}
+                result={r}
+                fileId={fileId}
+                onEdit={() => setEditing(i)}
+                onDelete={() => removeKpi(i)}
+                onDrill={() => setDrillIdx(i)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Empty state */}
+      {/* Empty states */}
       {!loading && fileId && !kpis.length && (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>◎</div>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 4 }}>No KPIs configured yet</div>
-          <div style={{ fontSize: '0.85rem', marginBottom: 16 }}>
-            Click “+ Add KPI” to pick a metric and aggregation, or let us suggest defaults from your numeric columns.
-          </div>
-        </div>
+        <EmptyState
+          icon="◎"
+          title="No KPIs configured yet"
+          body="Pick a metric + aggregation, or let us suggest defaults from your numeric columns."
+          action={numericHeaders.length ? { label: 'Suggest defaults', onClick: suggestDefaults } : null}
+          tone="info"
+        />
       )}
       {!fileId && !loading && (
-        <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>◎</div>
-          <div>Select a file to start building your KPI dashboard.</div>
-        </div>
+        <EmptyState
+          icon="◎"
+          title="Select a file"
+          body="Choose a dataset to start building your KPI dashboard."
+        />
       )}
 
       {editing !== null && (

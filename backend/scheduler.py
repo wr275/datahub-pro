@@ -143,9 +143,11 @@ def remove_job(schedule_id: str) -> None:
 
 
 def rehydrate_all(db) -> None:
-    """Re-register every active ScheduledReport. Call once at app startup."""
+    """Re-register every active ScheduledReport AND every auto-sync sheet.
+    Call once at app startup."""
     if not _APSCHEDULER_AVAILABLE:
         return
+    # Scheduled reports
     try:
         from database import ScheduledReport
         rows = db.query(ScheduledReport).filter(ScheduledReport.status == "active").all()
@@ -153,4 +155,156 @@ def rehydrate_all(db) -> None:
             register_job(r)
         logger.info("Rehydrated %d scheduled report job(s)", len(rows))
     except Exception as exc:
-        logger.error("rehydrate_all failed: %s", exc)
+        logger.error("rehydrate_all (reports) failed: %s", exc)
+    # Google Sheet auto-sync
+    try:
+        from database import DataFile
+        rows = db.query(DataFile).filter(
+            DataFile.storage_type == "google_sheets",
+            DataFile.sync_frequency.in_(("hourly", "daily")),
+        ).all()
+        for r in rows:
+            register_sheet_sync_job(r)
+        logger.info("Rehydrated %d sheet auto-sync job(s)", len(rows))
+    except Exception as exc:
+        logger.error("rehydrate_all (sheets) failed: %s", exc)
+    # SharePoint / OneDrive linked-file auto-sync
+    try:
+        from database import DataFile
+        rows = db.query(DataFile).filter(
+            DataFile.sharepoint_item_id.isnot(None),
+            DataFile.sync_frequency.in_(("hourly", "daily")),
+        ).all()
+        for r in rows:
+            register_sharepoint_sync_job(r)
+        logger.info("Rehydrated %d sharepoint auto-sync job(s)", len(rows))
+    except Exception as exc:
+        logger.error("rehydrate_all (sharepoint) failed: %s", exc)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Google Sheet auto-sync jobs
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _sheet_job_id(file_id: str) -> str:
+    return f"sheet-sync:{file_id}"
+
+
+def register_sheet_sync_job(data_file) -> None:
+    """(Re)register a cron job for auto-syncing one Google Sheet.
+    No-op if frequency is 'off' — existing job is removed."""
+    global _scheduler
+    if not _APSCHEDULER_AVAILABLE:
+        return
+    if _scheduler is None or not _scheduler.running:
+        start()
+    if _scheduler is None:
+        return
+
+    job_id = _sheet_job_id(data_file.id)
+    freq = (getattr(data_file, "sync_frequency", "off") or "off").lower()
+
+    if freq == "off":
+        try:
+            _scheduler.remove_job(job_id)
+        except Exception:
+            pass
+        return
+
+    if freq == "hourly":
+        trigger = CronTrigger(minute=0)  # top of every hour
+    elif freq == "daily":
+        trigger = CronTrigger(hour=6, minute=0)  # 06:00 UTC daily
+    else:
+        logger.warning("Unknown sheet sync frequency %s for file %s", freq, data_file.id)
+        return
+
+    try:
+        from routers.sheets import execute_sheet_sync
+        _scheduler.add_job(
+            execute_sheet_sync,
+            trigger=trigger,
+            id=job_id,
+            args=[data_file.id],
+            replace_existing=True,
+            misfire_grace_time=60 * 30,  # 30min grace after a reboot
+            coalesce=True,
+        )
+        logger.info("Registered sheet sync %s (%s)", data_file.id, freq)
+    except Exception as exc:
+        logger.error("Failed to register sheet sync %s: %s", data_file.id, exc)
+
+
+def remove_sheet_sync_job(file_id: str) -> None:
+    global _scheduler
+    if _scheduler is None:
+        return
+    try:
+        _scheduler.remove_job(_sheet_job_id(file_id))
+        logger.info("Removed sheet sync %s", file_id)
+    except Exception:
+        pass
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  SharePoint / OneDrive linked-file auto-sync jobs
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _sp_job_id(file_id: str) -> str:
+    return f"sharepoint-sync:{file_id}"
+
+
+def register_sharepoint_sync_job(data_file) -> None:
+    """(Re)register a cron job for auto-resyncing one SharePoint / OneDrive
+    linked file. No-op if frequency is 'off' — existing job is removed."""
+    global _scheduler
+    if not _APSCHEDULER_AVAILABLE:
+        return
+    if _scheduler is None or not _scheduler.running:
+        start()
+    if _scheduler is None:
+        return
+
+    job_id = _sp_job_id(data_file.id)
+    freq = (getattr(data_file, "sync_frequency", "off") or "off").lower()
+
+    if freq == "off":
+        try:
+            _scheduler.remove_job(job_id)
+        except Exception:
+            pass
+        return
+
+    if freq == "hourly":
+        trigger = CronTrigger(minute=15)  # :15 past every hour (offset from sheets)
+    elif freq == "daily":
+        trigger = CronTrigger(hour=6, minute=30)  # 06:30 UTC daily (offset from sheets)
+    else:
+        logger.warning("Unknown sharepoint sync frequency %s for file %s", freq, data_file.id)
+        return
+
+    try:
+        from routers.sharepoint import execute_sharepoint_resync
+        _scheduler.add_job(
+            execute_sharepoint_resync,
+            trigger=trigger,
+            id=job_id,
+            args=[data_file.id],
+            replace_existing=True,
+            misfire_grace_time=60 * 30,  # 30min grace after a reboot
+            coalesce=True,
+        )
+        logger.info("Registered sharepoint sync %s (%s)", data_file.id, freq)
+    except Exception as exc:
+        logger.error("Failed to register sharepoint sync %s: %s", data_file.id, exc)
+
+
+def remove_sharepoint_sync_job(file_id: str) -> None:
+    global _scheduler
+    if _scheduler is None:
+        return
+    try:
+        _scheduler.remove_job(_sp_job_id(file_id))
+        logger.info("Removed sharepoint sync %s", file_id)
+    except Exception:
+        pass

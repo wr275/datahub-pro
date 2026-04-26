@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, aiApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard, SkeletonChart } from '../components/ui/Skeleton'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 // --- visual helpers ---------------------------------------------------------
 
@@ -33,7 +38,7 @@ function SeverityBadge({ severity }) {
   )
 }
 
-function FindingCard({ f }) {
+function FindingCard({ f, fileId }) {
   const s = SEVERITY_STYLES[f.severity] || SEVERITY_STYLES.info
   return (
     <div style={{
@@ -60,6 +65,22 @@ function FindingCard({ f }) {
         </div>
       )}
       <div style={{ fontSize: '0.87rem', color: '#374151', lineHeight: 1.5 }}>{f.detail}</div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <OpenInAskYourData
+          variant="icon"
+          fileId={fileId}
+          prompt={`Tell me more about: ${f.title}. ${f.detail || ''}`.trim()}
+        />
+        <PinToDashboard
+          variant="icon"
+          widget={{
+            type: 'insight',
+            label: f.title,
+            file_id: fileId,
+            extra: { severity: f.severity, detail: f.detail, metric: f.metric },
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -79,7 +100,7 @@ function QualityRow({ q }) {
   )
 }
 
-function OpportunityCard({ o }) {
+function OpportunityCard({ o, fileId }) {
   return (
     <div style={{
       background: 'linear-gradient(135deg,#fff,#fdf2f8)',
@@ -87,8 +108,26 @@ function OpportunityCard({ o }) {
       borderRadius: 10,
       padding: '16px 18px',
     }}>
-      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0c1446', marginBottom: 6 }}>
-        ◎ {o.title}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0c1446', marginBottom: 6 }}>
+          ◎ {o.title}
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <OpenInAskYourData
+            variant="icon"
+            fileId={fileId}
+            prompt={`Help me act on: ${o.title}. ${o.suggested_next_step || ''}`.trim()}
+          />
+          <PinToDashboard
+            variant="icon"
+            widget={{
+              type: 'insight',
+              label: o.title,
+              file_id: fileId,
+              extra: { detail: o.detail, next_step: o.suggested_next_step, kind: 'opportunity' },
+            }}
+          />
+        </div>
       </div>
       <div style={{ fontSize: '0.85rem', color: '#374151', lineHeight: 1.5, marginBottom: 8 }}>{o.detail}</div>
       <div style={{
@@ -149,6 +188,14 @@ export default function AIInsights() {
 
   const pack = result?.stat_pack
   const insights = result?.insights
+  const reportRef = useRef(null)
+
+  // Build a flat row dataset from the insights so CSV export is meaningful.
+  const exportRows = result && insights ? [
+    ...((insights.key_findings || []).map(f => ({ section: 'finding', severity: f.severity, title: f.title, metric: f.metric || '', detail: f.detail }))),
+    ...((insights.data_quality || []).map(q => ({ section: 'quality', severity: q.severity, title: q.field, metric: q.issue || '', detail: q.recommendation }))),
+    ...((insights.opportunities || []).map(o => ({ section: 'opportunity', severity: 'info', title: o.title, metric: o.suggested_next_step || '', detail: o.detail }))),
+  ] : []
 
   const numericCount = pack ? (pack.columns || []).filter(c => c.type === 'numeric').length : 0
   const categoricalCount = pack ? (pack.columns || []).filter(c => c.type === 'text').length : 0
@@ -210,25 +257,37 @@ export default function AIInsights() {
       )}
 
       {!result && !loading && !err && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>◎</div>
-          <div style={{ fontWeight: 600, color: '#374151', marginBottom: 4 }}>Pick a file to get an insight brief</div>
-          <div style={{ fontSize: '0.85rem', maxWidth: 480, margin: '0 auto' }}>
-            We&apos;ll compute a full stat pack (distributions, outliers, concentrations, correlations)
-            and ask the model to write findings, quality flags, and recommended next steps.
-          </div>
-        </div>
+        <EmptyState
+          icon="◎"
+          title="Pick a file to get an insight brief"
+          body="We'll compute a full stat pack (distributions, outliers, concentrations, correlations) and ask the model to write findings, quality flags, and recommended next steps."
+          tone="info"
+        />
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
-          <div style={{ fontSize: '1.2rem', marginBottom: 8 }}>Computing statistics…</div>
-          <div style={{ fontSize: '0.85rem' }}>Then handing the stat pack to Claude for interpretation.</div>
+        <div>
+          <div style={{ marginBottom: 14, color: '#6b7280', fontSize: '0.88rem', fontWeight: 600 }}>
+            Computing statistics, then handing the stat pack to Claude for interpretation…
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginBottom: 16 }}>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </div>
+          <SkeletonChart height={220} />
         </div>
       )}
 
       {result && pack && insights && (
-        <>
+        <div ref={reportRef}>
+          {/* Export bar */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <ExportMenu
+              data={exportRows}
+              filename={`insights-${pack.filename || 'report'}`}
+              containerRef={reportRef}
+              title={`AI Insights — ${pack.filename || ''}`}
+            />
+          </div>
           {/* Header card */}
           <div style={{
             background: 'linear-gradient(135deg,#0c1446,#1a2080 50%,#0097b2)',
@@ -258,7 +317,7 @@ export default function AIInsights() {
                 Key findings
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-                {insights.key_findings.map((f, i) => <FindingCard key={i} f={f} />)}
+                {insights.key_findings.map((f, i) => <FindingCard key={i} f={f} fileId={selectedFile} />)}
               </div>
             </section>
           )}
@@ -282,7 +341,7 @@ export default function AIInsights() {
                 Recommended next steps
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-                {insights.opportunities.map((o, i) => <OpportunityCard key={i} o={o} />)}
+                {insights.opportunities.map((o, i) => <OpportunityCard key={i} o={o} fileId={selectedFile} />)}
               </div>
             </section>
           )}
@@ -343,7 +402,7 @@ export default function AIInsights() {
               </pre>
             </details>
           )}
-        </>
+        </div>
       )}
     </div>
   )

@@ -212,6 +212,124 @@ def delete_dashboard(
     return {"message": "Deleted"}
 
 
+# -- Pin-to-dashboard ---------------------------------------------------------
+#
+# These two endpoints power the "Pin to dashboard" button that appears on every
+# chart / KPI / insight across the app. The flow is:
+#   1. Client calls GET /most-recent to find out which dashboard to pin to.
+#      If the org has no dashboards yet, the response asks the client to create
+#      one (or the client can call POST /pin-widget with a special "auto" id).
+#   2. Client calls POST /{id}/pin-widget with the widget config.
+#   3. Backend appends the widget to config.widgets and bumps updated_at so
+#      the same dashboard wins the "most-recent" race for next time.
+
+class PinWidgetRequest(BaseModel):
+    type: str  # 'kpi' | 'bar' | 'line' | 'pie' | 'table' | 'insight' | 'note'
+    col: Optional[str] = None
+    label: Optional[str] = None
+    file_id: Optional[str] = None
+    extra: Optional[dict] = None  # any tool-specific config (preset, agg_fn, etc.)
+
+
+@router.get("/most-recent")
+def get_most_recent_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the dashboard the user most recently touched, or None if the
+    org has no dashboards yet.
+
+    Used by the Pin-to-dashboard button so the user can pin in one click
+    without choosing a target."""
+    row = (
+        db.query(Dashboard)
+        .filter(Dashboard.organisation_id == current_user.organisation_id)
+        .order_by(Dashboard.updated_at.desc().nullslast(), Dashboard.created_at.desc())
+        .first()
+    )
+    if not row:
+        return {"dashboard": None}
+    return {"dashboard": dash_dict(row)}
+
+
+@router.post("/{dashboard_id}/pin-widget")
+def pin_widget_to_dashboard(
+    dashboard_id: str,
+    body: PinWidgetRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Append a widget to a dashboard. Powers the universal Pin button.
+
+    Special-case: if `dashboard_id == 'auto'`, we auto-create or reuse a
+    dashboard called "Pinned widgets" so the user never gets stuck on
+    'no dashboard yet'."""
+    if dashboard_id == "auto":
+        d = (
+            db.query(Dashboard)
+            .filter(
+                Dashboard.organisation_id == current_user.organisation_id,
+                Dashboard.name == "Pinned widgets",
+            )
+            .first()
+        )
+        if not d:
+            d = Dashboard(
+                id=str(uuid.uuid4()),
+                name="Pinned widgets",
+                description="Auto-generated dashboard for one-click pinned widgets.",
+                config_json=json.dumps({"widgets": [], "filters": {}}),
+                file_id=body.file_id,
+                is_public=False,
+                share_token=str(uuid.uuid4()),
+                organisation_id=current_user.organisation_id,
+                created_by=current_user.id,
+            )
+            db.add(d)
+            db.flush()
+    else:
+        d = db.query(Dashboard).filter(
+            Dashboard.id == dashboard_id,
+            Dashboard.organisation_id == current_user.organisation_id,
+        ).first()
+        if not d:
+            raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    cfg = _parse_config(d.config_json)
+    widgets = list(cfg.get("widgets") or [])
+
+    new_widget = {
+        "id":    str(uuid.uuid4()),
+        "type":  body.type,
+        "col":   body.col or "",
+        "label": body.label or "",
+    }
+    if body.extra and isinstance(body.extra, dict):
+        # Don't let extra fields overwrite the canonical id/type/col/label
+        for k, v in body.extra.items():
+            if k not in new_widget:
+                new_widget[k] = v
+
+    widgets.append(new_widget)
+    cfg["widgets"] = widgets
+
+    # First file_id wins — but if this dashboard has no file yet, take the
+    # one the widget was pinned from.
+    if body.file_id and not d.file_id:
+        d.file_id = body.file_id
+
+    d.config_json = json.dumps(cfg)
+    db.commit()
+    db.refresh(d)
+
+    return {
+        "dashboard_id": d.id,
+        "dashboard_name": d.name,
+        "widget": new_widget,
+        "widget_count": len(widgets),
+    }
+
+
 @router.post("/{dashboard_id}/share")
 def toggle_share(
     dashboard_id: str,

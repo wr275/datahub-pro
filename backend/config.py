@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: Optional[str] = None
     MICROSOFT_REDIRECT_URI: str = "http://localhost:8000/api/sharepoint/callback"
 
+    # Google / Sheets OAuth — used by /api/sheets/oauth/*
+    # Register at console.cloud.google.com → APIs & Services → Credentials
+    # Required scopes: spreadsheets.readonly + drive.readonly
+    # Redirect URI must EXACTLY match what's set in Google Cloud Console.
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/sheets/oauth/callback"
+
     # App
     FRONTEND_URL: str = "http://localhost:3000"
     TRIAL_DAYS: int = 14

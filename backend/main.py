@@ -108,6 +108,33 @@ async def lifespan(app: FastAPI):
             # DataFile source-tracking columns (Google Sheets etc.)
             conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS source_url VARCHAR(2000)"))
             conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP"))
+            # Google Sheets 2.0 + SharePoint 2.0 — scheduled refresh + linked sync
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS sync_frequency VARCHAR(20) DEFAULT 'off' NOT NULL"))
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS last_sync_error TEXT"))
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS sharepoint_drive_id VARCHAR(500)"))
+            conn.execute(text("ALTER TABLE data_files ADD COLUMN IF NOT EXISTS sharepoint_item_id VARCHAR(500)"))
+
+            # Google Sheets OAuth tokens — one row per organisation.
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS google_tokens (
+                    id VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR UNIQUE NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    access_token TEXT NOT NULL,
+                    refresh_token TEXT,
+                    expires_at VARCHAR(50) NOT NULL,
+                    email VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS google_oauth_states (
+                    state VARCHAR PRIMARY KEY,
+                    organisation_id VARCHAR NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+                    user_id VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    expires_at VARCHAR(50) NOT NULL
+                )
+            """))
 
             # AI add-on entitlement on organisations — off by default
             conn.execute(text("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS ai_enabled BOOLEAN DEFAULT FALSE NOT NULL"))

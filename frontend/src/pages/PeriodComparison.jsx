@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonChart } from '../components/ui/Skeleton'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 // Period Comparison 2.0
 // - Granularity: Day / Week / Month / Quarter / Year
@@ -280,17 +285,37 @@ export default function PeriodComparison() {
           Compare Periods
         </button>
         {result && !result.empty && (
-          <button onClick={() => downloadCSV(`period-comparison-${granularity}.csv`, result.data)}
-            style={{ marginLeft: 10, padding: '10px 20px', background: '#fff', color: '#0c1446', border: '1px solid #d1d5db', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
-            ⬇ Export CSV
-          </button>
+          <span style={{ marginLeft: 10, display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+            <ExportMenu
+              data={result.data}
+              filename={`period-comparison-${granularity}`}
+              title={`Period Comparison — ${valCol} by ${granularity}`}
+            />
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`Why did ${valCol} change between periods? The recent ${granularity}-over-${granularity} delta is largest at ${result.best?.period} (best) and ${result.worst?.period} (worst). What's driving it?`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'line',
+                col: valCol,
+                label: `${valCol} by ${granularity}`,
+                file_id: fileId,
+                extra: { granularity, comparison, dimCol, startDate, endDate },
+              }}
+            />
+          </span>
         )}
       </div>
 
       {result?.empty && (
-        <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 10, padding: 16, color: '#92400e' }}>
-          No data in the selected date range. Widen the range or check that your date column parses correctly.
-        </div>
+        <EmptyState
+          icon="📅"
+          title="No data in the selected date range"
+          body="Widen the range, or double-check that your date column parses correctly."
+          tone="warn"
+          compact
+        />
       )}
 
       {result && !result.empty && (

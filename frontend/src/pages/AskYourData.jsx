@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { filesApi, analyticsApi, aiApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
@@ -357,6 +358,15 @@ export default function AskYourData() {
           padding: '10px 14px', borderRadius: 8, marginBottom: 12, fontSize: '0.85rem' }}>
           {error}
         </div>
+      )}
+
+      {!fileId && chat.length === 0 && (
+        <EmptyState
+          icon="💬"
+          title="Pick a file and ask anything"
+          body="Try “Which segment grew fastest in Q1?” or “Show me a bar chart of revenue by region.” The model has tool-use access to your data and remembers the conversation."
+          tone="info"
+        />
       )}
 
       {fileId && (

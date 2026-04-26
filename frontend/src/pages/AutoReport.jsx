@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, aiApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonChart, SkeletonCard } from '../components/ui/Skeleton'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
@@ -109,9 +112,13 @@ export default function AutoReport() {
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0c1446' }}>Computing statistics & writing report…</div>
-          <div style={{ fontSize: '0.85rem', marginTop: 6 }}>Takes 10-30 seconds depending on dataset size.</div>
+        <div>
+          <div style={{ marginBottom: 14, color: '#6b7280', fontSize: '0.88rem', fontWeight: 600 }}>
+            Computing statistics &amp; writing report — takes 10-30 seconds depending on dataset size…
+          </div>
+          <SkeletonCard /><div style={{ height: 12 }} />
+          <SkeletonChart height={220} /><div style={{ height: 12 }} />
+          <SkeletonCard />
         </div>
       )}
 
@@ -154,6 +161,12 @@ export default function AutoReport() {
           {/* Executive summary */}
           <Section heading='Executive summary' color='#e91e8c'>
             <p style={bodyStyle}>{report.executive_summary}</p>
+            <div style={{ marginTop: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`Drill into this finding: ${report.executive_summary?.slice(0, 240) || ''}`}
+              />
+            </div>
           </Section>
 
           {/* Sections */}
@@ -205,10 +218,12 @@ export default function AutoReport() {
       )}
 
       {!result && !loading && !error && (
-        <div style={{ textAlign: 'center', padding: 70, color: '#9ca3af' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>◎</div>
-          <div>Pick a file and click <strong>Generate report</strong>.</div>
-        </div>
+        <EmptyState
+          icon="📋"
+          title="Generate a polished agency-ready report"
+          body="Pick a file and click Generate report. The model writes an executive summary, key findings, data-quality notes, and recommended next steps. Export as DOCX or PPTX from the bar above."
+          tone="info"
+        />
       )}
     </div>
   )

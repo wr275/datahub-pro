@@ -138,11 +138,29 @@ export const dashboardsApi = {
   share: (id) => api.post('/dashboards/' + id + '/share'),
   // Configure expiry, password, embed flag, or regenerate the token.
   updateShareSettings: (id, data) => api.patch('/dashboards/' + id + '/share-settings', data),
+  // Most-recent dashboard for one-click "Pin to dashboard" (returns null if none).
+  mostRecent: () => api.get('/dashboards/most-recent'),
+  // Pin a widget. Pass id 'auto' to auto-create/reuse a "Pinned widgets" dashboard.
+  pinWidget: (id, widget) => api.post('/dashboards/' + id + '/pin-widget', widget),
 }
 
 export const sheetsApi = {
+  // Public-sheet mode (no OAuth — "Anyone with the link can view")
   connect: (url, name) => api.post('/sheets/connect', { url, display_name: name || '' }),
   sync: (fileId) => api.post('/sheets/' + fileId + '/sync'),
+
+  // OAuth mode (Google Sheets 2.0 — private sheets + scheduled sync)
+  authUrl: () => api.get('/sheets/oauth/auth-url'),
+  status: () => api.get('/sheets/oauth/status'),
+  disconnect: () => api.delete('/sheets/oauth/disconnect'),
+  listSheets: (query = '') => api.get('/sheets/oauth/list-sheets', { params: query ? { query } : {} }),
+  sheetTabs: (spreadsheetId) => api.get('/sheets/oauth/sheet-tabs', { params: { spreadsheet_id: spreadsheetId } }),
+  connectPrivate: (data) => api.post('/sheets/oauth/connect-sheet', data),
+
+  // Per-file sync schedule (hourly / daily / off)
+  getSyncSchedule: (fileId) => api.get('/sheets/' + fileId + '/sync-schedule'),
+  setSyncSchedule: (fileId, frequency) => api.post('/sheets/' + fileId + '/sync-schedule', { frequency }),
+  scheduledSyncs: () => api.get('/sheets/scheduled-syncs'),
 }
 
 // Public share — no auth required. Uses raw axios so the JWT interceptor
