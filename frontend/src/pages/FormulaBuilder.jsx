@@ -2,16 +2,17 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { filesApi, analyticsApi, aiApi } from '../api'
 import { create, all } from 'mathjs'
 
-// Locked-down mathjs instance: no import, no createUnit, no eval, etc.
+// Locked-down mathjs instance.
+//
+// IMPORTANT: do NOT override `math.import` itself in this block — we register
+// our own string helpers via math.import() further below, and overriding the
+// method here would brick the second call (and crash the whole app at module
+// load, since this file is eagerly imported by App.jsx). The lockdown below
+// is therefore split into two passes:
+//   1. (this block) — register string helpers safely, BEFORE locking anything down
+//   2. (block at the bottom of this header) — disable the unsafe public entry
+//      points so user expressions can't reach evaluate / parse / createUnit etc.
 const math = create(all)
-math.import({
-  import: () => { throw new Error('import disabled') },
-  createUnit: () => { throw new Error('createUnit disabled') },
-  evaluate: () => { throw new Error('evaluate disabled') },
-  parse: () => { throw new Error('parse disabled') },
-  simplify: () => { throw new Error('simplify disabled') },
-  derivative: () => { throw new Error('derivative disabled') },
-}, { override: true })
 
 // -----------------------------------------------------------------------------
 // Helpers: column aliasing so "Column Name With Spaces" can be referenced
@@ -93,7 +94,8 @@ const CATALOG = {
   ],
 }
 
-// mathjs doesn't ship substring / toLower / length for strings — register them.
+// Pass 1 — register string helpers BEFORE the lockdown.
+// mathjs doesn't ship substring / toLower / length for strings.
 math.import({
   toLower:  (x) => String(x).toLowerCase(),
   toUpper:  (x) => String(x).toUpperCase(),
@@ -102,6 +104,18 @@ math.import({
   lengthOf: (x) => (x === null || x === undefined) ? 0 : String(x).length,
   trim: (x) => String(x).trim(),
   concat: (...parts) => parts.map(p => p == null ? '' : String(p)).join(''),
+}, { override: true })
+
+// Pass 2 — NOW lock down the unsafe public entry points so end-user
+// expressions can't escape the sandbox via evaluate / createUnit / etc.
+// `math.import` is intentionally NOT overridden — we already finished using it.
+// `math.parse` is also left alone because `math.compile` (used at compile
+// time below) depends on it internally.
+math.import({
+  createUnit: () => { throw new Error('createUnit disabled') },
+  evaluate:   () => { throw new Error('evaluate disabled') },
+  simplify:   () => { throw new Error('simplify disabled') },
+  derivative: () => { throw new Error('derivative disabled') },
 }, { override: true })
 
 // -----------------------------------------------------------------------------
