@@ -589,18 +589,35 @@ class ChatRequest(BaseModel):
 
 CHAT_SYSTEM_PROMPT = """You are a senior data analyst answering questions about
 an uploaded dataset. The user will ask follow-up questions so remember previous
-turns. When the user asks for data that is best presented as a table, respond
-with ONLY this raw JSON (no markdown, no code fences):
+turns.
 
-{"type":"table","summary":"1-sentence framing","columns":["col1","col2"],"rows":[{"col1":"v","col2":"v"}]}
+CRITICAL — HOW TO ANSWER NUMERIC QUESTIONS:
+You will be given a PRE-COMPUTED stat pack (JSON) that contains authoritative
+aggregates calculated server-side over the FULL dataset: per-column sum, mean,
+median, p25/p75, std, min, max, count, null_pct, plus top categorical values
+with their counts and shares, plus pairwise correlations.
 
-When the user asks for a chart or visualisation, respond with ONLY:
+When asked for totals, averages, counts, top-N, distributions, share-of, or
+any other summary statistic — READ THE NUMBER FROM THE STAT PACK. Do NOT sum,
+average, or count the row preview yourself. The row preview is a small
+illustrative sample (typically 30–60 rows out of the full dataset) and is
+provided ONLY so you can see what the data looks like. Aggregating from it
+will give you a wrong answer.
 
-{"type":"chart","summary":"1-sentence framing","chart_type":"bar|line|pie","chart_data":[{"name":"A","value":10}],"x_key":"name","y_keys":["value"],"title":"Chart title"}
+If the stat pack does not contain the exact slice the user is asking about
+(e.g. "revenue by region" when only the column-level sum is in the pack),
+say so honestly: explain what totals you can give from the pack, and offer
+a follow-up the user could ask that the pack does cover. Never fabricate a
+breakdown by chunk-summing the preview.
 
-For everything else, respond with a concise, insight-led plain-text answer —
-name specific numbers and columns from the data, and be confident but honest
-about limits (e.g. low sample sizes). Avoid generic caveats."""
+OUTPUT FORMAT:
+- For tabular data, respond with ONLY raw JSON (no markdown, no code fences):
+  {"type":"table","summary":"1-sentence framing","columns":["col1","col2"],"rows":[{"col1":"v","col2":"v"}]}
+- For charts:
+  {"type":"chart","summary":"1-sentence framing","chart_type":"bar|line|pie","chart_data":[{"name":"A","value":10}],"x_key":"name","y_keys":["value"],"title":"Chart title"}
+- For everything else, plain text. Name specific numbers and columns from the
+  stat pack. Be confident, honest about limits (e.g. low_n=true), avoid generic
+  caveats."""
 
 
 @router.post("/chat")
@@ -621,25 +638,74 @@ async def ai_chat(
     if not req.messages:
         raise HTTPException(status_code=400, detail="messages is empty")
 
-    # Build a compact "dataset context" string that prefixes the first user turn.
+    # Build a "dataset context" string that prefixes the first user turn.
+    #
+    # IMPORTANT — anti-hallucination: the previous version of this code shipped
+    # only the first 2500 bytes of the CSV as a "Data preview" and asked the LLM
+    # to do arithmetic on it. With a 14KB file, that's ~17% of rows, so the LLM
+    # would confidently sum the partial sample and present the result as the
+    # whole-dataset total (Auto Report said £2.35M, Ask Your Data said £1.85M
+    # for the SAME file — same dataset, two different "totals", because the
+    # chat endpoint was summing a slice). Now we compute the full stat pack
+    # server-side (same machinery Auto Report and AI Insights use) and inject
+    # it as authoritative ground truth. The system prompt forbids the LLM from
+    # aggregating the row preview itself.
     context_bits = [f"Dataset file: {file.filename}"]
     if file.row_count:
         context_bits.append(f"Rows: {file.row_count}")
     if file.column_count:
         context_bits.append(f"Columns: {file.column_count}")
-    if file.columns_json:
+
+    # ── Authoritative stat pack ───────────────────────────────────────────
+    try:
+        rows, _ = load_file_data(req.file_id, current_user.organisation_id, db)
+    except Exception as exc:
+        logger.warning("load_file_data failed in /ai/chat for %s: %s", req.file_id, exc)
+        rows = []
+
+    if rows:
+        try:
+            stat_pack = build_stat_pack(rows, file.filename)
+            # Trim correlations to top 3 to keep the prompt focused, and round
+            # everything to 2 dp (already done inside build_stat_pack).
+            stat_pack_compact = dict(stat_pack)
+            stat_pack_compact["correlations"] = (stat_pack.get("correlations") or [])[:3]
+            context_bits.append(
+                "\nAUTHORITATIVE STAT PACK (computed server-side over the FULL "
+                f"dataset of {len(rows)} rows — read totals from here, do NOT "
+                "sum the preview):\n" + json.dumps(stat_pack_compact, default=str)
+            )
+        except Exception as exc:
+            logger.warning("build_stat_pack failed in /ai/chat: %s", exc)
+
+        # ── Small labelled preview (illustrative only) ───────────────────
+        # ~30 rows is enough for the LLM to "see" the data shape without
+        # tempting it to aggregate. Capped at 4KB total just in case rows
+        # are unusually wide.
+        try:
+            sample_rows = rows[:30]
+            sample_text = json.dumps(sample_rows, default=str)
+            if len(sample_text) > 4000:
+                sample_text = sample_text[:4000] + "…(truncated)"
+            context_bits.append(
+                "\nSAMPLE ROWS (illustrative, NOT the full dataset — never "
+                "aggregate from these; use the stat pack above):\n" + sample_text
+            )
+        except Exception as exc:
+            logger.warning("sample serialisation failed in /ai/chat: %s", exc)
+    elif file.columns_json:
+        # Fallback: at least give the LLM the column names so it can answer
+        # schema-level questions even if data didn't load.
         try:
             cols = json.loads(file.columns_json) if isinstance(file.columns_json, str) else file.columns_json
             context_bits.append(f"Column names: {', '.join(str(c) for c in cols[:25])}")
+            context_bits.append(
+                "\nNote: full dataset failed to load — only schema is available. "
+                "Tell the user honestly that you cannot compute aggregates."
+            )
         except Exception:
             pass
-    if file.file_content:
-        try:
-            raw = file.file_content
-            preview = raw.decode("utf-8", errors="replace")[:2500] if isinstance(raw, bytes) else str(raw)[:2500]
-            context_bits.append("\nData preview (first rows):\n" + preview)
-        except Exception:
-            pass
+
     context = "\n".join(context_bits)
 
     # Copy messages, prefix context onto the first user turn only.
