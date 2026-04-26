@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function RegressionAnalysis() {
   const [files, setFiles] = useState([])
@@ -10,11 +15,13 @@ export default function RegressionAnalysis() {
   const [xCol, setXCol] = useState('')
   const [yCol, setYCol] = useState('')
   const [results, setResults] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResults(null)
+    setFileId(id); setResults(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => {
       setHeaders(r.data.headers || [])
@@ -24,7 +31,8 @@ export default function RegressionAnalysis() {
 
   function run() {
     if (!xCol || !yCol || !rows.length) return
-    const pts = rows.map(r => ({ x: parseFloat(r[xCol]), y: parseFloat(r[yCol]) })).filter(p => !isNaN(p.x) && !isNaN(p.y))
+    const scoped = applyDateFilter(rows, dateRange)
+    const pts = scoped.map(r => ({ x: parseFloat(r[xCol]), y: parseFloat(r[yCol]) })).filter(p => !isNaN(p.x) && !isNaN(p.y))
     const n = pts.length
     if (n < 2) return
     const sumX = pts.reduce((a, p) => a + p.x, 0)
@@ -60,11 +68,39 @@ export default function RegressionAnalysis() {
             <div key={label}><div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>{label}</div>{el}</div>
           ))}
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="regression-analysis.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!xCol || !yCol} style={{ padding: '9px 24px', background: xCol && yCol ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: xCol && yCol ? 'pointer' : 'default' }}>Run Regression</button>
       </div>
 
       {results && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8 }}>
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`The regression of ${yCol} on ${xCol} gave R² of ${results.r2.toFixed(3)} (slope ${results.slope.toFixed(3)}, intercept ${results.intercept.toFixed(3)}). What other variables might explain the residuals?`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'scatter',
+                col: yCol,
+                label: `${yCol} vs ${xCol} (R²=${results.r2.toFixed(3)})`,
+                file_id: fileId,
+                extra: { x: xCol, y: yCol, slope: results.slope, intercept: results.intercept, r2: results.r2 },
+              }}
+            />
+            <ExportMenu data={results.chartData} filename={`regression-${xCol}-${yCol}`} containerRef={chartRef} title={`Regression: ${yCol} on ${xCol}`} />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
             {[['R² (Fit)', results.r2.toFixed(4), results.r2 > 0.7 ? '#10b981' : results.r2 > 0.4 ? '#f59e0b' : '#ef4444'],
               ['Slope', results.slope.toFixed(4), '#0097b2'],
@@ -85,7 +121,7 @@ export default function RegressionAnalysis() {
             </div>
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Scatter Plot with Regression Line</div>
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={results.chartData}>
@@ -101,7 +137,13 @@ export default function RegressionAnalysis() {
         </div>
       )}
 
-      {!results && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📈</div><div>Select X and Y columns to run linear regression</div></div>}
+      {!results && (
+        <EmptyState
+          icon="📈"
+          title="Pick X and Y to run linear regression"
+          body="The page reports R², slope, intercept, and an interpretation flag (strong / moderate / weak fit). Use the date filter to scope to a window."
+        />
+      )}
     </div>
   )
 }

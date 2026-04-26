@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonChart } from '../components/ui/Skeleton'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
 
 export default function CorrelationMatrix() {
   const [files, setFiles] = useState([])
@@ -7,6 +11,7 @@ export default function CorrelationMatrix() {
   const [matrix, setMatrix] = useState(null)
   const [cols, setCols] = useState([])
   const [loading, setLoading] = useState(false)
+  const matrixRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -66,9 +71,27 @@ export default function CorrelationMatrix() {
         </button>
       </div>
 
+      {loading && (
+        <SkeletonChart height={300} />
+      )}
+
       {matrix && cols.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
-          <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Correlation Matrix ({cols.length} numeric columns)</div>
+        <div ref={matrixRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>Correlation Matrix ({cols.length} numeric columns)</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <OpenInAskYourData
+                fileId={fileId}
+                prompt={`Look at my correlation matrix across ${cols.length} numeric columns. Which pairs show the strongest unexpected relationships, and what business hypotheses do they suggest?`}
+              />
+              <ExportMenu
+                data={cols.flatMap(a => cols.map(b => ({ a, b, r: matrix[a][b] })))}
+                filename={`correlation-matrix`}
+                containerRef={matrixRef}
+                title="Correlation Matrix"
+              />
+            </div>
+          </div>
           <table style={{ borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr>
@@ -102,7 +125,13 @@ export default function CorrelationMatrix() {
         </div>
       )}
 
-      {!matrix && !loading && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🔗</div><div>Select a file to compute the correlation matrix</div></div>}
+      {!matrix && !loading && (
+        <EmptyState
+          icon="🔗"
+          title="Pick a file to compute correlations"
+          body="Pearson r between every pair of numeric columns. Green = positive, red = negative, with strength shading. Use it to spot drivers and surprising co-movers."
+        />
+      )}
     </div>
   )
 }

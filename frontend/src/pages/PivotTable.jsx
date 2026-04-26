@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
 
 export default function PivotTable() {
   const [files, setFiles] = useState([])
@@ -11,11 +14,12 @@ export default function PivotTable() {
   const [aggFunc, setAggFunc] = useState('sum')
   const [pivot, setPivot] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [dateRange, setDateRange] = useState(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setHeaders([]); setRows([]); setPivot(null)
+    setFileId(id); setHeaders([]); setRows([]); setPivot(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => {
       setHeaders(r.data.headers || [])
@@ -25,8 +29,10 @@ export default function PivotTable() {
 
   function run() {
     if (!rowField || !valField || !rows.length) return
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setPivot(null); return }
     const groups = {}
-    rows.forEach(row => {
+    scoped.forEach(row => {
       const key = row[rowField] || '(blank)'
       const val = parseFloat(row[valField]) || 0
       if (!groups[key]) groups[key] = []
@@ -78,12 +84,27 @@ export default function PivotTable() {
             </select>
           </div>
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="pivot-table.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!rowField || !valField} style={{ padding: '9px 24px', background: rowField && valField ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: rowField && valField ? 'pointer' : 'default' }}>Build Pivot</button>
       </div>
 
       {pivot && (
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid #f3f4f6', fontWeight: 700, color: '#0c1446' }}>Pivot: {rowField} → {valField} ({pivot.length} groups)</div>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, color: '#0c1446' }}>Pivot: {rowField} → {valField} ({pivot.length} groups)</div>
+            <ExportMenu data={pivot} filename={`pivot-${rowField}-${valField}`} title={`Pivot Table — ${rowField} by ${valField}`} />
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
               <thead>
@@ -108,7 +129,13 @@ export default function PivotTable() {
         </div>
       )}
 
-      {!pivot && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🔄</div><div>Configure grouping settings and click Build Pivot</div></div>}
+      {!pivot && (
+        <EmptyState
+          icon="🔄"
+          title="Configure grouping and click Build Pivot"
+          body="Pick a column to group by, a numeric value, and an aggregation. Use the date filter to scope to a window."
+        />
+      )}
     </div>
   )
 }

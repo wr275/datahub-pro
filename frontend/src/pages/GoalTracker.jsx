@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function GoalTracker() {
   const [files, setFiles] = useState([])
@@ -9,11 +14,13 @@ export default function GoalTracker() {
   const [rows, setRows] = useState([])
   const [goals, setGoals] = useState([{ col: '', target: '', label: '' }])
   const [result, setResult] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null)
+    setFileId(id); setResult(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
@@ -27,8 +34,9 @@ export default function GoalTracker() {
   }
 
   function run() {
+    const scoped = applyDateFilter(rows, dateRange)
     const results = goals.filter(g => g.col && g.target).map(g => {
-      const vals = rows.map(r => parseFloat(r[g.col]) || 0)
+      const vals = scoped.map(r => parseFloat(r[g.col]) || 0)
       const actual = vals.reduce((a, b) => a + b, 0)
       const target = parseFloat(g.target) || 0
       const pct = target > 0 ? Math.min((actual / target) * 100, 200) : 0
@@ -76,6 +84,17 @@ export default function GoalTracker() {
             {goals.length > 1 && <button onClick={() => removeGoal(i)} style={{ padding: '8px 10px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: 6, cursor: 'pointer' }}>✕</button>}
           </div>
         ))}
+        {headers.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="goal-tracker.dateRange"
+            />
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
           <button onClick={addGoal} style={{ padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>+ Add Goal</button>
           <button onClick={run} disabled={!fileId} style={{ padding: '9px 24px', background: fileId ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: fileId ? 'pointer' : 'default' }}>Track Goals</button>
@@ -84,10 +103,32 @@ export default function GoalTracker() {
 
       {result && result.length > 0 && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <ExportMenu data={result} filename="goal-tracker" containerRef={chartRef} title="Goal Tracker" />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
             {result.map(g => (
               <div key={g.label} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `4px solid ${g.color}` }}>
-                <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 8 }}>{g.label}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 8 }}>{g.label}</div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <OpenInAskYourData
+                      variant="icon"
+                      fileId={fileId}
+                      prompt={`Why is ${g.label} at ${g.pct}% of target? Break down ${g.col} by the most useful dimension.`}
+                    />
+                    <PinToDashboard
+                      variant="icon"
+                      widget={{
+                        type: 'kpi',
+                        col: g.col,
+                        label: g.label,
+                        file_id: fileId,
+                        extra: { agg: 'sum', target: g.target },
+                      }}
+                    />
+                  </div>
+                </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 800, color: g.color, marginBottom: 4 }}>{g.pct}%</div>
                 <div style={{ width: '100%', height: 8, background: '#f3f4f6', borderRadius: 4, marginBottom: 8 }}>
                   <div style={{ width: `${Math.min(g.pct, 100)}%`, height: '100%', background: g.color, borderRadius: 4 }} />
@@ -99,7 +140,7 @@ export default function GoalTracker() {
             ))}
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Actual vs Target</div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={result}>
@@ -115,7 +156,13 @@ export default function GoalTracker() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🎯</div><div>Set goals and click Track to measure performance</div></div>}
+      {!result && (
+        <EmptyState
+          icon="🎯"
+          title="Set goals and click Track"
+          body="Add a label, pick a numeric column, and set a target. The tracker shows percent of target with red/amber/green status and a trend chart."
+        />
+      )}
     </div>
   )
 }

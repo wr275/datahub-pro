@@ -10,6 +10,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { filesApi, analyticsApi, rfmApi } from '../api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard, SkeletonChart } from '../components/ui/Skeleton'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const PINK = '#e91e8c'
 const TEAL = '#0097b2'
@@ -454,10 +458,14 @@ export default function RFMAnalysis() {
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ width: 40, height: 40, border: '4px solid #f3f4f6', borderTop: '4px solid ' + PINK, borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
-          <div style={{ color: '#6b7280' }}>Computing RFM scores on the server…</div>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div>
+          <div style={{ marginBottom: 12, color: '#6b7280', fontSize: '0.88rem', fontWeight: 600 }}>
+            Computing RFM scores on the server…
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </div>
+          <SkeletonChart height={220} />
         </div>
       )}
 
@@ -505,6 +513,23 @@ export default function RFMAnalysis() {
                   }}>
                   {aiEnabled ? '✨ Suggest actions' : '✨ AI add-on required'}
                 </button>
+                <div style={{ display: 'flex', gap: 4, marginTop: 6, justifyContent: 'flex-end' }}>
+                  <OpenInAskYourData
+                    variant="icon"
+                    fileId={fileId}
+                    prompt={`Tell me about the "${s.name}" RFM segment (${s.count} customers, avg monetary $${Math.round(s.avg_monetary)}, avg recency ${Math.round(s.avg_recency_days)} days). What's the best campaign to run on them?`}
+                  />
+                  <PinToDashboard
+                    variant="icon"
+                    widget={{
+                      type: 'kpi',
+                      col: 'rfm_segment',
+                      label: `RFM: ${s.name}`,
+                      file_id: fileId,
+                      extra: { segment: s.name, count: s.count, avg_monetary: s.avg_monetary, avg_recency_days: s.avg_recency_days, avg_frequency: s.avg_frequency },
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -588,13 +613,12 @@ export default function RFMAnalysis() {
       )}
 
       {!result && !loading && (
-        <div style={{ textAlign: 'center', padding: 70, color: '#9ca3af' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 8, color: '#d1d5db', fontWeight: 300 }}>[ RFM ]</div>
-          <div style={{ fontSize: '1rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Map your columns to get started</div>
-          <div style={{ fontSize: '0.875rem', maxWidth: 480, margin: '0 auto', lineHeight: 1.55 }}>
-            Select a file and the Customer ID, Date, and Monetary columns. Adjust the time window, segment definitions, and anchor date as needed, then Run RFM.
-          </div>
-        </div>
+        <EmptyState
+          icon="◧"
+          title="Map your columns to get started"
+          body="Pick a file and choose Customer ID, Date, and Monetary columns. Tune the time window, segment definitions, and anchor date as needed, then Run RFM."
+          tone="info"
+        />
       )}
 
       {actionFor && <ActionModal segment={actionFor} onClose={() => setActionFor(null)} />}

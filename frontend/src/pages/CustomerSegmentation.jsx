@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 const SEGMENT_COLORS = ['#e91e8c', '#0097b2', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444']
 
@@ -14,6 +18,7 @@ export default function CustomerSegmentation() {
   const [labelCol, setLabelCol] = useState('')
   const [k, setK] = useState(3)
   const [result, setResult] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -81,8 +86,30 @@ export default function CustomerSegmentation() {
       </div>
 
       {result && (
+        <>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+          <OpenInAskYourData
+            fileId={fileId}
+            prompt={`I clustered customers into ${result.segments.length} groups using ${xCol} and ${yCol}. Help me characterise each group with 1-2 sentence personas.`}
+          />
+          <PinToDashboard
+            widget={{
+              type: 'scatter',
+              col: xCol,
+              label: `Segments: ${xCol} × ${yCol}`,
+              file_id: fileId,
+              extra: { x: xCol, y: yCol, k },
+            }}
+          />
+          <ExportMenu
+            data={result.chartData.map(d => ({ label: d.label, x: d.x, y: d.y, segment: d.cluster + 1 }))}
+            filename={`segmentation-${xCol}-${yCol}`}
+            containerRef={chartRef}
+            title={`Customer Segmentation: ${xCol} × ${yCol}`}
+          />
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Cluster Scatter Plot</div>
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart>
@@ -103,7 +130,14 @@ export default function CustomerSegmentation() {
               <div key={s.id} style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontWeight: 700, color: s.color }}>Segment {i + 1}</span>
-                  <span style={{ background: s.color + '20', color: s.color, borderRadius: 12, padding: '2px 8px', fontSize: '0.8rem', fontWeight: 700 }}>{s.count} pts</span>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <OpenInAskYourData
+                      variant="icon"
+                      fileId={fileId}
+                      prompt={`Describe Segment ${i + 1} from my k-means run on ${xCol} × ${yCol} (${s.count} customers, avg ${xCol}=${s.avgX}, avg ${yCol}=${s.avgY}). What's the persona and ideal next campaign?`}
+                    />
+                    <span style={{ background: s.color + '20', color: s.color, borderRadius: 12, padding: '2px 8px', fontSize: '0.8rem', fontWeight: 700 }}>{s.count} pts</span>
+                  </div>
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Avg {xCol}: <strong>{s.avgX}</strong></div>
                 <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Avg {yCol}: <strong>{s.avgY}</strong></div>
@@ -111,9 +145,16 @@ export default function CustomerSegmentation() {
             ))}
           </div>
         </div>
+        </>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🎯</div><div>Select X and Y columns to run k-means segmentation</div></div>}
+      {!result && (
+        <EmptyState
+          icon="🎯"
+          title="Pick X and Y to run k-means"
+          body="K-means groups customers into clusters based on two numeric columns. Tweak k (2–6) to control cluster count."
+        />
+      )}
     </div>
   )
 }

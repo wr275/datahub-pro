@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function FunnelChart() {
   const [files, setFiles] = useState([])
@@ -10,6 +14,7 @@ export default function FunnelChart() {
   const [valCol, setValCol] = useState('')
   const [sortMode, setSortMode] = useState('desc')
   const [chartData, setChartData] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -62,7 +67,24 @@ export default function FunnelChart() {
       </div>
 
       {chartData && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+        <>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+          <OpenInAskYourData
+            fileId={fileId}
+            prompt={`The funnel of ${valCol} by ${labelCol} has the biggest drop-off between ${chartData.reduce((m, d, i) => i > 0 && d.dropOff > (m.do || 0) ? { name: d.name, prev: chartData[i-1].name, do: d.dropOff } : m, {}).prev || ''} and ${chartData.reduce((m, d, i) => i > 0 && d.dropOff > (m.do || 0) ? { name: d.name, do: d.dropOff } : m, {}).name || ''}. What's likely driving it?`}
+          />
+          <PinToDashboard
+            widget={{
+              type: 'bar',
+              col: valCol,
+              label: `Funnel: ${labelCol}`,
+              file_id: fileId,
+              extra: { labelCol, sortMode },
+            }}
+          />
+          <ExportMenu data={chartData} filename={`funnel-${labelCol}-${valCol}`} containerRef={chartRef} title={`Funnel: ${valCol} by ${labelCol}`} />
+        </div>
+        <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 20 }}>Conversion Funnel — {valCol}</div>
           <div style={{ maxWidth: 600, margin: '0 auto' }}>
             {chartData.map((d, i) => (
@@ -89,9 +111,16 @@ export default function FunnelChart() {
             ))}
           </div>
         </div>
+        </>
       )}
 
-      {!chartData && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>🔻</div><div>Select stage and value columns to build the funnel</div></div>}
+      {!chartData && (
+        <EmptyState
+          icon="🔻"
+          title="Pick stage and value columns"
+          body="The funnel chart shows conversion rates and drop-offs across stages, with the biggest leak highlighted."
+        />
+      )}
     </div>
   )
 }

@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, Cell, Legend,
 } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard, SkeletonChart } from '../components/ui/Skeleton'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 /* ─── Churn Risk Scoring Algorithm ─────────────────────────── */
 function computeChurnRisk(rows, customerCol, dateCol, revenueCol) {
@@ -85,6 +91,8 @@ export default function ChurnRiskAnalysis() {
   const [prevLoading, setPrevLoading] = useState(false)
   const [search, setSearch]         = useState('')
   const [filterSeg, setFilterSeg]   = useState('All')
+  const [dateRange, setDateRange]   = useState(null)
+  const chartsRef = useRef(null)
 
   useEffect(() => {
     filesApi.list().then(r => setFiles(r.data || [])).catch(() => {})
@@ -92,7 +100,7 @@ export default function ChurnRiskAnalysis() {
 
   function onFileChange(id) {
     setFileId(id); setHeaders([]); setResults(null); setError('')
-    setCustomerCol(''); setDateCol(''); setRevenueCol('')
+    setCustomerCol(''); setDateCol(''); setRevenueCol(''); setDateRange(null)
     if (!id) return
     setPrevLoading(true)
     analyticsApi.preview(id)
@@ -108,7 +116,12 @@ export default function ChurnRiskAnalysis() {
       .then(r => {
         const rows = r.data.rows || []
         if (!rows.length) { setError('No data rows found.'); return }
-        const churn = computeChurnRisk(rows, customerCol, dateCol, revenueCol)
+        // Apply the global date-range filter so the analysis only considers
+        // transactions inside the chosen window. The picker's date_column may
+        // differ from the customer-level dateCol used by the scoring algorithm.
+        const scoped = applyDateFilter(rows, dateRange)
+        if (!scoped.length) { setError('No data rows in the selected date range.'); return }
+        const churn = computeChurnRisk(scoped, customerCol, dateCol, revenueCol)
         setResults(churn)
       })
       .catch(() => setError('Failed to run analysis. Please try again.'))
@@ -205,13 +218,58 @@ export default function ChurnRiskAnalysis() {
             {loading ? 'Analysing…' : '🔥 Run Analysis'}
           </button>
         </div>
+        {headers.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="churn-risk.dateRange"
+            />
+          </div>
+        )}
         {prevLoading && <p style={{ marginTop: 10, color: 'var(--t3, #8b92b3)', fontSize: '0.82rem' }}>Loading columns…</p>}
         {error && <p style={{ marginTop: 10, color: '#ef4444', fontSize: '0.82rem' }}>{error}</p>}
       </Card>
 
+      {loading && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
+            <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+          </div>
+          <SkeletonChart height={220} />
+        </div>
+      )}
+
       {/* Results */}
       {results && stats && (
-        <>
+        <div ref={chartsRef}>
+          {/* Action bar */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`We have ${(stats.bySegment['Critical']?.count || 0) + (stats.bySegment['At Risk']?.count || 0)} customers in Critical or At Risk segments, with at-risk revenue of ${fmt(stats.atRiskARR, '£')}. Recommend a prioritised win-back plan and which segments to address first.`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'kpi',
+                col: 'churn_score',
+                label: `Churn risk — ${stats.total} customers`,
+                file_id: fileId,
+                extra: { atRiskARR: stats.atRiskARR, avgScore: stats.avgScore },
+              }}
+            />
+            <ExportMenu
+              data={results.map(r => ({
+                customer: r.id, churn_score: r.churnScore, segment: r.segment,
+                recency_days: r.recencyDays, frequency: r.frequency, revenue: r.monetary,
+                avg_order: r.avgOrderValue,
+              }))}
+              filename="churn-risk"
+              containerRef={chartsRef}
+              title="Churn Risk Analysis"
+            />
+          </div>
           {/* KPI row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
             {[
@@ -361,18 +419,16 @@ export default function ChurnRiskAnalysis() {
               </table>
             </div>
           </Card>
-        </>
+        </div>
       )}
 
       {/* Empty state */}
       {!results && !loading && (
-        <Card style={{ textAlign: 'center', padding: '64px 32px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔥</div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--t1, #0c1446)', marginBottom: 8 }}>Churn Risk Analysis</div>
-          <div style={{ fontSize: '0.88rem', color: 'var(--t2, #4a5280)', maxWidth: 420, margin: '0 auto', lineHeight: 1.7 }}>
-            Select a file with customer transaction data. DataHub will score each customer's churn probability based on recency, order frequency, and revenue — then prioritise who to contact first.
-          </div>
-        </Card>
+        <EmptyState
+          icon="🔥"
+          title="Churn Risk Analysis"
+          body="Pick a file with customer transaction data, then choose customer / date / revenue columns. DataHub will score each customer's churn probability based on recency, frequency, and revenue — then prioritise who to contact first."
+        />
       )}
     </div>
   )

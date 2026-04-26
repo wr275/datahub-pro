@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import EmptyState from '../components/ui/EmptyState'
+import ExportMenu from '../components/ui/ExportMenu'
+import OpenInAskYourData from '../components/ui/OpenInAskYourData'
+import PinToDashboard from '../components/ui/PinToDashboard'
 
 export default function ParetoAnalysis() {
   const [files, setFiles] = useState([])
@@ -10,6 +14,7 @@ export default function ParetoAnalysis() {
   const [catCol, setCatCol] = useState('')
   const [valCol, setValCol] = useState('')
   const [result, setResult] = useState(null)
+  const chartRef = useRef(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
@@ -56,6 +61,22 @@ export default function ParetoAnalysis() {
 
       {result && (
         <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            <OpenInAskYourData
+              fileId={fileId}
+              prompt={`In a Pareto on ${valCol} by ${catCol}, ${result.vital} categories drive 80% of total. Tell me how concentration is changing over time and which categories are climbing fastest.`}
+            />
+            <PinToDashboard
+              widget={{
+                type: 'bar',
+                col: valCol,
+                label: `Pareto: ${valCol} by ${catCol}`,
+                file_id: fileId,
+                extra: { catCol, vital: result.vital, total: result.total },
+              }}
+            />
+            <ExportMenu data={result.data} filename={`pareto-${catCol}-${valCol}`} containerRef={chartRef} title={`Pareto: ${valCol} by ${catCol}`} />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
             {[['Total Value', Number(result.total).toLocaleString(undefined, { maximumFractionDigits: 0 }), '#0c1446'],
               ['Vital Few (≤80%)', `${result.vital} categories`, '#e91e8c'],
@@ -68,7 +89,7 @@ export default function ParetoAnalysis() {
             ))}
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div ref={chartRef} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontWeight: 700, color: '#0c1446', marginBottom: 16 }}>Pareto Chart — Top {result.data.length} categories</div>
             <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={result.data}>
@@ -86,7 +107,14 @@ export default function ParetoAnalysis() {
         </div>
       )}
 
-      {!result && <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}><div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div><div>Select category and value columns to run Pareto analysis</div></div>}
+      {!result && (
+        <EmptyState
+          icon="📊"
+          title="Pick category and value columns"
+          body="The Pareto chart shows the 20% of categories that drive 80% of your total — surfaced as 'vital few' vs 'trivial many'."
+          tone="info"
+        />
+      )}
     </div>
   )
 }
