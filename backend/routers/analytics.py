@@ -19,9 +19,32 @@ def load_file_data(file_id: str, org_id: str, db: Session):
     if not f:
         raise HTTPException(status_code=404, detail="File not found")
 
+    # Storage mode resolution — three modes supported:
+    #   1. Postgres BYTEA (file_content) — small, legacy / dev mode
+    #   2. Local disk (LOCAL_UPLOAD_DIR / filename) — when R2 isn't configured
+    #   3. R2/S3 (storage_type='s3', s3_key set) — large files + streamed
+    #      SharePoint imports
+    # Until 2026-04-26 this function silently 404'd on mode 3 with "File
+    # content not available. Please re-upload." That broke AI Insights,
+    # Auto Report, Ask Your Data, RFM, Forecasting, KPIs, Summary, Preview,
+    # and the new tool-use loop — basically every analytics path — for any
+    # org using R2/SharePoint linked imports. Now we route through the
+    # existing get_file_r2 helper.
     raw = None
     if f.file_content:
         raw = bytes(f.file_content)
+    elif getattr(f, "storage_type", None) == "s3" and getattr(f, "s3_key", None):
+        try:
+            from routers.files import get_file_r2
+            raw = get_file_r2(f.s3_key)
+        except Exception as exc:
+            # Surface the boto3 error message rather than the misleading
+            # "please re-upload" — operators need to see auth/network
+            # issues in the response, not have users blame their files.
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not fetch file from object storage: {exc}",
+            )
     else:
         path = os.path.join(settings.LOCAL_UPLOAD_DIR, f.filename)
         if os.path.exists(path):

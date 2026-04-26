@@ -592,23 +592,37 @@ an uploaded dataset. The user will ask follow-up questions so remember previous
 turns.
 
 CRITICAL — HOW TO ANSWER NUMERIC QUESTIONS:
-You will be given a PRE-COMPUTED stat pack (JSON) that contains authoritative
-aggregates calculated server-side over the FULL dataset: per-column sum, mean,
-median, p25/p75, std, min, max, count, null_pct, plus top categorical values
-with their counts and shares, plus pairwise correlations.
+You have THREE sources of truth, in order of preference:
 
-When asked for totals, averages, counts, top-N, distributions, share-of, or
-any other summary statistic — READ THE NUMBER FROM THE STAT PACK. Do NOT sum,
-average, or count the row preview yourself. The row preview is a small
-illustrative sample (typically 30–60 rows out of the full dataset) and is
-provided ONLY so you can see what the data looks like. Aggregating from it
-will give you a wrong answer.
+1. The PRE-COMPUTED STAT PACK injected into your context. It contains authoritative
+   aggregates calculated server-side over the FULL dataset: per-column sum, mean,
+   median, p25/p75, std, min, max, count, null_pct, plus top categorical values
+   with their counts and shares, plus pairwise correlations. For a column-level
+   total/avg/count/min/max question, READ THE NUMBER FROM THE STAT PACK.
 
-If the stat pack does not contain the exact slice the user is asking about
-(e.g. "revenue by region" when only the column-level sum is in the pack),
-say so honestly: explain what totals you can give from the pack, and offer
-a follow-up the user could ask that the pack does cover. Never fabricate a
-breakdown by chunk-summing the preview.
+2. The TOOLS you have been given:
+   • run_aggregation — sum / mean / count / min / max / median over a numeric
+     column, optionally filtered (where Region='North') and/or grouped by a
+     categorical column. Use this when the user asks for a slice the stat
+     pack doesn't cover, e.g. "revenue by region", "revenue in Q1 vs Q2",
+     "average order value for Enterprise customers".
+   • get_top_n — top-N rows sorted by a column. Use for "top 5 products by
+     revenue", "biggest losses", etc.
+   • get_sample_rows — N rows matching optional filters, for illustration.
+   These tools run real Python on the FULL dataset on the server. Their
+   answers are authoritative — quote them verbatim.
+
+3. The SAMPLE ROWS (~30) are for shape/grounding only. Never aggregate from
+   them — you will get a wrong answer.
+
+DECISION TREE:
+- Column-level total/mean/min/max/count/median → stat pack (no tool call needed)
+- Filtered or grouped aggregate, period-vs-period, segment-vs-segment → run_aggregation
+- "Top N" / "biggest" / "smallest" → get_top_n
+- "Show me rows where ..." → get_sample_rows
+- Schema/structure questions → stat pack column list
+- Open-ended interpretation ("what's interesting?") → stat pack + sample rows
+- If genuinely uncertain, prefer a tool call to a guess.
 
 OUTPUT FORMAT:
 - For tabular data, respond with ONLY raw JSON (no markdown, no code fences):
@@ -616,8 +630,256 @@ OUTPUT FORMAT:
 - For charts:
   {"type":"chart","summary":"1-sentence framing","chart_type":"bar|line|pie","chart_data":[{"name":"A","value":10}],"x_key":"name","y_keys":["value"],"title":"Chart title"}
 - For everything else, plain text. Name specific numbers and columns from the
-  stat pack. Be confident, honest about limits (e.g. low_n=true), avoid generic
-  caveats."""
+  stat pack or tool results. Be confident, honest about limits (e.g. low_n=true),
+  avoid generic caveats."""
+
+
+# ── Tool definitions for /chat ───────────────────────────────────────────────
+# These are sent to Claude in the `tools` parameter on every /chat call.
+# Each tool is server-executed against the full dataset using pure Python
+# (no pandas in this backend). Filters are simple column-op-value triples.
+
+CHAT_TOOLS = [
+    {
+        "name": "run_aggregation",
+        "description": (
+            "Compute an authoritative aggregate (sum / mean / count / min / max "
+            "/ median) over a numeric column of the FULL dataset, optionally "
+            "filtered and/or grouped by a categorical column. Use this for any "
+            "slice the stat pack doesn't directly cover — e.g. revenue by "
+            "region, revenue in Q1 vs Q2, average order value for Enterprise "
+            "customers. Returns the exact number(s) computed server-side."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "metric_column": {"type": "string", "description": "Numeric column to aggregate (e.g. 'Revenue_GBP')"},
+                "agg_fn":        {"type": "string", "enum": ["sum", "mean", "count", "min", "max", "median"]},
+                "group_by":      {"type": "string", "description": "Optional column to group by (e.g. 'Region'). Omit for a single overall number."},
+                "filters":       {
+                    "type": "array",
+                    "description": "Optional list of {column, op, value} triples. op ∈ {'==', '!=', '>', '>=', '<', '<=', 'in', 'between', 'startswith', 'contains'}. For 'in' / 'between', value should be an array.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column": {"type": "string"},
+                            "op":     {"type": "string"},
+                            "value":  {},
+                        },
+                        "required": ["column", "op", "value"],
+                    },
+                },
+            },
+            "required": ["metric_column", "agg_fn"],
+        },
+    },
+    {
+        "name": "get_top_n",
+        "description": (
+            "Return the top-N rows of the FULL dataset sorted by a column. Use "
+            "for 'top 10 products by revenue', 'biggest losses', etc. Returns "
+            "rows with the requested columns; if columns_to_return is omitted, "
+            "returns all columns."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sort_by":           {"type": "string"},
+                "n":                 {"type": "integer", "minimum": 1, "maximum": 100, "default": 10},
+                "ascending":         {"type": "boolean", "default": False, "description": "Set true for bottom-N / smallest."},
+                "columns_to_return": {"type": "array", "items": {"type": "string"}, "description": "Optional whitelist of columns to include in the result."},
+                "filters":           {"type": "array", "items": {"type": "object"}, "description": "Same shape as run_aggregation.filters."},
+            },
+            "required": ["sort_by"],
+        },
+    },
+    {
+        "name": "get_sample_rows",
+        "description": (
+            "Return a sample of rows from the FULL dataset matching optional "
+            "filters. Use when the user asks 'show me rows where ...' — you "
+            "should never display rows you've made up; always fetch them via "
+            "this tool."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "n":       {"type": "integer", "minimum": 1, "maximum": 100, "default": 10},
+                "filters": {"type": "array", "items": {"type": "object"}},
+                "columns_to_return": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+    },
+]
+
+
+# ── Tool handlers ────────────────────────────────────────────────────────────
+# Pure Python because there's no pandas in this backend. For typical agency
+# datasets (≤ 100k rows, ≤ 50 columns) the linear scans below are <100ms.
+
+def _coerce_for_compare(v):
+    """Best-effort coercion of a stringy value to int/float for numeric ops.
+    Falls back to the original string."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return v
+    s = str(v).strip()
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    return s
+
+
+def _row_matches_filter(row: dict, f: dict) -> bool:
+    """Apply a single filter to one row. Unknown ops fail-closed (return False)."""
+    col, op, value = f.get("column"), (f.get("op") or "==").lower(), f.get("value")
+    if not col or col not in row:
+        return False
+    cell = _coerce_for_compare(row.get(col))
+    val = value
+    # Coerce value to number when comparing against numeric cells
+    if isinstance(cell, (int, float)) and isinstance(val, str):
+        try:
+            val = float(val)
+        except ValueError:
+            pass
+    try:
+        if op in ("==", "="):           return cell == val
+        if op == "!=":                  return cell != val
+        if op == ">":                   return cell is not None and cell > val
+        if op == ">=":                  return cell is not None and cell >= val
+        if op == "<":                   return cell is not None and cell < val
+        if op == "<=":                  return cell is not None and cell <= val
+        if op == "in":                  return cell in (val or [])
+        if op == "between":
+            lo, hi = (val or [None, None])[:2]
+            return cell is not None and lo is not None and hi is not None and lo <= cell <= hi
+        if op == "startswith":          return str(cell or "").startswith(str(val))
+        if op == "contains":            return str(val) in str(cell or "")
+    except Exception:
+        return False
+    return False
+
+
+def _apply_filters(rows: list, filters) -> list:
+    if not filters:
+        return rows
+    return [r for r in rows if all(_row_matches_filter(r, f) for f in filters)]
+
+
+def _agg(values: list, fn: str):
+    nums = []
+    for v in values:
+        f = _coerce_for_compare(v)
+        if isinstance(f, (int, float)):
+            nums.append(f)
+    if fn == "count":
+        return len(values)              # count of non-null/empty values, not just numerics? user usually means rows
+    if not nums:
+        return None
+    if fn == "sum":    return round(sum(nums), 4)
+    if fn == "mean":   return round(sum(nums) / len(nums), 4)
+    if fn == "min":    return min(nums)
+    if fn == "max":    return max(nums)
+    if fn == "median":
+        s = sorted(nums)
+        m = len(s) // 2
+        return s[m] if len(s) % 2 else round((s[m - 1] + s[m]) / 2, 4)
+    return None
+
+
+def _tool_run_aggregation(rows: list, args: dict) -> dict:
+    metric  = args.get("metric_column")
+    agg_fn  = (args.get("agg_fn") or "sum").lower()
+    group   = args.get("group_by")
+    filters = args.get("filters")
+
+    if not rows:
+        return {"error": "no rows in dataset"}
+    if metric not in rows[0]:
+        return {"error": f"metric_column '{metric}' not in dataset. Available: {list(rows[0].keys())[:20]}"}
+    if group and group not in rows[0]:
+        return {"error": f"group_by '{group}' not in dataset"}
+
+    scoped = _apply_filters(rows, filters)
+    if not scoped:
+        return {"row_count": 0, "result": None, "note": "0 rows matched filters"}
+
+    if not group:
+        result = _agg([r.get(metric) for r in scoped], agg_fn)
+        return {"row_count": len(scoped), "result": result, "agg_fn": agg_fn, "metric_column": metric}
+
+    # Grouped
+    buckets: dict = {}
+    for r in scoped:
+        k = r.get(group)
+        buckets.setdefault(k, []).append(r.get(metric))
+    grouped = [
+        {group: k, agg_fn + "_" + metric: _agg(vs, agg_fn), "count": len(vs)}
+        for k, vs in buckets.items()
+    ]
+    # Sort grouped output descending by the agg value (None last) for readability
+    grouped.sort(key=lambda x: (x[agg_fn + "_" + metric] is None, -(x[agg_fn + "_" + metric] or 0)))
+    # Cap at 50 buckets to keep the prompt small
+    return {"row_count": len(scoped), "groups": grouped[:50], "agg_fn": agg_fn, "metric_column": metric, "group_by": group}
+
+
+def _tool_get_top_n(rows: list, args: dict) -> dict:
+    sort_by = args.get("sort_by")
+    n       = int(args.get("n") or 10)
+    asc     = bool(args.get("ascending"))
+    cols    = args.get("columns_to_return") or None
+    filters = args.get("filters")
+
+    if not rows:
+        return {"error": "no rows"}
+    if sort_by not in rows[0]:
+        return {"error": f"sort_by '{sort_by}' not in dataset"}
+
+    scoped = _apply_filters(rows, filters)
+    if not scoped:
+        return {"row_count": 0, "rows": []}
+
+    keyed = [(r, _coerce_for_compare(r.get(sort_by))) for r in scoped]
+    # None values go last regardless of direction
+    keyed.sort(key=lambda kv: (kv[1] is None, kv[1] if asc else -(kv[1] or 0) if isinstance(kv[1], (int, float)) else (kv[1] or "")))
+    out = [r for r, _ in keyed[:max(1, min(n, 100))]]
+    if cols:
+        out = [{c: r.get(c) for c in cols if c in r} for r in out]
+    return {"row_count": len(scoped), "rows": out}
+
+
+def _tool_get_sample_rows(rows: list, args: dict) -> dict:
+    n       = int(args.get("n") or 10)
+    cols    = args.get("columns_to_return") or None
+    filters = args.get("filters")
+    scoped  = _apply_filters(rows, filters)
+    out     = scoped[:max(1, min(n, 100))]
+    if cols:
+        out = [{c: r.get(c) for c in cols if c in r} for r in out]
+    return {"row_count": len(scoped), "rows": out}
+
+
+def _dispatch_chat_tool(tool_name: str, tool_input: dict, rows: list) -> Any:
+    """Run a single tool call on the full dataset and return the JSON-able result.
+    Errors are returned as {"error": "..."} so Claude can recover gracefully."""
+    try:
+        if tool_name == "run_aggregation":
+            return _tool_run_aggregation(rows, tool_input or {})
+        if tool_name == "get_top_n":
+            return _tool_get_top_n(rows, tool_input or {})
+        if tool_name == "get_sample_rows":
+            return _tool_get_sample_rows(rows, tool_input or {})
+        return {"error": f"unknown tool: {tool_name}"}
+    except Exception as exc:
+        logger.warning("tool '%s' failed: %s", tool_name, exc)
+        return {"error": f"tool execution failed: {exc}"}
 
 
 @router.post("/chat")
@@ -720,28 +982,86 @@ async def ai_chat(
             injected = True
         api_messages.append({"role": m.role, "content": content})
 
-    async with httpx.AsyncClient(timeout=90) as client:
-        response = await client.post(
-            ANTHROPIC_URL,
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": MODEL,
-                "max_tokens": 2048,
-                "system": CHAT_SYSTEM_PROMPT,
-                "messages": api_messages,
-            },
-        )
-        result = response.json()
+    # ── Multi-turn tool-use loop ──────────────────────────────────────────
+    #
+    # Each iteration sends the conversation + tools to Claude. If Claude
+    # decides to call one or more tools, we execute them server-side against
+    # the full dataset and append a `user` message with the tool_result
+    # blocks. Loop until stop_reason == "end_turn" or we hit the safety cap.
+    MAX_TOOL_TURNS = 5  # well above what any sane question needs
+    total_in_tok, total_out_tok = 0, 0
+    final_text = ""
 
+    async with httpx.AsyncClient(timeout=90) as client:
+        for turn in range(MAX_TOOL_TURNS + 1):
+            response = await client.post(
+                ANTHROPIC_URL,
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": MODEL,
+                    "max_tokens": 2048,
+                    "system": CHAT_SYSTEM_PROMPT,
+                    "tools": CHAT_TOOLS,
+                    "messages": api_messages,
+                },
+            )
+            result = response.json()
+
+            # Roll up usage across all turns (cost-fair).
+            usage = result.get("usage", {}) or {}
+            total_in_tok  += int(usage.get("input_tokens", 0) or 0)
+            total_out_tok += int(usage.get("output_tokens", 0) or 0)
+
+            stop_reason = result.get("stop_reason")
+            content_blocks = result.get("content", []) or []
+
+            # Aggregate any `text` blocks into the running final answer.
+            text_pieces = [b.get("text", "") for b in content_blocks if b.get("type") == "text"]
+            if text_pieces:
+                final_text = "\n".join(t for t in text_pieces if t).strip()
+
+            if stop_reason != "tool_use":
+                # We're done. final_text holds the model's last words.
+                break
+
+            # Execute every tool_use block in this turn.
+            tool_use_blocks = [b for b in content_blocks if b.get("type") == "tool_use"]
+            if not tool_use_blocks:
+                break  # nothing to execute; bail out defensively
+
+            # Anthropic protocol: append the assistant message verbatim,
+            # then a user message containing tool_result blocks.
+            api_messages.append({"role": "assistant", "content": content_blocks})
+            tool_results = []
+            for block in tool_use_blocks:
+                tool_name  = block.get("name", "")
+                tool_input = block.get("input", {}) or {}
+                tool_id    = block.get("id", "")
+                tool_out   = _dispatch_chat_tool(tool_name, tool_input, rows)
+                tool_results.append({
+                    "type":          "tool_result",
+                    "tool_use_id":   tool_id,
+                    "content":       json.dumps(tool_out, default=str)[:6000],  # cap to keep prompt small
+                })
+            api_messages.append({"role": "user", "content": tool_results})
+
+            if turn == MAX_TOOL_TURNS:
+                # Safety: surface a soft message rather than loop forever.
+                final_text = (
+                    "I tried several tool calls but couldn't complete the analysis "
+                    "within the iteration limit. Could you try rephrasing or "
+                    "narrowing the question?"
+                )
+                break
+
+    # Usage accounting once at the end (single log event for the whole turn,
+    # regardless of how many tool round-trips happened).
     try:
-        usage = result.get("usage", {}) or {}
-        in_tok = int(usage.get("input_tokens", 0) or 0)
-        out_tok = int(usage.get("output_tokens", 0) or 0)
-        total = in_tok + out_tok
+        total = total_in_tok + total_out_tok
         if total > 0 and current_user.organisation_id:
             log_usage(
                 db,
@@ -749,15 +1069,19 @@ async def ai_chat(
                 user_id=current_user.id,
                 kind="ai_tokens",
                 quantity=total,
-                cost_cents=_estimate_cost_cents(in_tok, out_tok),
-                meta={"model": MODEL, "endpoint": "/ai/chat", "input_tokens": in_tok, "output_tokens": out_tok, "file_id": req.file_id, "turns": len(req.messages)},
+                cost_cents=_estimate_cost_cents(total_in_tok, total_out_tok),
+                meta={
+                    "model": MODEL, "endpoint": "/ai/chat",
+                    "input_tokens": total_in_tok, "output_tokens": total_out_tok,
+                    "file_id": req.file_id, "turns": len(req.messages),
+                    # rough indicator of how much tool-use happened
+                    "tool_round_trips": len([m for m in api_messages if isinstance(m.get("content"), list)]),
+                },
             )
     except Exception as exc:
         logger.warning("usage logging failed in /ai/chat: %s", exc)
 
-    content = result.get("content", [{}])
-    text = content[0].get("text", "") if content else ""
-    return {"response": text}
+    return {"response": final_text}
 
 
 FORMULA_SYSTEM_PROMPT = """You generate mathjs-compatible formulas that operate
