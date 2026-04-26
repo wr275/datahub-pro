@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
 
 export default function VarianceAnalysis() {
   const [files, setFiles] = useState([])
@@ -10,24 +11,27 @@ export default function VarianceAnalysis() {
   const [groupCol, setGroupCol] = useState('')
   const [valCol, setValCol] = useState('')
   const [result, setResult] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null)
+    setFileId(id); setResult(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
 
   function run() {
     if (!groupCol || !valCol || !rows.length) return
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setResult(null); return }
     const groups = {}
-    rows.forEach(r => {
+    scoped.forEach(r => {
       const k = r[groupCol] || '(blank)'; const v = parseFloat(r[valCol]) || 0
       if (!groups[k]) groups[k] = []
       groups[k].push(v)
     })
-    const allVals = rows.map(r => parseFloat(r[valCol]) || 0)
+    const allVals = scoped.map(r => parseFloat(r[valCol]) || 0)
     const grandMean = allVals.reduce((a, b) => a + b, 0) / allVals.length
     const analysis = Object.entries(groups).map(([group, vals]) => {
       const mean = vals.reduce((a, b) => a + b, 0) / vals.length
@@ -52,6 +56,18 @@ export default function VarianceAnalysis() {
             ['Value', <select value={valCol} onChange={e => setValCol(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}><option value="">-- Numeric --</option>{numericCols.map(h => <option key={h} value={h}>{h}</option>)}</select>]
           ].map(([label, el]) => <div key={label}><div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>{label}</div>{el}</div>)}
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="variance-analysis.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!groupCol || !valCol} style={{ padding: '9px 24px', background: groupCol && valCol ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: groupCol && valCol ? 'pointer' : 'default' }}>Analyse Variance</button>
       </div>
 

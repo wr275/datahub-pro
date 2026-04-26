@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, analyticsApi } from '../api'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
 
 export default function CohortAnalysis() {
   const [files, setFiles] = useState([])
@@ -10,19 +11,22 @@ export default function CohortAnalysis() {
   const [periodCol, setPeriodCol] = useState('')
   const [valCol, setValCol] = useState('')
   const [result, setResult] = useState(null)
+  const [dateRange, setDateRange] = useState(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null)
+    setFileId(id); setResult(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
 
   function run() {
     if (!cohortCol || !periodCol || !valCol || !rows.length) return
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setResult(null); return }
     const cohorts = {}
-    rows.forEach(r => {
+    scoped.forEach(r => {
       const cohort = r[cohortCol] || '(blank)'
       const period = r[periodCol] || '(blank)'
       const val = parseFloat(r[valCol]) || 0
@@ -32,7 +36,7 @@ export default function CohortAnalysis() {
       cohorts[cohort][period].count++
     })
     const cohortKeys = Object.keys(cohorts).sort().slice(0, 15)
-    const periodKeys = [...new Set(rows.map(r => r[periodCol] || '(blank)'))].sort().slice(0, 12)
+    const periodKeys = [...new Set(scoped.map(r => r[periodCol] || '(blank)'))].sort().slice(0, 12)
     const matrix = cohortKeys.map(c => {
       const row = { cohort: c }
       periodKeys.forEach(p => {
@@ -74,6 +78,18 @@ export default function CohortAnalysis() {
             ['Value Column', <select value={valCol} onChange={e => setValCol(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}><option value="">-- Numeric --</option>{numericCols.map(h => <option key={h} value={h}>{h}</option>)}</select>]
           ].map(([label, el]) => <div key={label}><div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>{label}</div>{el}</div>)}
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="cohort-analysis.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!cohortCol || !periodCol || !valCol} style={{ padding: '9px 24px', background: cohortCol && periodCol && valCol ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: cohortCol && periodCol && valCol ? 'pointer' : 'default' }}>Build Cohort Matrix</button>
       </div>
 

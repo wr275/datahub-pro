@@ -4,6 +4,7 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
+import DateRangePicker from '../components/ui/DateRangePicker'
 
 // -----------------------------------------------------------------------------
 // Forecasting 2.0
@@ -35,7 +36,8 @@ export default function Forecasting() {
   const [headers, setHeaders] = useState([])
   const [rows, setRows] = useState([])
   const [valCol, setValCol] = useState('')
-  const [dateCol, setDateCol] = useState('')
+  const [dateRange, setDateRange] = useState(null)   // { date_column, from, to, preset }
+  const dateCol = dateRange?.date_column || ''
   const [method, setMethod] = useState('auto')
   const [agg, setAgg] = useState('auto')
   const [periods, setPeriods] = useState(6)
@@ -49,7 +51,7 @@ export default function Forecasting() {
   }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null); setValCol(''); setDateCol(''); setError('')
+    setFileId(id); setResult(null); setValCol(''); setDateRange(null); setError('')
     if (!id) { setHeaders([]); setRows([]); return }
     analyticsApi.preview(id).then(r => {
       setHeaders(r.data.headers || [])
@@ -83,6 +85,9 @@ export default function Forecasting() {
       const r = await analyticsApi.forecast(fileId, {
         value_column: valCol,
         date_column: dateCol || null,
+        // New optional fields the backend may or may not honour yet — forwards-compatible.
+        from: dateRange?.from || null,
+        to:   dateRange?.to   || null,
         periods,
         method,
         aggregation: agg,
@@ -131,7 +136,7 @@ export default function Forecasting() {
       </p>
 
       <div style={{ background: '#fff', border: '1px solid #e8eaf4', borderRadius: 12, padding: 18, marginBottom: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12, marginBottom: 12 }}>
           <Field label='Dataset'>
             <select value={fileId} onChange={e => loadFile(e.target.value)} style={selectStyle}>
               <option value=''>-- Choose a file --</option>
@@ -144,18 +149,27 @@ export default function Forecasting() {
               {numericCols.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
           </Field>
-          <Field label='Date column (optional)'>
-            <select value={dateCol} onChange={e => setDateCol(e.target.value)} style={selectStyle} disabled={!dateCols.length}>
-              <option value=''>-- Use row order --</option>
-              {dateCols.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-          </Field>
           <Field label='Aggregation'>
             <select value={agg} onChange={e => setAgg(e.target.value)} style={selectStyle} disabled={!dateCol}>
               {AGG_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </Field>
         </div>
+
+        {/* Date range — drives both the date column AND the optional date filter
+            sent to the forecast endpoint. Header order is preserved when the
+            heuristic detects a date column, so the user can always override. */}
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              dateColumns={dateCols}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="forecasting.dateRange"
+            />
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: 12, alignItems: 'end' }}>
           <Field label='Method'>

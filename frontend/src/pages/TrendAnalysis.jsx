@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
 
 export default function TrendAnalysis() {
   const [files, setFiles] = useState([])
@@ -11,18 +12,23 @@ export default function TrendAnalysis() {
   const [yCol, setYCol] = useState('')
   const [trendType, setTrendType] = useState('linear')
   const [result, setResult] = useState(null)
+  // Optional date-range pre-filter — independent of xCol because the user
+  // might want to scope to a window without using that column on the X axis.
+  const [dateRange, setDateRange] = useState(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResult(null)
+    setFileId(id); setResult(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => { setHeaders(r.data.headers || []); setRows(r.data.rows || []) }).catch(() => {})
   }
 
   function run() {
     if (!yCol || !rows.length) return
-    const pts = rows.map((r, i) => ({ x: xCol ? (r[xCol] || i) : i + 1, y: parseFloat(r[yCol]) || 0, label: xCol ? String(r[xCol] || i + 1) : String(i + 1) }))
+    const scoped = applyDateFilter(rows, dateRange)
+    if (!scoped.length) { setResult(null); return }
+    const pts = scoped.map((r, i) => ({ x: xCol ? (r[xCol] || i) : i + 1, y: parseFloat(r[yCol]) || 0, label: xCol ? String(r[xCol] || i + 1) : String(i + 1) }))
     const yVals = pts.map(p => p.y)
     const n = pts.length
     const mean = yVals.reduce((a, b) => a + b, 0) / n
@@ -67,6 +73,18 @@ export default function TrendAnalysis() {
             ['Trend Method', <select value={trendType} onChange={e => setTrendType(e.target.value)} style={{ width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: '0.9rem' }}><option value="linear">Linear Regression</option><option value="moving_avg">Moving Average</option><option value="ema">Exponential Smoothing</option></select>]
           ].map(([label, el]) => <div key={label}><div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>{label}</div>{el}</div>)}
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="trend-analysis.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!yCol} style={{ padding: '9px 24px', background: yCol ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: yCol ? 'pointer' : 'default' }}>Analyse Trend</button>
       </div>
 

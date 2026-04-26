@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { filesApi, analyticsApi } from '../api'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import DateRangePicker, { applyDateFilter } from '../components/ui/DateRangePicker'
 
 export default function AnomalyDetection() {
   const [files, setFiles] = useState([])
@@ -12,11 +13,12 @@ export default function AnomalyDetection() {
   const [threshold, setThreshold] = useState(2.5)
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [dateRange, setDateRange] = useState(null)
 
   useEffect(() => { filesApi.list().then(r => setFiles(r.data || [])).catch(() => {}) }, [])
 
   function loadFile(id) {
-    setFileId(id); setResults(null)
+    setFileId(id); setResults(null); setDateRange(null)
     if (!id) return
     analyticsApi.preview(id).then(r => {
       const hs = r.data.headers || []; const rs = r.data.rows || []
@@ -30,7 +32,9 @@ export default function AnomalyDetection() {
     if (!col || !rows.length) return
     setLoading(true)
     setTimeout(() => {
-      const vals = rows.map((r, i) => ({ i, v: parseFloat(r[col]) || 0, row: r }))
+      const scoped = applyDateFilter(rows, dateRange)
+      if (!scoped.length) { setResults(null); setLoading(false); return }
+      const vals = scoped.map((r, i) => ({ i, v: parseFloat(r[col]) || 0, row: r }))
       const nums = vals.map(x => x.v)
       const mean = nums.reduce((a, b) => a + b, 0) / nums.length
       const std = Math.sqrt(nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length)
@@ -89,6 +93,18 @@ export default function AnomalyDetection() {
             <input type="range" min="1" max="4" step="0.1" value={threshold} onChange={e => setThreshold(parseFloat(e.target.value))} style={{ width: '100%', marginTop: 8 }} />
           </div>
         </div>
+
+        {headers.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <DateRangePicker
+              columns={headers}
+              value={dateRange}
+              onChange={setDateRange}
+              storageKey="anomaly-detection.dateRange"
+            />
+          </div>
+        )}
+
         <button onClick={run} disabled={!col} style={{ padding: '9px 24px', background: col ? '#e91e8c' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: col ? 'pointer' : 'default' }}>
           {loading ? 'Detecting...' : 'Detect Anomalies'}
         </button>
